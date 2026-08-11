@@ -53,10 +53,14 @@ export function LoginForm({
   });
 
   const signInWithGoogle = async () => {
-    await authClient.signIn.social({
+    const { error } = await authClient.signIn.social({
       provider: "google",
       callbackURL: "/dashboard",
     });
+
+    if (error) {
+      toast.error(error.message || "Google sign-in failed.");
+    }
   };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
