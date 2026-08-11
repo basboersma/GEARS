@@ -51,13 +51,25 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session) => {
-          const activeOrganization = await getActiveOrganization(
-            session.userId
-          );
+          let activeOrganizationId: string | undefined;
+
+          // Do not block login if organization lookup fails.
+          try {
+            const activeOrganization = await getActiveOrganization(
+              session.userId
+            );
+            activeOrganizationId = activeOrganization?.id;
+          } catch (error) {
+            console.error("Failed to resolve active organization on login", {
+              userId: session.userId,
+              error,
+            });
+          }
+
           return {
             data: {
               ...session,
-              activeOrganizationId: activeOrganization?.id,
+              activeOrganizationId,
             },
           };
         },
