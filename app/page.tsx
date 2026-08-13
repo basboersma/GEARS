@@ -18,11 +18,11 @@ export default function Home() {
           width={100}
         />
 
-        <h1 className="font-bold text-4xl">Better Auth Starter</h1>
+        <h1 className="font-bold text-4xl">Welcome</h1>
 
         <p className="text-lg">
-          This is a starter project for Better Auth. It is a simple project that
-          uses Better Auth to authenticate users.
+          Remember, remember, the Fifth of November Gunpowder treason and plot I
+          see no reason why gunpowder treason Should ever be forgot!
         </p>
 
         <div className="flex gap-2">

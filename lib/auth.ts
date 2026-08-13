@@ -25,6 +25,9 @@ export const auth = betterAuth({
     },
     sendOnSignUp: true,
   },
+
+  organizationOnly: false, // Set to true if you want to restrict access to users who are part of an organization
+
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
