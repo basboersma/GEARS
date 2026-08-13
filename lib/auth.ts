@@ -26,7 +26,7 @@ export const auth = betterAuth({
     sendOnSignUp: true,
   },
 
-  organizationOnly: false, // Set to true if you want to restrict access to users who are part of an organization
+  //organizationOnly: false,
 
   socialProviders: {
     google: {
