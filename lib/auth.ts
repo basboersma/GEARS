@@ -32,7 +32,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      hd: "student.rug.nl", // Only allow Google accounts with @student.rug.nl domain
+      allowedDomains: ["student.rug.nl"], // <-- Use this
     },
   },
   emailAndPassword: {
