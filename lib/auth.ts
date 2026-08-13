@@ -32,7 +32,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      allowedDomains: ["student.rug.nl"], // <-- Use this
+      //allowedDomains: ["student.rug.nl"], // <-- Use this
     },
   },
   emailAndPassword: {
@@ -86,7 +86,7 @@ export const auth = betterAuth({
   }),
   plugins: [
     organization({
-      organizationOnly: false,
+      //organizationOnly: false,
       sendInvitationEmail: async (data) => {
         const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/accept-invitation/${data.id}`;
 
