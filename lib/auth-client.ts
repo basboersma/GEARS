@@ -4,8 +4,11 @@ import {
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+const authBaseURL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (typeof window !== "undefined" ? window.location.origin : undefined);
+
 export const authClient = createAuthClient({
-  // Use deployed origin in production and same-origin locally.
-  baseURL: process.env.NEXT_PUBLIC_APP_URL,
+  baseURL: authBaseURL,
   plugins: [organizationClient(), lastLoginMethodClient()],
 });
