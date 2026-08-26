@@ -9,21 +9,9 @@ import VerifyEmail from "@/components/emails/verify-email";
 import { db } from "@/db/drizzle";
 import { schema } from "@/db/schema";
 import { getActiveOrganization } from "@/server/organizations";
-import { ac, admin, member, owner } from "./auth/permissions";
+import { admin, member, owner } from "./auth/permissions";
 
 const resend = new Resend(process.env.RESEND_API_KEY as string);
-
-const organizationRoles = {
-  owner: ac.newRole({
-    ...owner.statements,
-    invitation: ["create", "cancel"],
-  }),
-  admin: ac.newRole({
-    ...admin.statements,
-    invitation: ["create", "cancel"],
-  }),
-  member,
-};
 
 export const auth = betterAuth({
   emailVerification: {
@@ -100,17 +88,9 @@ export const auth = betterAuth({
     organization({
       //organizationOnly: false,
       sendInvitationEmail: async (data) => {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/accept-invitation/${data.id}`;
 
-        if (!appUrl) {
-          throw new Error(
-            "Invitation email is not configured. Missing NEXT_PUBLIC_APP_URL."
-          );
-        }
-
-        const inviteLink = `${appUrl}/api/accept-invitation/${data.id}`;
-
-        const { error } = await resend.emails.send({
+        await resend.emails.send({
           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
           to: data.email,
           subject: "You've been invited to join our organization",
@@ -122,16 +102,11 @@ export const auth = betterAuth({
             inviteLink,
           }),
         });
-
-        if (error) {
-          throw new Error(
-            error.message ||
-              "Failed to send invitation email. Please try again later."
-          );
-        }
       },
       roles: {
-        ...organizationRoles,
+        owner,
+        admin,
+        member,
       },
     }),
     lastLoginMethod(),
