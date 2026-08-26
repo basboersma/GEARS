@@ -9,9 +9,21 @@ import VerifyEmail from "@/components/emails/verify-email";
 import { db } from "@/db/drizzle";
 import { schema } from "@/db/schema";
 import { getActiveOrganization } from "@/server/organizations";
-import { admin, member, owner } from "./auth/permissions";
+import { ac, admin, member, owner } from "./auth/permissions";
 
 const resend = new Resend(process.env.RESEND_API_KEY as string);
+
+const organizationRoles = {
+  owner: ac.newRole({
+    ...owner.statements,
+    invitation: ["create", "cancel"],
+  }),
+  admin: ac.newRole({
+    ...admin.statements,
+    invitation: ["create", "cancel"],
+  }),
+  member,
+};
 
 export const auth = betterAuth({
   emailVerification: {
@@ -104,12 +116,7 @@ export const auth = betterAuth({
         });
       },
       roles: {
-        owner,
-        admin,
-        member,
-      },
-      permissions: {
-        invite: ["owner", "admin"],
+        ...organizationRoles,
       },
     }),
     lastLoginMethod(),
