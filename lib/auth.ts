@@ -100,9 +100,17 @@ export const auth = betterAuth({
     organization({
       //organizationOnly: false,
       sendInvitationEmail: async (data) => {
-        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/accept-invitation/${data.id}`;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
-        await resend.emails.send({
+        if (!appUrl) {
+          throw new Error(
+            "Invitation email is not configured. Missing NEXT_PUBLIC_APP_URL."
+          );
+        }
+
+        const inviteLink = `${appUrl}/api/accept-invitation/${data.id}`;
+
+        const { error } = await resend.emails.send({
           from: `${process.env.EMAIL_SENDER_NAME} <${process.env.EMAIL_SENDER_ADDRESS}>`,
           to: data.email,
           subject: "You've been invited to join our organization",
@@ -114,6 +122,13 @@ export const auth = betterAuth({
             inviteLink,
           }),
         });
+
+        if (error) {
+          throw new Error(
+            error.message ||
+              "Failed to send invitation email. Please try again later."
+          );
+        }
       },
       roles: {
         ...organizationRoles,
