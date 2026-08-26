@@ -17,6 +17,7 @@ const admin = ac.newRole({
 });
 
 const owner = ac.newRole({
+  ...defaultStatements,
   project: ["create", "update", "delete"],
   organization: ["update", "delete"],
 });
