@@ -108,6 +108,9 @@ export const auth = betterAuth({
         admin,
         member,
       },
+      permissions: {
+        invite: ["owner", "admin"],
+      },
     }),
     lastLoginMethod(),
     nextCookies(),
