@@ -288,7 +288,7 @@ function getOrderBatchItemClass(item: OrderBatchItem) {
     return "bg-[#FFD142]/40 border-[#FFD142]";
   }
 
-  if (item.status === "pending" || item.status === "declined") {
+  if (item.status === "declined") {
     return "bg-[#F0684D]/20 border-[#F0684D]";
   }
 
@@ -877,7 +877,7 @@ export function OrganizationAgenda({
     agendaContent = (
       <p className="text-muted-foreground text-sm">Loading agenda...</p>
     );
-  } else if (events.length === 0) {
+  } else if (events.length === 0 && orderBatches.length === 0) {
     agendaContent = (
       <p className="text-muted-foreground text-sm">No agenda items yet.</p>
     );
@@ -920,6 +920,58 @@ export function OrganizationAgenda({
       );
     };
 
+    const renderOrderBatchChip = (batch: OrderBatch) => {
+      const style = getBatchStyle(batch.batchState);
+
+      return (
+        <div className="group relative" key={batch.id}>
+          <button
+            className={`w-full rounded-xl border border-black/10 px-2 py-1 text-left text-xs transition-opacity hover:opacity-90 ${style.block}`}
+            onClick={() => setSelectedOrderBatchId(batch.id)}
+            type="button"
+          >
+            <p className="truncate font-medium">{batch.orderName}</p>
+            <p className="text-[11px] text-current/80">
+              {batch.items.length} items · {batch.department}
+            </p>
+          </button>
+
+          <div className="pointer-events-none absolute top-full left-0 z-30 mt-1 hidden w-64 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg group-focus-within:block group-hover:block">
+            <p className="line-clamp-1 font-medium text-xs">
+              {batch.orderName}
+            </p>
+            <p className="mt-1 text-muted-foreground text-xs">
+              Dept {batch.department} · {batch.items.length} items
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {dayLabelFormatter.format(new Date(batch.orderedDate))}
+            </p>
+          </div>
+        </div>
+      );
+    };
+
+    const dayOrderBatches = visibleOrderBatches.filter((batch) => {
+      const batchDate = parseEventDate(batch.orderedDate);
+      return batchDate ? sameDay(batchDate, focusDate) : false;
+    });
+
+    const weekOrderBatchesByDay = weekDays.map((day) => ({
+      day,
+      batches: visibleOrderBatches.filter((batch) => {
+        const batchDate = parseEventDate(batch.orderedDate);
+        return batchDate ? sameDay(batchDate, day) : false;
+      }),
+    }));
+
+    const monthOrderBatchesByDay = monthCells.map((day) => ({
+      day,
+      batches: visibleOrderBatches.filter((batch) => {
+        const batchDate = parseEventDate(batch.orderedDate);
+        return batchDate ? sameDay(batchDate, day) : false;
+      }),
+    }));
+
     let calendarBody: ReactNode;
 
     if (view === "day") {
@@ -929,13 +981,14 @@ export function OrganizationAgenda({
             {dayTitleFormatter.format(focusDate)}
           </p>
 
-          {dayEvents.length === 0 ? (
+          {dayEvents.length === 0 && dayOrderBatches.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               No events scheduled for this day.
             </p>
           ) : (
             <div className="flex flex-col gap-2">
               {dayEvents.map((event) => renderEventChip(event))}
+              {dayOrderBatches.map((batch) => renderOrderBatchChip(batch))}
             </div>
           )}
         </div>
@@ -944,25 +997,33 @@ export function OrganizationAgenda({
       calendarBody = (
         <div className="overflow-x-auto">
           <div className="grid min-w-[48rem] grid-cols-7 gap-2">
-            {weekEventsByDay.map(({ day, events: dayItems }) => (
-              <div
-                className="rounded-lg border border-border/70 bg-muted/20 p-2"
-                key={day.toISOString()}
-              >
-                <p className="mb-2 text-center font-medium text-xs">
-                  {weekdayFormatter.format(day)} {day.getDate()}
-                </p>
-                <div className="flex min-h-40 flex-col gap-1.5">
-                  {dayItems.length === 0 ? (
-                    <span className="text-center text-muted-foreground text-xs">
-                      No events
-                    </span>
-                  ) : (
-                    dayItems.map((event) => renderEventChip(event))
-                  )}
+            {weekEventsByDay.map(({ day, events: dayItems }, index) => {
+              const dayBatches = weekOrderBatchesByDay[index]?.batches ?? [];
+              const hasItems = dayItems.length > 0 || dayBatches.length > 0;
+
+              return (
+                <div
+                  className="rounded-lg border border-border/70 bg-muted/20 p-2"
+                  key={day.toISOString()}
+                >
+                  <p className="mb-2 text-center font-medium text-xs">
+                    {weekdayFormatter.format(day)} {day.getDate()}
+                  </p>
+                  <div className="flex min-h-40 flex-col gap-1.5">
+                    {hasItems ? (
+                      <>
+                        {dayItems.map((event) => renderEventChip(event))}
+                        {dayBatches.map((batch) => renderOrderBatchChip(batch))}
+                      </>
+                    ) : (
+                      <span className="text-center text-muted-foreground text-xs">
+                        No events
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       );
@@ -985,42 +1046,53 @@ export function OrganizationAgenda({
             })}
 
             {monthEventsByDay.map(
-              ({ day, events: dayItems, inCurrentMonth }) => (
-                <div
-                  className={`min-h-24 rounded-lg border p-2 ${
-                    inCurrentMonth
-                      ? "border-border/70 bg-background"
-                      : "border-border/40 bg-muted/20"
-                  }`}
-                  key={day.toISOString()}
-                >
-                  <button
-                    className={`mb-1 rounded px-1 text-xs ${
-                      sameDay(day, focusDate)
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                    onClick={() => {
-                      setFocusDate(startOfDay(day));
-                      setView("day");
-                    }}
-                    type="button"
-                  >
-                    {day.getDate()}
-                  </button>
+              ({ day, events: dayItems, inCurrentMonth }, index) => {
+                const dayBatches = monthOrderBatchesByDay[index]?.batches ?? [];
+                const visibleBatches = dayBatches.slice(0, 2);
+                const hiddenCount =
+                  Math.max(dayItems.length - 3, 0) +
+                  Math.max(dayBatches.length - 2, 0);
 
-                  <div className="flex flex-col gap-1">
-                    {dayItems
-                      .slice(0, 3)
-                      .map((event) => renderEventChip(event))}
-                    {dayItems.length > 3 ? (
-                      <p className="text-muted-foreground text-xs">
-                        +{dayItems.length - 3} more
-                      </p>
-                    ) : null}
+                return (
+                  <div
+                    className={`min-h-24 rounded-lg border p-2 ${
+                      inCurrentMonth
+                        ? "border-border/70 bg-background"
+                        : "border-border/40 bg-muted/20"
+                    }`}
+                    key={day.toISOString()}
+                  >
+                    <button
+                      className={`mb-1 rounded px-1 text-xs ${
+                        sameDay(day, focusDate)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                      onClick={() => {
+                        setFocusDate(startOfDay(day));
+                        setView("day");
+                      }}
+                      type="button"
+                    >
+                      {day.getDate()}
+                    </button>
+
+                    <div className="flex flex-col gap-1">
+                      {dayItems
+                        .slice(0, 3)
+                        .map((event) => renderEventChip(event))}
+                      {visibleBatches.map((batch) =>
+                        renderOrderBatchChip(batch)
+                      )}
+                      {hiddenCount > 0 ? (
+                        <p className="text-muted-foreground text-xs">
+                          +{hiddenCount} more
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              )
+                );
+              }
             )}
           </div>
         </div>
@@ -1141,56 +1213,6 @@ export function OrganizationAgenda({
                 </article>
               );
             })
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <p className="font-medium text-sm">Order batches in current {view}</p>
-
-          {visibleOrderBatches.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No order batches in this range.
-            </p>
-          ) : (
-            <div className="grid gap-3">
-              {visibleOrderBatches.map((batch) => {
-                const style = getBatchStyle(batch.batchState);
-                const finalizedCount = batch.items.filter((item) =>
-                  isOrderBatchItemFinalized(item)
-                ).length;
-
-                return (
-                  <button
-                    className={`w-full rounded-2xl border border-black/10 p-4 text-left shadow-sm transition-opacity hover:opacity-90 ${style.block}`}
-                    key={batch.id}
-                    onClick={() => setSelectedOrderBatchId(batch.id)}
-                    type="button"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-sm">
-                          {batch.orderName}
-                        </p>
-                        <p className="text-xs opacity-80">
-                          Dept {batch.department} · {batch.items.length} items
-                        </p>
-                        <p className="text-xs opacity-80">
-                          {dayLabelFormatter.format(
-                            new Date(batch.orderedDate)
-                          )}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`rounded-full px-2 py-1 font-medium text-[11px] ${style.badge}`}
-                      >
-                        {finalizedCount}/{batch.items.length} finalized
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
           )}
         </div>
       </div>

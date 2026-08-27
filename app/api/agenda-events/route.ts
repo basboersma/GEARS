@@ -162,14 +162,12 @@ export async function GET(request: Request) {
 
     const allFinalized =
       batch.items.length > 0 && batch.items.every(isItemFinalized);
-    const hasPendingOrDeclined = batch.items.some(
-      (item) => item.status === "pending" || item.status === "declined"
-    );
+    const hasDeclined = batch.items.some((item) => item.status === "declined");
 
     let batchState: "finalized" | "attention" | "in_progress" = "in_progress";
     if (allFinalized) {
       batchState = "finalized";
-    } else if (hasPendingOrDeclined) {
+    } else if (hasDeclined) {
       batchState = "attention";
     }
 
