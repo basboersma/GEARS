@@ -1,8 +1,5 @@
 import { createAccessControl } from "better-auth/plugins/access";
-import {
-  defaultStatements,
-  ownerAc,
-} from "better-auth/plugins/organization/access";
+import { defaultStatements } from "better-auth/plugins/organization/access";
 
 const statement = {
   ...defaultStatements,
@@ -20,7 +17,7 @@ const admin = ac.newRole({
 });
 
 const owner = ac.newRole({
-  ...ownerAc.statements,
+  ...defaultStatements,
   project: ["create", "update", "delete"],
   organization: ["update", "delete"],
 });
