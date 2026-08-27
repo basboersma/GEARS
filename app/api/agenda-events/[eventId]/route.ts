@@ -3,18 +3,40 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { agendaEvent, member } from "@/db/schema";
+import {
+  agendaDiscussionPoint,
+  agendaDiscussionPointVote,
+  agendaEvent,
+  member,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
+
+const discussionPointSchema = z.object({
+  id: z.string().trim().optional(),
+  topic: z.string().trim().min(1),
+  notes: z.string().trim().optional().default(""),
+  votingEnabled: z.boolean().default(false),
+  votePrompt: z.string().trim().optional().default(""),
+});
+
+const itemTypeEnum = ["meeting", "event", "general_members_assembly"] as const;
 
 const updateAgendaEventSchema = z.object({
   start: z.string().trim().min(1).optional(),
   end: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).optional(),
+  itemType: z.enum(itemTypeEnum).optional(),
+  isDeadline: z.boolean().optional(),
+  allowVoting: z.boolean().optional(),
   description: z.string().trim().min(1).optional(),
   location: z.string().trim().optional(),
   attendees: z.string().trim().optional(),
   isMeeting: z.boolean().optional(),
+  minutesSummary: z.string().trim().optional(),
+  minutesDecisions: z.string().trim().optional(),
+  minutesActions: z.string().trim().optional(),
   minutes: z.string().trim().optional(),
+  discussionPoints: z.array(discussionPointSchema).optional(),
 });
 
 async function getSessionUser() {
@@ -52,6 +74,7 @@ async function canManageEvent(userId: string, eventId: string) {
   return { allowed, event };
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Update flow handles type/deadline transitions and coordinated replacement of discussion points and votes.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> }
@@ -86,15 +109,96 @@ export async function PATCH(
     );
   }
 
+  const nextItemType =
+    parsed.data.itemType ?? access.event?.itemType ?? "event";
+  const nextIsDeadline =
+    parsed.data.isDeadline ?? access.event?.isDeadline ?? false;
+  const isMeetingLike =
+    nextItemType === "meeting" || nextItemType === "general_members_assembly";
+
+  if (nextIsDeadline && nextItemType !== "event") {
+    return NextResponse.json(
+      { error: "Only event items can be marked as deadline" },
+      { status: 400 }
+    );
+  }
+
+  const nextTitle =
+    parsed.data.title ??
+    (nextIsDeadline ? "Deadline" : (access.event?.title ?? ""));
+
+  let nextCategory = access.event?.category ?? "task";
+
+  if (nextIsDeadline) {
+    nextCategory = "deadline";
+  } else if (nextItemType === "meeting") {
+    nextCategory = "meeting";
+  } else if (nextItemType === "general_members_assembly") {
+    nextCategory = "review";
+  } else if (nextCategory === "deadline") {
+    nextCategory = "task";
+  }
+
+  let nextAllowVoting = false;
+
+  if (!nextIsDeadline && isMeetingLike) {
+    nextAllowVoting =
+      parsed.data.allowVoting ?? access.event?.allowVoting ?? false;
+  }
+
   await db
     .update(agendaEvent)
     .set({
       ...parsed.data,
+      title: nextTitle,
+      itemType: nextItemType,
+      isDeadline: nextIsDeadline,
+      allowVoting: nextAllowVoting,
+      category: nextCategory,
       location: parsed.data.location ?? access.event?.location,
       attendees: parsed.data.attendees ?? access.event?.attendees,
+      isMeeting: nextIsDeadline ? false : isMeetingLike,
+      minutesSummary:
+        parsed.data.minutesSummary ?? access.event?.minutesSummary ?? null,
+      minutesDecisions:
+        parsed.data.minutesDecisions ?? access.event?.minutesDecisions ?? null,
+      minutesActions:
+        parsed.data.minutesActions ?? access.event?.minutesActions ?? null,
       updatedAt: new Date(),
     })
     .where(eq(agendaEvent.id, eventId));
+
+  if (parsed.data.discussionPoints) {
+    await db
+      .delete(agendaDiscussionPointVote)
+      .where(eq(agendaDiscussionPointVote.eventId, eventId));
+
+    await db
+      .delete(agendaDiscussionPoint)
+      .where(eq(agendaDiscussionPoint.eventId, eventId));
+
+    if (
+      !nextIsDeadline &&
+      isMeetingLike &&
+      parsed.data.discussionPoints.length > 0
+    ) {
+      await db.insert(agendaDiscussionPoint).values(
+        parsed.data.discussionPoints.map((point, index) => ({
+          id: point.id || crypto.randomUUID(),
+          eventId,
+          position: index,
+          topic: point.topic,
+          notes: point.notes || null,
+          votePrompt: point.votePrompt || null,
+          votingEnabled:
+            (parsed.data.allowVoting ?? access.event?.allowVoting ?? false) &&
+            point.votingEnabled,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }))
+      );
+    }
+  }
 
   return NextResponse.json({ success: true });
 }

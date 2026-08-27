@@ -1,6 +1,12 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -15,29 +21,66 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-const categories = [
-  { value: "meeting", label: "Meeting" },
-  { value: "review", label: "Review" },
-  { value: "task", label: "Task" },
-  { value: "deadline", label: "Deadline" },
-  { value: "break", label: "Break" },
-  { value: "personal", label: "Personal" },
-] as const;
+type CalendarView = "day" | "week" | "month";
+type AgendaItemType = "meeting" | "event" | "general_members_assembly";
+type VoteValue = "for" | "against" | "abstain";
+
+interface DiscussionPoint {
+  id: string;
+  eventId: string;
+  position: number;
+  topic: string;
+  notes: string | null;
+  votePrompt: string | null;
+  votingEnabled: boolean;
+  votes: {
+    for: number;
+    against: number;
+    abstain: number;
+    currentUserVote: VoteValue | null;
+  };
+}
 
 interface AgendaEvent {
   id: string;
   start: string;
   end: string;
   title: string;
-  category: (typeof categories)[number]["value"];
+  itemType: AgendaItemType;
+  isDeadline: boolean;
+  allowVoting: boolean;
   description: string;
   location: string | null;
   attendees: string | null;
-  isMeeting: boolean;
-  minutes: string | null;
+  minutesSummary: string | null;
+  minutesDecisions: string | null;
+  minutesActions: string | null;
+  discussionPoints: DiscussionPoint[];
 }
 
-type CalendarView = "day" | "week" | "month";
+interface ParsedAgendaEvent extends AgendaEvent {
+  startDateTime: Date;
+  endDateTime: Date;
+}
+
+interface DiscussionPointDraft {
+  clientId: string;
+  id?: string;
+  topic: string;
+  notes: string;
+  votingEnabled: boolean;
+  votePrompt: string;
+}
+
+function createDiscussionPointDraft(): DiscussionPointDraft {
+  return {
+    clientId: crypto.randomUUID(),
+    topic: "",
+    notes: "",
+    votingEnabled: false,
+    votePrompt: "",
+  };
+}
 
 const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -66,53 +109,10 @@ const timeFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
 });
 
-const timeOnlyRegex = /^(\d{1,2}):(\d{2})$/;
-
-const categoryStyles: Record<
-  (typeof categories)[number]["value"],
-  {
-    chip: string;
-    chipText: string;
-    badge: string;
-    border: string;
-  }
-> = {
-  meeting: {
-    chip: "border-blue-300/80 bg-blue-500/10 hover:bg-blue-500/20",
-    chipText: "text-blue-100",
-    badge: "bg-blue-500/20 text-blue-200",
-    border: "border-l-blue-400",
-  },
-  review: {
-    chip: "border-violet-300/80 bg-violet-500/10 hover:bg-violet-500/20",
-    chipText: "text-violet-100",
-    badge: "bg-violet-500/20 text-violet-200",
-    border: "border-l-violet-400",
-  },
-  task: {
-    chip: "border-emerald-300/80 bg-emerald-500/10 hover:bg-emerald-500/20",
-    chipText: "text-emerald-100",
-    badge: "bg-emerald-500/20 text-emerald-200",
-    border: "border-l-emerald-400",
-  },
-  deadline: {
-    chip: "border-rose-300/80 bg-rose-500/10 hover:bg-rose-500/20",
-    chipText: "text-rose-100",
-    badge: "bg-rose-500/20 text-rose-200",
-    border: "border-l-rose-400",
-  },
-  break: {
-    chip: "border-amber-300/80 bg-amber-500/10 hover:bg-amber-500/20",
-    chipText: "text-amber-100",
-    badge: "bg-amber-500/20 text-amber-200",
-    border: "border-l-amber-400",
-  },
-  personal: {
-    chip: "border-cyan-300/80 bg-cyan-500/10 hover:bg-cyan-500/20",
-    chipText: "text-cyan-100",
-    badge: "bg-cyan-500/20 text-cyan-200",
-    border: "border-l-cyan-400",
-  },
+const itemTypeLabel: Record<AgendaItemType, string> = {
+  meeting: "Meeting",
+  event: "Event",
+  general_members_assembly: "General Members Assembly",
 };
 
 function getTodayIsoDate() {
@@ -147,46 +147,20 @@ function getWeekStart(value: Date) {
   return startOfDay(addDays(value, mondayOffset));
 }
 
-function parseTimeOnly(value: string) {
-  const match = timeOnlyRegex.exec(value.trim());
-
-  if (!match) {
+function parseEventDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
     return null;
   }
-
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-
-  if (
-    Number.isNaN(hours) ||
-    Number.isNaN(minutes) ||
-    hours < 0 ||
-    hours > 23 ||
-    minutes < 0 ||
-    minutes > 59
-  ) {
-    return null;
-  }
-
-  return { hours, minutes };
+  return date;
 }
 
-function parseEventDate(value: string) {
-  const fromDate = new Date(value);
-
-  if (!Number.isNaN(fromDate.getTime())) {
-    return fromDate;
-  }
-
-  const onlyTime = parseTimeOnly(value);
-
-  if (!onlyTime) {
-    return null;
-  }
-
-  const today = startOfDay(new Date());
-  today.setHours(onlyTime.hours, onlyTime.minutes, 0, 0);
-  return today;
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function eventIntersectsRange(
@@ -198,91 +172,94 @@ function eventIntersectsRange(
   return start < rangeEnd && end > rangeStart;
 }
 
-function sameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 function clampEndAfterStart(startDateTime: Date, endDateTime: Date) {
   if (endDateTime <= startDateTime) {
     const next = new Date(startDateTime);
     next.setMinutes(next.getMinutes() + 30);
     return next;
   }
-
   return endDateTime;
 }
 
-function buildStandardMinutesTemplate(event: {
-  title: string;
-  startDateTime: Date;
-  endDateTime: Date;
-  location: string | null;
-  attendees: string | null;
-}) {
-  const attendees = event.attendees?.trim() ? event.attendees : "TBD";
-  const location = event.location?.trim() ? event.location : "TBD";
+function getEventStyle(event: ParsedAgendaEvent) {
+  if (event.isDeadline) {
+    return {
+      chip: "border-rose-300/80 bg-rose-500/10 text-rose-100 hover:bg-rose-500/20",
+      badge: "bg-rose-500/20 text-rose-200",
+      border: "border-l-rose-400",
+    };
+  }
 
-  return [
-    `Meeting: ${event.title}`,
-    `Date: ${dayLabelFormatter.format(event.startDateTime)}`,
-    `Time: ${timeFormatter.format(event.startDateTime)} - ${timeFormatter.format(event.endDateTime)}`,
-    `Location: ${location}`,
-    `Attendees: ${attendees}`,
-    "",
-    "1. Points to discuss",
-    "- [ ] Topic 1: ",
-    "- [ ] Topic 2: ",
-    "- [ ] Topic 3: ",
-    "",
-    "2. Votes to take",
-    "- Motion: ",
-    "- Options: For / Against / Abstain",
-    "- Result: ",
-    "- Notes: ",
-    "",
-    "3. Decisions and action items",
-    "- Decision 1: ",
-    "- Action owner: ",
-    "- Due date: ",
-  ].join("\n");
+  if (event.itemType === "meeting") {
+    return {
+      chip: "border-blue-300/80 bg-blue-500/10 text-blue-100 hover:bg-blue-500/20",
+      badge: "bg-blue-500/20 text-blue-200",
+      border: "border-l-blue-400",
+    };
+  }
+
+  if (event.itemType === "general_members_assembly") {
+    return {
+      chip: "border-violet-300/80 bg-violet-500/10 text-violet-100 hover:bg-violet-500/20",
+      badge: "bg-violet-500/20 text-violet-200",
+      border: "border-l-violet-400",
+    };
+  }
+
+  return {
+    chip: "border-emerald-300/80 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20",
+    badge: "bg-emerald-500/20 text-emerald-200",
+    border: "border-l-emerald-400",
+  };
 }
 
+function isMinutesItem(event: ParsedAgendaEvent) {
+  return (
+    event.itemType === "meeting" ||
+    event.itemType === "general_members_assembly"
+  );
+}
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This single component intentionally coordinates calendar navigation, creation flows, and minutes editing.
 export function OrganizationAgenda({
+  canManageAgenda,
   organizationId,
 }: {
+  canManageAgenda: boolean;
   organizationId: string;
 }) {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isMinutesSaving, setIsMinutesSaving] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [view, setView] = useState<CalendarView>("day");
   const [focusDate, setFocusDate] = useState(() => startOfDay(new Date()));
-  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(
-    null
-  );
-  const [minutesDraft, setMinutesDraft] = useState("");
-  const lastWheelMoveAt = useRef(0);
-  const [form, setForm] = useState({
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createItemType, setCreateItemType] =
+    useState<AgendaItemType>("meeting");
+  const [createForm, setCreateForm] = useState({
+    title: "",
     date: getTodayIsoDate(),
     start: "09:00",
     end: "10:00",
-    title: "",
-    category: "meeting" as AgendaEvent["category"],
     description: "",
     location: "",
     attendees: "",
-    isMeeting: true,
+    isDeadline: false,
+    allowVoting: false,
+    discussionPoints: [createDiscussionPointDraft()],
   });
-
-  const titleMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.value, c.label])),
-    []
-  );
+  const [eventSummary, setEventSummary] = useState("");
+  const [eventDecisions, setEventDecisions] = useState("");
+  const [eventActions, setEventActions] = useState("");
+  const [eventAllowVoting, setEventAllowVoting] = useState(false);
+  const [eventDiscussionPoints, setEventDiscussionPoints] = useState<
+    DiscussionPointDraft[]
+  >([]);
+  const createMenuRef = useRef<HTMLDivElement | null>(null);
+  const lastWheelMoveAt = useRef(0);
 
   const loadAgenda = useCallback(async () => {
     setIsLoading(true);
@@ -315,143 +292,22 @@ export function OrganizationAgenda({
     });
   }, [loadAgenda]);
 
-  async function createEvent(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (form.title.trim() === "" || form.description.trim() === "") {
-      toast.error("Title and description are required");
-      return;
-    }
-
-    setIsSaving(true);
-
-    const startDateTime = new Date(`${form.date}T${form.start}`);
-    const endDateTimeInput = new Date(`${form.date}T${form.end}`);
-
-    if (
-      Number.isNaN(startDateTime.getTime()) ||
-      Number.isNaN(endDateTimeInput.getTime())
-    ) {
-      toast.error("Provide a valid date and time");
-      setIsSaving(false);
-      return;
-    }
-
-    const endDateTime = clampEndAfterStart(startDateTime, endDateTimeInput);
-
-    try {
-      const response = await fetch("/api/agenda-events", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          organizationId,
-          title: form.title,
-          category: form.category,
-          description: form.description,
-          location: form.location,
-          attendees: form.attendees,
-          isMeeting: form.isMeeting,
-          start: startDateTime.toISOString(),
-          end: endDateTime.toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? "Failed to create agenda event");
+  useEffect(() => {
+    function handleWindowClick(event: MouseEvent) {
+      if (!createMenuRef.current) {
+        return;
       }
 
-      setForm({
-        date: getTodayIsoDate(),
-        start: "09:00",
-        end: "10:00",
-        title: "",
-        category: "meeting",
-        description: "",
-        location: "",
-        attendees: "",
-        isMeeting: true,
-      });
-      toast.success("Agenda event added");
-      await loadAgenda();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(message);
-    } finally {
-      setIsSaving(false);
-    }
-  }
+      const target = event.target;
 
-  async function saveMinutes(eventId: string, minutes: string) {
-    try {
-      const response = await fetch(`/api/agenda-events/${eventId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ minutes }),
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? "Failed to save minutes");
+      if (target instanceof Node && !createMenuRef.current.contains(target)) {
+        setCreateMenuOpen(false);
       }
-
-      toast.success("Minutes saved");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(message);
-    }
-  }
-
-  async function saveMinutesFromDialog() {
-    if (!selectedMeetingId) {
-      return;
     }
 
-    setIsMinutesSaving(true);
-
-    try {
-      await saveMinutes(selectedMeetingId, minutesDraft);
-      setEvents((current) =>
-        current.map((event) =>
-          event.id === selectedMeetingId
-            ? { ...event, minutes: minutesDraft }
-            : event
-        )
-      );
-      setSelectedMeetingId(null);
-    } finally {
-      setIsMinutesSaving(false);
-    }
-  }
-
-  async function removeEvent(eventId: string) {
-    try {
-      const response = await fetch(`/api/agenda-events/${eventId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? "Failed to delete agenda event");
-      }
-
-      toast.success("Agenda event removed");
-      await loadAgenda();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(message);
-    }
-  }
+    window.addEventListener("mousedown", handleWindowClick);
+    return () => window.removeEventListener("mousedown", handleWindowClick);
+  }, []);
 
   const parsedEvents = useMemo(() => {
     return events
@@ -459,35 +315,51 @@ export function OrganizationAgenda({
         const startDateTime = parseEventDate(event.start);
         const endDateTimeRaw = parseEventDate(event.end);
 
-        if (!startDateTime) {
+        if (!(startDateTime && endDateTimeRaw)) {
           return null;
         }
-
-        const fallbackEnd = new Date(startDateTime);
-        fallbackEnd.setMinutes(fallbackEnd.getMinutes() + 30);
-
-        const endDateTime = endDateTimeRaw
-          ? clampEndAfterStart(startDateTime, endDateTimeRaw)
-          : fallbackEnd;
 
         return {
           ...event,
           startDateTime,
-          endDateTime,
+          endDateTime: clampEndAfterStart(startDateTime, endDateTimeRaw),
         };
       })
-      .filter(
-        (
-          event
-        ): event is AgendaEvent & { startDateTime: Date; endDateTime: Date } =>
-          Boolean(event)
-      )
+      .filter((event): event is ParsedAgendaEvent => Boolean(event))
       .sort(
         (a, b) =>
           a.startDateTime.getTime() - b.startDateTime.getTime() ||
           a.title.localeCompare(b.title)
       );
   }, [events]);
+
+  const selectedEvent = useMemo(
+    () => parsedEvents.find((event) => event.id === selectedEventId) ?? null,
+    [parsedEvents, selectedEventId]
+  );
+
+  useEffect(() => {
+    if (!selectedEvent) {
+      return;
+    }
+
+    setEventSummary(selectedEvent.minutesSummary ?? "");
+    setEventDecisions(selectedEvent.minutesDecisions ?? "");
+    setEventActions(selectedEvent.minutesActions ?? "");
+    setEventAllowVoting(selectedEvent.allowVoting);
+    setEventDiscussionPoints(
+      selectedEvent.discussionPoints.length > 0
+        ? selectedEvent.discussionPoints.map((point) => ({
+            clientId: crypto.randomUUID(),
+            id: point.id,
+            topic: point.topic,
+            notes: point.notes ?? "",
+            votingEnabled: point.votingEnabled,
+            votePrompt: point.votePrompt ?? "",
+          }))
+        : [createDiscussionPointDraft()]
+    );
+  }, [selectedEvent]);
 
   const calendarRange = useMemo(() => {
     if (view === "day") {
@@ -556,6 +428,43 @@ export function OrganizationAgenda({
     return monthTitleFormatter.format(focusDate);
   }, [focusDate, view]);
 
+  const dayEvents = useMemo(
+    () =>
+      visibleEvents.filter((event) => sameDay(event.startDateTime, focusDate)),
+    [focusDate, visibleEvents]
+  );
+
+  const weekEventsByDay = useMemo(
+    () =>
+      weekDays.map((day) => ({
+        day,
+        events: visibleEvents.filter((event) =>
+          sameDay(event.startDateTime, day)
+        ),
+      })),
+    [visibleEvents, weekDays]
+  );
+
+  const monthEventsByDay = useMemo(
+    () =>
+      monthCells.map((day) => ({
+        day,
+        events: visibleEvents.filter((event) =>
+          sameDay(event.startDateTime, day)
+        ),
+        inCurrentMonth: day.getMonth() === focusDate.getMonth(),
+      })),
+    [focusDate, monthCells, visibleEvents]
+  );
+
+  const selectedRangeEvents = useMemo(
+    () =>
+      [...visibleEvents].sort(
+        (a, b) => a.startDateTime.getTime() - b.startDateTime.getTime()
+      ),
+    [visibleEvents]
+  );
+
   const goToPrevious = () => {
     if (view === "day") {
       setFocusDate((current) => addDays(current, -1));
@@ -609,52 +518,245 @@ export function OrganizationAgenda({
     goToPrevious();
   };
 
-  const dayEvents = useMemo(
-    () =>
-      visibleEvents.filter((event) => sameDay(event.startDateTime, focusDate)),
-    [focusDate, visibleEvents]
-  );
+  function openCreateDialog(type: AgendaItemType) {
+    setCreateItemType(type);
+    setCreateForm({
+      title: "",
+      date: getTodayIsoDate(),
+      start: "09:00",
+      end: "10:00",
+      description: "",
+      location: "",
+      attendees: "",
+      isDeadline: false,
+      allowVoting: false,
+      discussionPoints: [createDiscussionPointDraft()],
+    });
+    setCreateMenuOpen(false);
+    setCreateDialogOpen(true);
+  }
 
-  const weekEventsByDay = useMemo(() => {
-    return weekDays.map((day) => ({
-      day,
-      events: visibleEvents.filter((event) =>
-        sameDay(event.startDateTime, day)
+  function updateDraftPoint(
+    index: number,
+    patch: Partial<DiscussionPointDraft>
+  ) {
+    setCreateForm((current) => ({
+      ...current,
+      discussionPoints: current.discussionPoints.map((point, i) =>
+        i === index ? { ...point, ...patch } : point
       ),
     }));
-  }, [visibleEvents, weekDays]);
+  }
 
-  const monthEventsByDay = useMemo(() => {
-    return monthCells.map((day) => ({
-      day,
-      events: visibleEvents.filter((event) =>
-        sameDay(event.startDateTime, day)
-      ),
-      inCurrentMonth: day.getMonth() === focusDate.getMonth(),
-    }));
-  }, [focusDate, monthCells, visibleEvents]);
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Creation validation has multiple item-type and deadline branches.
+  async function submitCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  const selectedRangeEvents = useMemo(
-    () =>
-      [...visibleEvents].sort(
-        (a, b) => a.startDateTime.getTime() - b.startDateTime.getTime()
-      ),
-    [visibleEvents]
-  );
+    const startDateTime = new Date(`${createForm.date}T${createForm.start}`);
+    const endDateTimeInput = new Date(`${createForm.date}T${createForm.end}`);
 
-  const selectedMeeting = useMemo(
-    () => parsedEvents.find((event) => event.id === selectedMeetingId) ?? null,
-    [parsedEvents, selectedMeetingId]
-  );
-
-  useEffect(() => {
-    if (!selectedMeeting) {
+    if (
+      Number.isNaN(startDateTime.getTime()) ||
+      Number.isNaN(endDateTimeInput.getTime())
+    ) {
+      toast.error("Provide a valid date and time");
       return;
     }
 
-    const defaultTemplate = buildStandardMinutesTemplate(selectedMeeting);
-    setMinutesDraft(selectedMeeting.minutes?.trim() || defaultTemplate);
-  }, [selectedMeeting]);
+    if (!createForm.isDeadline && createForm.title.trim() === "") {
+      toast.error("Title is required");
+      return;
+    }
+
+    if (createForm.description.trim() === "") {
+      toast.error("Description is required");
+      return;
+    }
+
+    const cleanDiscussionPoints = createForm.discussionPoints
+      .map((point) => ({
+        topic: point.topic.trim(),
+        notes: point.notes.trim(),
+        votingEnabled: point.votingEnabled,
+        votePrompt: point.votePrompt.trim(),
+      }))
+      .filter((point) => point.topic !== "");
+
+    if (
+      (createItemType === "meeting" ||
+        createItemType === "general_members_assembly") &&
+      !createForm.isDeadline &&
+      cleanDiscussionPoints.length === 0
+    ) {
+      toast.error("Add at least one discussion point");
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      const response = await fetch("/api/agenda-events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          organizationId,
+          itemType: createItemType,
+          isDeadline:
+            createItemType === "event" ? createForm.isDeadline : false,
+          allowVoting:
+            createItemType === "meeting" ||
+            createItemType === "general_members_assembly"
+              ? createForm.allowVoting
+              : false,
+          title:
+            createItemType === "event" && createForm.isDeadline
+              ? "Deadline"
+              : createForm.title,
+          description: createForm.description,
+          location:
+            createItemType === "event" && createForm.isDeadline
+              ? ""
+              : createForm.location,
+          attendees:
+            createItemType === "event" && createForm.isDeadline
+              ? ""
+              : createForm.attendees,
+          start: startDateTime.toISOString(),
+          end: clampEndAfterStart(
+            startDateTime,
+            endDateTimeInput
+          ).toISOString(),
+          discussionPoints:
+            createItemType === "meeting" ||
+            createItemType === "general_members_assembly"
+              ? cleanDiscussionPoints
+              : [],
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to create item");
+      }
+
+      toast.success("Agenda item created");
+      setCreateDialogOpen(false);
+      await loadAgenda();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  async function removeEvent(eventId: string) {
+    try {
+      const response = await fetch(`/api/agenda-events/${eventId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to delete item");
+      }
+
+      toast.success("Agenda item removed");
+      await loadAgenda();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    }
+  }
+
+  async function saveEventDetails() {
+    if (!selectedEvent) {
+      return;
+    }
+
+    const cleanPoints = eventDiscussionPoints
+      .map((point) => ({
+        id: point.id,
+        topic: point.topic.trim(),
+        notes: point.notes.trim(),
+        votingEnabled: point.votingEnabled,
+        votePrompt: point.votePrompt.trim(),
+      }))
+      .filter((point) => point.topic !== "");
+
+    if (cleanPoints.length === 0) {
+      toast.error("Add at least one discussion point");
+      return;
+    }
+
+    setIsSavingEvent(true);
+
+    try {
+      const response = await fetch(`/api/agenda-events/${selectedEvent.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          allowVoting: eventAllowVoting,
+          minutesSummary: eventSummary,
+          minutesDecisions: eventDecisions,
+          minutesActions: eventActions,
+          discussionPoints: cleanPoints,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to save details");
+      }
+
+      toast.success("Meeting details saved");
+      setSelectedEventId(null);
+      await loadAgenda();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    } finally {
+      setIsSavingEvent(false);
+    }
+  }
+
+  async function castVote(eventId: string, pointId: string, value: VoteValue) {
+    try {
+      const response = await fetch(
+        `/api/agenda-events/${eventId}/discussion-points/${pointId}/vote`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ value }),
+        }
+      );
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to submit vote");
+      }
+
+      toast.success("Vote submitted");
+      await loadAgenda();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    }
+  }
 
   let agendaContent: ReactNode;
 
@@ -667,19 +769,16 @@ export function OrganizationAgenda({
       <p className="text-muted-foreground text-sm">No agenda items yet.</p>
     );
   } else {
-    const renderEventChip = (
-      event: AgendaEvent & { startDateTime: Date; endDateTime: Date }
-    ) => {
-      const categoryStyle = categoryStyles[event.category];
-      const isMeetingEvent = event.category === "meeting" || event.isMeeting;
+    const renderEventChip = (event: ParsedAgendaEvent) => {
+      const style = getEventStyle(event);
 
       return (
         <div className="group relative" key={event.id}>
           <button
-            className={`w-full rounded-md border px-2 py-1 text-left transition-colors ${categoryStyle.chip} ${categoryStyle.chipText}`}
+            className={`w-full rounded-md border px-2 py-1 text-left text-xs transition-colors ${style.chip}`}
             onClick={() => {
-              if (isMeetingEvent) {
-                setSelectedMeetingId(event.id);
+              if (isMinutesItem(event)) {
+                setSelectedEventId(event.id);
                 return;
               }
 
@@ -687,8 +786,8 @@ export function OrganizationAgenda({
             }}
             type="button"
           >
-            <p className="truncate font-medium text-xs">{event.title}</p>
-            <p className="text-[11px] text-current/85">
+            <p className="truncate font-medium">{event.title}</p>
+            <p className="text-[11px] text-current/80">
               {timeFormatter.format(event.startDateTime)}
             </p>
           </button>
@@ -740,7 +839,6 @@ export function OrganizationAgenda({
                 <p className="mb-2 text-center font-medium text-xs">
                   {weekdayFormatter.format(day)} {day.getDate()}
                 </p>
-
                 <div className="flex min-h-40 flex-col gap-1.5">
                   {dayItems.length === 0 ? (
                     <span className="text-center text-muted-foreground text-xs">
@@ -869,59 +967,67 @@ export function OrganizationAgenda({
         </div>
 
         <div className="flex flex-col gap-3">
-          <p className="font-medium text-sm">Events in current {view}</p>
+          <p className="font-medium text-sm">Items in current {view}</p>
 
           {selectedRangeEvents.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               No events in this range.
             </p>
           ) : (
-            selectedRangeEvents.map((event) => (
-              <article
-                className={`rounded-lg border border-border border-l-4 bg-muted/30 p-3 ${categoryStyles[event.category].border}`}
-                key={event.id}
-              >
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-sm">{event.title}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {dayLabelFormatter.format(event.startDateTime)}
-                      {` · ${timeFormatter.format(event.startDateTime)}`}
-                      {` - ${timeFormatter.format(event.endDateTime)}`}
-                      {` · ${titleMap[event.category] ?? event.category}`}
-                    </p>
-                    <span
-                      className={`mt-1 inline-flex rounded-full px-2 py-0.5 font-medium text-[11px] ${categoryStyles[event.category].badge}`}
-                    >
-                      {titleMap[event.category] ?? event.category}
-                    </span>
+            selectedRangeEvents.map((event) => {
+              const style = getEventStyle(event);
+              const label = event.isDeadline
+                ? "Deadline"
+                : itemTypeLabel[event.itemType];
+
+              return (
+                <article
+                  className={`rounded-lg border border-border border-l-4 bg-muted/30 p-3 ${style.border}`}
+                  key={event.id}
+                >
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-sm">{event.title}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {dayLabelFormatter.format(event.startDateTime)} ·{" "}
+                        {timeFormatter.format(event.startDateTime)} -{" "}
+                        {timeFormatter.format(event.endDateTime)}
+                      </p>
+                      <span
+                        className={`mt-1 inline-flex rounded-full px-2 py-0.5 font-medium text-[11px] ${style.badge}`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+
+                    {canManageAgenda ? (
+                      <Button
+                        onClick={() => removeEvent(event.id)}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
                   </div>
 
-                  <Button
-                    onClick={() => removeEvent(event.id)}
-                    size="icon"
-                    type="button"
-                    variant="ghost"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
+                  <p className="mb-2 text-muted-foreground text-sm">
+                    {event.description}
+                  </p>
 
-                <p className="mb-2 text-muted-foreground text-sm">
-                  {event.description}
-                </p>
-
-                {event.category === "meeting" || event.isMeeting ? (
-                  <Button
-                    onClick={() => setSelectedMeetingId(event.id)}
-                    type="button"
-                    variant="outline"
-                  >
-                    Open meeting minutes
-                  </Button>
-                ) : null}
-              </article>
-            ))
+                  {isMinutesItem(event) ? (
+                    <Button
+                      onClick={() => setSelectedEventId(event.id)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Open minutes and discussion points
+                    </Button>
+                  ) : null}
+                </article>
+              );
+            })
           )}
         </div>
       </div>
@@ -930,177 +1036,592 @@ export function OrganizationAgenda({
 
   return (
     <section className="rounded-xl border border-border bg-card p-5">
-      <header className="mb-4 flex items-center gap-2">
-        <CalendarDays className="size-4 text-muted-foreground" />
-        <h2 className="font-semibold text-lg">Agenda</h2>
+      <header className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="size-4 text-muted-foreground" />
+          <h2 className="font-semibold text-lg">Agenda</h2>
+        </div>
+
+        <div className="relative" ref={createMenuRef}>
+          {canManageAgenda ? (
+            <>
+              <Button
+                onClick={() => setCreateMenuOpen((current) => !current)}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <Plus className="size-4" />
+              </Button>
+
+              {createMenuOpen ? (
+                <div className="absolute top-11 right-0 z-40 w-56 rounded-md border border-border bg-popover p-1 shadow-lg">
+                  <button
+                    className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => openCreateDialog("meeting")}
+                    type="button"
+                  >
+                    Meeting
+                  </button>
+                  <button
+                    className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => openCreateDialog("event")}
+                    type="button"
+                  >
+                    Event
+                  </button>
+                  <button
+                    className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
+                    onClick={() => openCreateDialog("general_members_assembly")}
+                    type="button"
+                  >
+                    General Members Assembly
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </header>
 
-      <form className="mb-6 grid gap-3" onSubmit={createEvent}>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <Input
-            onChange={(event) =>
-              setForm((current) => ({ ...current, title: event.target.value }))
-            }
-            placeholder="Agenda title"
-            value={form.title}
-          />
-
-          <Input
-            onChange={(event) =>
-              setForm((current) => ({ ...current, date: event.target.value }))
-            }
-            type="date"
-            value={form.date}
-          />
-
-          <select
-            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                category: event.target.value as AgendaEvent["category"],
-              }))
-            }
-            value={form.category}
-          >
-            {categories.map((category) => (
-              <option key={category.value} value={category.value}>
-                {category.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Input
-            onChange={(event) =>
-              setForm((current) => ({ ...current, start: event.target.value }))
-            }
-            type="time"
-            value={form.start}
-          />
-          <Input
-            onChange={(event) =>
-              setForm((current) => ({ ...current, end: event.target.value }))
-            }
-            type="time"
-            value={form.end}
-          />
-        </div>
-
-        <Input
-          onChange={(event) =>
-            setForm((current) => ({ ...current, location: event.target.value }))
-          }
-          placeholder="Location (optional)"
-          value={form.location}
-        />
-
-        <Input
-          onChange={(event) =>
-            setForm((current) => ({
-              ...current,
-              attendees: event.target.value,
-            }))
-          }
-          placeholder="Attendees (comma separated, optional)"
-          value={form.attendees}
-        />
-
-        <textarea
-          className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-          onChange={(event) =>
-            setForm((current) => ({
-              ...current,
-              description: event.target.value,
-            }))
-          }
-          placeholder="Description"
-          value={form.description}
-        />
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            checked={form.isMeeting}
-            className="size-4"
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                isMeeting: event.target.checked,
-              }))
-            }
-            type="checkbox"
-          />
-          Is meeting item
-        </label>
-
-        <Button className="w-fit" disabled={isSaving} type="submit">
-          Add agenda item
-        </Button>
-      </form>
-
       {agendaContent}
+
+      <Dialog onOpenChange={setCreateDialogOpen} open={createDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create {itemTypeLabel[createItemType]}</DialogTitle>
+            <DialogDescription>
+              {createItemType === "event"
+                ? "Create a regular event or mark it as deadline."
+                : "Add details, discussion points and voting options."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="grid gap-3" onSubmit={submitCreate}>
+            {createItemType === "event" ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  checked={createForm.isDeadline}
+                  className="size-4"
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      isDeadline: event.target.checked,
+                    }))
+                  }
+                  type="checkbox"
+                />
+                This event is a deadline
+              </label>
+            ) : null}
+
+            {createItemType === "event" && createForm.isDeadline ? null : (
+              <Input
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
+                }
+                placeholder="Title"
+                value={createForm.title}
+              />
+            )}
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Input
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    date: event.target.value,
+                  }))
+                }
+                type="date"
+                value={createForm.date}
+              />
+              <Input
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    start: event.target.value,
+                  }))
+                }
+                type="time"
+                value={createForm.start}
+              />
+              <Input
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    end: event.target.value,
+                  }))
+                }
+                type="time"
+                value={createForm.end}
+              />
+            </div>
+
+            <textarea
+              className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+              onChange={(event) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+              placeholder="Description"
+              value={createForm.description}
+            />
+
+            {createItemType === "event" && createForm.isDeadline ? null : (
+              <>
+                <Input
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      location: event.target.value,
+                    }))
+                  }
+                  placeholder="Location"
+                  value={createForm.location}
+                />
+                <Input
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      attendees: event.target.value,
+                    }))
+                  }
+                  placeholder="Attendees (comma separated)"
+                  value={createForm.attendees}
+                />
+              </>
+            )}
+
+            {createItemType === "meeting" ||
+            createItemType === "general_members_assembly" ? (
+              <>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    checked={createForm.allowVoting}
+                    className="size-4"
+                    onChange={(event) =>
+                      setCreateForm((current) => ({
+                        ...current,
+                        allowVoting: event.target.checked,
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  Allow members to vote
+                </label>
+
+                <div className="rounded-md border border-border p-3">
+                  <p className="mb-2 font-medium text-sm">Discussion points</p>
+
+                  <div className="flex flex-col gap-2">
+                    {createForm.discussionPoints.map((point, index) => (
+                      <div
+                        className="rounded border border-border/70 p-2"
+                        key={point.clientId}
+                      >
+                        <Input
+                          onChange={(event) =>
+                            updateDraftPoint(index, {
+                              topic: event.target.value,
+                            })
+                          }
+                          placeholder="Point topic"
+                          value={point.topic}
+                        />
+                        <textarea
+                          className="mt-2 min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                          onChange={(event) =>
+                            updateDraftPoint(index, {
+                              notes: event.target.value,
+                            })
+                          }
+                          placeholder="Notes"
+                          value={point.notes}
+                        />
+
+                        {createForm.allowVoting ? (
+                          <>
+                            <label className="mt-2 flex items-center gap-2 text-sm">
+                              <input
+                                checked={point.votingEnabled}
+                                className="size-4"
+                                onChange={(event) =>
+                                  updateDraftPoint(index, {
+                                    votingEnabled: event.target.checked,
+                                  })
+                                }
+                                type="checkbox"
+                              />
+                              Voting on this point
+                            </label>
+
+                            {point.votingEnabled ? (
+                              <Input
+                                onChange={(event) =>
+                                  updateDraftPoint(index, {
+                                    votePrompt: event.target.value,
+                                  })
+                                }
+                                placeholder="Vote prompt (optional)"
+                                value={point.votePrompt}
+                              />
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      onClick={() =>
+                        setCreateForm((current) => ({
+                          ...current,
+                          discussionPoints: [
+                            ...current.discussionPoints,
+                            createDiscussionPointDraft(),
+                          ],
+                        }))
+                      }
+                      type="button"
+                      variant="outline"
+                    >
+                      Add point
+                    </Button>
+                    {createForm.discussionPoints.length > 1 ? (
+                      <Button
+                        onClick={() =>
+                          setCreateForm((current) => ({
+                            ...current,
+                            discussionPoints: current.discussionPoints.slice(
+                              0,
+                              -1
+                            ),
+                          }))
+                        }
+                        type="button"
+                        variant="ghost"
+                      >
+                        Remove last
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            <DialogFooter>
+              <Button
+                onClick={() => setCreateDialogOpen(false)}
+                type="button"
+                variant="ghost"
+              >
+                Cancel
+              </Button>
+              <Button disabled={isCreating} type="submit">
+                Create item
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedMeetingId(null);
+            setSelectedEventId(null);
           }
         }}
-        open={selectedMeeting !== null}
+        open={selectedEvent !== null}
       >
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
-              {selectedMeeting?.title ?? "Meeting minutes"}
-            </DialogTitle>
+            <DialogTitle>{selectedEvent?.title ?? "Agenda item"}</DialogTitle>
             <DialogDescription>
-              {selectedMeeting
-                ? `${dayLabelFormatter.format(selectedMeeting.startDateTime)} · ${timeFormatter.format(selectedMeeting.startDateTime)} - ${timeFormatter.format(selectedMeeting.endDateTime)}`
+              {selectedEvent
+                ? `${dayLabelFormatter.format(selectedEvent.startDateTime)} · ${timeFormatter.format(selectedEvent.startDateTime)} - ${timeFormatter.format(selectedEvent.endDateTime)}`
                 : ""}
             </DialogDescription>
           </DialogHeader>
 
-          {selectedMeeting ? (
-            <>
+          {selectedEvent ? (
+            <div className="grid gap-3">
               <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                <p className="font-medium text-sm">Description preview</p>
+                <p className="font-medium text-sm">Description</p>
                 <p className="mt-1 text-muted-foreground text-sm">
-                  {selectedMeeting.description}
+                  {selectedEvent.description}
                 </p>
               </div>
 
-              <textarea
-                className="min-h-72 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
-                onChange={(event) => setMinutesDraft(event.target.value)}
-                value={minutesDraft}
-              />
-
-              <DialogFooter className="justify-between gap-2 sm:justify-between">
-                <Button
-                  onClick={() =>
-                    setMinutesDraft(
-                      buildStandardMinutesTemplate(selectedMeeting)
-                    )
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  checked={eventAllowVoting}
+                  className="size-4"
+                  disabled={!canManageAgenda}
+                  onChange={(event) =>
+                    setEventAllowVoting(event.target.checked)
                   }
-                  type="button"
-                  variant="outline"
-                >
-                  Use standard minutes format
-                </Button>
+                  type="checkbox"
+                />
+                Allow member voting for this item
+              </label>
 
-                <div className="flex gap-2">
+              <div className="grid gap-2 md:grid-cols-3">
+                <div className="rounded-md border border-border/70 p-2">
+                  <p className="mb-1 font-medium text-sm">Minutes summary</p>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={!canManageAgenda}
+                    onChange={(event) => setEventSummary(event.target.value)}
+                    value={eventSummary}
+                  />
+                </div>
+                <div className="rounded-md border border-border/70 p-2">
+                  <p className="mb-1 font-medium text-sm">Decisions</p>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={!canManageAgenda}
+                    onChange={(event) => setEventDecisions(event.target.value)}
+                    value={eventDecisions}
+                  />
+                </div>
+                <div className="rounded-md border border-border/70 p-2">
+                  <p className="mb-1 font-medium text-sm">Action items</p>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={!canManageAgenda}
+                    onChange={(event) => setEventActions(event.target.value)}
+                    value={eventActions}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border/70 p-3">
+                <p className="mb-2 font-medium text-sm">Discussion points</p>
+
+                <div className="flex flex-col gap-2">
+                  {eventDiscussionPoints.map((point, index) => {
+                    const originalPoint = selectedEvent.discussionPoints.find(
+                      (entry) => entry.id === point.id
+                    );
+
+                    return (
+                      <div
+                        className="rounded border border-border/70 p-2"
+                        key={point.clientId}
+                      >
+                        <Input
+                          disabled={!canManageAgenda}
+                          onChange={(event) =>
+                            setEventDiscussionPoints((current) =>
+                              current.map((entry, i) =>
+                                i === index
+                                  ? { ...entry, topic: event.target.value }
+                                  : entry
+                              )
+                            )
+                          }
+                          placeholder="Point topic"
+                          value={point.topic}
+                        />
+
+                        <textarea
+                          className="mt-2 min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          disabled={!canManageAgenda}
+                          onChange={(event) =>
+                            setEventDiscussionPoints((current) =>
+                              current.map((entry, i) =>
+                                i === index
+                                  ? { ...entry, notes: event.target.value }
+                                  : entry
+                              )
+                            )
+                          }
+                          placeholder="Notes"
+                          value={point.notes}
+                        />
+
+                        {eventAllowVoting ? (
+                          <>
+                            <label className="mt-2 flex items-center gap-2 text-sm">
+                              <input
+                                checked={point.votingEnabled}
+                                className="size-4"
+                                disabled={!canManageAgenda}
+                                onChange={(event) =>
+                                  setEventDiscussionPoints((current) =>
+                                    current.map((entry, i) =>
+                                      i === index
+                                        ? {
+                                            ...entry,
+                                            votingEnabled: event.target.checked,
+                                          }
+                                        : entry
+                                    )
+                                  )
+                                }
+                                type="checkbox"
+                              />
+                              Voting on this point
+                            </label>
+
+                            {point.votingEnabled ? (
+                              <>
+                                <Input
+                                  disabled={!canManageAgenda}
+                                  onChange={(event) =>
+                                    setEventDiscussionPoints((current) =>
+                                      current.map((entry, i) =>
+                                        i === index
+                                          ? {
+                                              ...entry,
+                                              votePrompt: event.target.value,
+                                            }
+                                          : entry
+                                      )
+                                    )
+                                  }
+                                  placeholder="Vote prompt"
+                                  value={point.votePrompt}
+                                />
+
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                                  <span className="rounded bg-muted px-2 py-1">
+                                    For: {originalPoint?.votes.for ?? 0}
+                                  </span>
+                                  <span className="rounded bg-muted px-2 py-1">
+                                    Against: {originalPoint?.votes.against ?? 0}
+                                  </span>
+                                  <span className="rounded bg-muted px-2 py-1">
+                                    Abstain: {originalPoint?.votes.abstain ?? 0}
+                                  </span>
+
+                                  {point.id ? (
+                                    <div className="ml-auto flex gap-1">
+                                      <Button
+                                        onClick={() => {
+                                          castVote(
+                                            selectedEvent.id,
+                                            point.id as string,
+                                            "for"
+                                          ).catch((error) => {
+                                            const message =
+                                              error instanceof Error
+                                                ? error.message
+                                                : "Unknown error";
+                                            toast.error(message);
+                                          });
+                                        }}
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                      >
+                                        Vote For
+                                      </Button>
+                                      <Button
+                                        onClick={() => {
+                                          castVote(
+                                            selectedEvent.id,
+                                            point.id as string,
+                                            "against"
+                                          ).catch((error) => {
+                                            const message =
+                                              error instanceof Error
+                                                ? error.message
+                                                : "Unknown error";
+                                            toast.error(message);
+                                          });
+                                        }}
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                      >
+                                        Vote Against
+                                      </Button>
+                                      <Button
+                                        onClick={() => {
+                                          castVote(
+                                            selectedEvent.id,
+                                            point.id as string,
+                                            "abstain"
+                                          ).catch((error) => {
+                                            const message =
+                                              error instanceof Error
+                                                ? error.message
+                                                : "Unknown error";
+                                            toast.error(message);
+                                          });
+                                        }}
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                      >
+                                        Abstain
+                                      </Button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </>
+                            ) : null}
+                          </>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-2 flex gap-2">
+                  {canManageAgenda ? (
+                    <>
+                      <Button
+                        onClick={() =>
+                          setEventDiscussionPoints((current) => [
+                            ...current,
+                            createDiscussionPointDraft(),
+                          ])
+                        }
+                        type="button"
+                        variant="outline"
+                      >
+                        Add point
+                      </Button>
+                      {eventDiscussionPoints.length > 1 ? (
+                        <Button
+                          onClick={() =>
+                            setEventDiscussionPoints((current) =>
+                              current.slice(0, -1)
+                            )
+                          }
+                          type="button"
+                          variant="ghost"
+                        >
+                          Remove last
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  onClick={() => setSelectedEventId(null)}
+                  type="button"
+                  variant="ghost"
+                >
+                  Cancel
+                </Button>
+                {canManageAgenda ? (
                   <Button
-                    onClick={() => setSelectedMeetingId(null)}
-                    type="button"
-                    variant="ghost"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    disabled={isMinutesSaving}
+                    disabled={isSavingEvent}
                     onClick={() => {
-                      saveMinutesFromDialog().catch((error) => {
+                      saveEventDetails().catch((error) => {
                         const message =
                           error instanceof Error
                             ? error.message
@@ -1110,11 +1631,11 @@ export function OrganizationAgenda({
                     }}
                     type="button"
                   >
-                    Save minutes
+                    Save
                   </Button>
-                </div>
+                ) : null}
               </DialogFooter>
-            </>
+            </div>
           ) : null}
         </DialogContent>
       </Dialog>

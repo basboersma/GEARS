@@ -125,6 +125,18 @@ export const agendaCategory = pgEnum("agenda_category", [
   "personal",
 ]);
 
+export const agendaItemType = pgEnum("agenda_item_type", [
+  "meeting",
+  "event",
+  "general_members_assembly",
+]);
+
+export const agendaVoteValue = pgEnum("agenda_vote_value", [
+  "for",
+  "against",
+  "abstain",
+]);
+
 export type Role = (typeof role.enumValues)[number];
 
 export const member = pgTable("member", {
@@ -245,12 +257,18 @@ export const agendaEvent = pgTable("agenda_event", {
   start: text("start").notNull(),
   end: text("end").notNull(),
   title: text("title").notNull(),
+  itemType: agendaItemType("item_type").default("event").notNull(),
+  isDeadline: boolean("is_deadline").default(false).notNull(),
+  allowVoting: boolean("allow_voting").default(false).notNull(),
   category: agendaCategory("category").default("meeting").notNull(),
   description: text("description").notNull(),
   location: text("location"),
   attendees: text("attendees"),
   isMeeting: boolean("is_meeting").default(true).notNull(),
   minutes: text("minutes"),
+  minutesSummary: text("minutes_summary"),
+  minutesDecisions: text("minutes_decisions"),
+  minutesActions: text("minutes_actions"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
@@ -258,6 +276,50 @@ export const agendaEvent = pgTable("agenda_event", {
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
 });
+
+export const agendaDiscussionPoint = pgTable("agenda_discussion_point", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id")
+    .notNull()
+    .references(() => agendaEvent.id, { onDelete: "cascade" }),
+  position: integer("position").default(0).notNull(),
+  topic: text("topic").notNull(),
+  notes: text("notes"),
+  votePrompt: text("vote_prompt"),
+  votingEnabled: boolean("voting_enabled").default(false).notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const agendaDiscussionPointVote = pgTable(
+  "agenda_discussion_point_vote",
+  {
+    id: text("id").primaryKey(),
+    discussionPointId: text("discussion_point_id")
+      .notNull()
+      .references(() => agendaDiscussionPoint.id, { onDelete: "cascade" }),
+    eventId: text("event_id")
+      .notNull()
+      .references(() => agendaEvent.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    value: agendaVoteValue("value").notNull(),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  }
+);
 
 export const schema = {
   user,
@@ -269,6 +331,8 @@ export const schema = {
   invitation,
   orderRequest,
   agendaEvent,
+  agendaDiscussionPoint,
+  agendaDiscussionPointVote,
   studentProfile,
   organizationRelations,
   memberRelations,
