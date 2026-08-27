@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -6,72 +6,133 @@ import { db } from "@/db/drizzle";
 import { agendaEvent, member } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
-const bodySchema = z.object({
+const categoryEnum = [
+  "meeting",
+  "review",
+  "task",
+  "deadline",
+  "break",
+  "personal",
+] as const;
+
+const createAgendaEventSchema = z.object({
   organizationId: z.string().min(1),
-  eventType: z.enum(["meeting", "minutes"]),
-  title: z.string().trim().min(1).max(120),
-  details: z.string().trim().max(500).optional(),
-  eventDate: z.coerce.date(),
+  start: z.string().trim().min(1),
+  end: z.string().trim().min(1),
+  title: z.string().trim().min(1),
+  category: z.enum(categoryEnum),
+  description: z.string().trim().min(1),
+  location: z.string().trim().optional().default(""),
+  attendees: z.string().trim().optional().default(""),
+  isMeeting: z.boolean().default(true),
 });
 
-export async function POST(request: Request) {
+async function getSessionUser() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!session) {
+    return null;
+  }
+
+  return session.user;
+}
+
+async function canManageAgenda(userId: string, organizationId: string) {
+  const membership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, userId),
+      eq(member.organizationId, organizationId)
+    ),
+  });
+
+  if (!membership) {
+    return false;
+  }
+
+  return membership.role === "owner" || membership.role === "admin";
+}
+
+export async function GET(request: Request) {
+  const user = await getSessionUser();
+
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = bodySchema.safeParse(await request.json());
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
+
+  if (!organizationId) {
+    return NextResponse.json(
+      { error: "organizationId is required" },
+      { status: 400 }
+    );
+  }
+
+  const hasAccess = await canManageAgenda(user.id, organizationId);
+
+  if (!hasAccess) {
+    return NextResponse.json(
+      { error: "Only owners and admins can view agenda" },
+      { status: 403 }
+    );
+  }
+
+  const events = await db.query.agendaEvent.findMany({
+    where: eq(agendaEvent.organizationId, organizationId),
+    orderBy: [asc(agendaEvent.start), asc(agendaEvent.createdAt)],
+  });
+
+  return NextResponse.json({ events });
+}
+
+export async function POST(request: Request) {
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const payload = await request.json();
+  const parsed = createAgendaEventSchema.safeParse(payload);
 
   if (!parsed.success) {
     return NextResponse.json(
       {
-        error: "Invalid agenda payload",
+        error: "Invalid agenda event payload",
         details: parsed.error.flatten(),
       },
       { status: 400 }
     );
   }
 
-  const ownerMembership = await db.query.member.findFirst({
-    where: and(
-      eq(member.organizationId, parsed.data.organizationId),
-      eq(member.userId, session.user.id),
-      eq(member.role, "owner")
-    ),
-  });
+  const hasAccess = await canManageAgenda(user.id, parsed.data.organizationId);
 
-  if (!ownerMembership) {
+  if (!hasAccess) {
     return NextResponse.json(
-      { error: "Only organization owners can add agenda items" },
+      { error: "Only owners and admins can create agenda events" },
       { status: 403 }
     );
   }
 
-  const newEvent = {
+  await db.insert(agendaEvent).values({
     id: crypto.randomUUID(),
     organizationId: parsed.data.organizationId,
-    userId: session.user.id,
-    eventType: parsed.data.eventType,
+    createdByUserId: user.id,
+    start: parsed.data.start,
+    end: parsed.data.end,
     title: parsed.data.title,
-    details: parsed.data.details || null,
-    eventDate: parsed.data.eventDate,
+    category: parsed.data.category,
+    description: parsed.data.description,
+    location: parsed.data.location || null,
+    attendees: parsed.data.attendees || null,
+    isMeeting: parsed.data.isMeeting,
+    minutes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
-
-  await db.insert(agendaEvent).values(newEvent);
-
-  return NextResponse.json({
-    success: true,
-    event: {
-      id: newEvent.id,
-      eventType: newEvent.eventType,
-      title: newEvent.title,
-      details: newEvent.details,
-      eventDate: newEvent.eventDate.toISOString(),
-    },
   });
+
+  return NextResponse.json({ success: true });
 }

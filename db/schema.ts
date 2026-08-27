@@ -116,9 +116,13 @@ export const orderUrgency = pgEnum("order_urgency", [
   "7 days",
 ]);
 
-export const agendaEventType = pgEnum("agenda_event_type", [
+export const agendaCategory = pgEnum("agenda_category", [
   "meeting",
-  "minutes",
+  "review",
+  "task",
+  "deadline",
+  "break",
+  "personal",
 ]);
 
 export type Role = (typeof role.enumValues)[number];
@@ -235,13 +239,18 @@ export const agendaEvent = pgTable("agenda_event", {
   organizationId: text("organization_id")
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),
-  userId: text("user_id")
+  createdByUserId: text("created_by_user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  eventType: agendaEventType("event_type").notNull(),
+  start: text("start").notNull(),
+  end: text("end").notNull(),
   title: text("title").notNull(),
-  details: text("details"),
-  eventDate: timestamp("event_date").notNull(),
+  category: agendaCategory("category").default("meeting").notNull(),
+  description: text("description").notNull(),
+  location: text("location"),
+  attendees: text("attendees"),
+  isMeeting: boolean("is_meeting").default(true).notNull(),
+  minutes: text("minutes"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),

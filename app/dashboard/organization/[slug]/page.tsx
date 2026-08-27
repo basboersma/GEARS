@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AllUsers from "@/components/all-users";
 import MembersTable from "@/components/members-table";
+import { OrganizationAgenda } from "@/components/organization-agenda";
 import { Button } from "@/components/ui/button";
 import { getOrganizationBySlug } from "@/server/organizations";
 import { getCurrentUser, getUsers } from "@/server/users";
@@ -15,6 +16,8 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const users = await getUsers(organization?.id || "");
   const membership = organization?.members.find((m) => m.userId === user.id);
   const isOwner = membership?.role === "owner";
+  const isOwnerOrAdmin =
+    membership?.role === "owner" || membership?.role === "admin";
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 py-10">
@@ -26,6 +29,10 @@ export default async function OrganizationPage({ params }: { params: Params }) {
             Submit Order Lists
           </Link>
         </Button>
+      ) : null}
+
+      {isOwnerOrAdmin && organization?.id ? (
+        <OrganizationAgenda organizationId={organization.id} />
       ) : null}
 
       <MembersTable members={organization?.members || []} />

@@ -151,10 +151,10 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
 
   return (
     <form
-      className="rounded-xl border-[#FFD142]/70 border-[0.5px] bg-card shadow-2xl shadow-black/40"
+      className="rounded-xl border-[#FFD142] border-[0.5px] bg-card shadow-2xl shadow-black/40"
       onSubmit={handleSubmit}
     >
-      <header className="border-[#FFD142]/70 border-b-[0.5px] px-6 py-5">
+      <header className="border-[#FFD142] border-b-[0.5px] px-6 py-5">
         <p className="font-mono text-[0.7rem] text-primary uppercase tracking-[0.22em]">
           Form PR-25
         </p>
@@ -163,7 +163,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
         </h1>
       </header>
 
-      <div className="border-[#FFD142]/70 border-b-[0.5px] px-6 py-5">
+      <div className="border-[#FFD142] border-b-[0.5px] px-6 py-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="flex w-full flex-col gap-1.5">
             <span className="font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.14em]">
@@ -200,7 +200,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
       <div className="overflow-x-auto px-6 py-5">
         <div className="min-w-[62rem]">
           <div
-            className={`${GRID} border-[#FFD142]/70 border-b-[0.5px] pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
+            className={`${GRID} border-[#FFD142] border-b pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
           >
             <span>#</span>
             <span>Description</span>
@@ -307,7 +307,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-4 border-[#FFD142]/70 border-t-[0.5px] px-6 py-5">
+      <footer className="flex flex-wrap items-center justify-between gap-4 border-[#FFD142] border-t-[0.5px] px-6 py-5">
         <p className="text-muted-foreground text-sm">
           Questions about this form?{" "}
           <a
