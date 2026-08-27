@@ -201,6 +201,7 @@ export const orderRequest = pgTable("order_request", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   department: orderDepartment("department").notNull(),
+  description: text("description").notNull(),
   pricePerPiece: numeric("price_per_piece").notNull(),
   amount: integer("amount").notNull(),
   typeOfOrder: orderType("type_of_order").notNull(),
