@@ -59,10 +59,8 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
   const [rows, setRows] = useState<Row[]>(() =>
     Array.from({ length: ROW_COUNT }, () => createEmptyRow())
   );
+  const [orderName, setOrderName] = useState<string>("");
   const [department, setDepartment] = useState<string>("");
-  const [orderedDate, setOrderedDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
   const [submitted, setSubmitted] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -75,6 +73,11 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!orderName.trim()) {
+      toast.error("Add an order list name before submitting");
+      return;
+    }
 
     if (!department) {
       toast.error("Select a department before submitting");
@@ -112,8 +115,8 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
         },
         body: JSON.stringify({
           organizationId,
+          orderName,
           department,
-          orderedDate,
           rows: filled.map((row) => ({
             description: row.description,
             pricePerPiece: row.pricePerPiece,
@@ -147,17 +150,17 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
 
   function handleReset() {
     setRows(Array.from({ length: ROW_COUNT }, () => createEmptyRow()));
+    setOrderName("");
     setDepartment("");
     setSubmitted(null);
-    setOrderedDate(new Date().toISOString().slice(0, 10));
   }
 
   return (
     <form
-      className="rounded-xl border border-border bg-card shadow-2xl shadow-black/40"
+      className="rounded-xl border border-[#FFD142] bg-card shadow-2xl shadow-black/40"
       onSubmit={handleSubmit}
     >
-      <header className="border-border border-b px-6 py-5">
+      <header className="border-[#FFD142] border-b px-6 py-5">
         <p className="font-mono text-[0.7rem] text-primary uppercase tracking-[0.22em]">
           Form PR-25
         </p>
@@ -166,8 +169,20 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
         </h1>
       </header>
 
-      <div className="border-border border-b px-6 py-5">
+      <div className="border-[#FFD142] border-b px-6 py-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="flex w-full flex-col gap-1.5">
+            <span className="font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.14em]">
+              Order list name
+            </span>
+            <input
+              className={fieldClass}
+              onChange={(event) => setOrderName(event.target.value)}
+              placeholder="Example: September Hardware Batch"
+              value={orderName}
+            />
+          </label>
+
           <label className="flex w-full flex-col gap-1.5">
             <span className="font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.14em]">
               Department
@@ -185,25 +200,13 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
               ))}
             </select>
           </label>
-
-          <label className="flex w-full flex-col gap-1.5">
-            <span className="font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.14em]">
-              Ordered date
-            </span>
-            <input
-              className={fieldClass}
-              onChange={(event) => setOrderedDate(event.target.value)}
-              type="date"
-              value={orderedDate}
-            />
-          </label>
         </div>
       </div>
 
       <div className="overflow-x-auto px-6 py-5">
         <div className="min-w-[62rem]">
           <div
-            className={`${GRID} border-border border-b pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
+            className={`${GRID} border-[#FFD142] border-b pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
           >
             <span>#</span>
             <span>Description</span>
@@ -338,7 +341,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-4 border-border border-t px-6 py-5">
+      <footer className="flex flex-wrap items-center justify-between gap-4 border-[#FFD142] border-t px-6 py-5">
         <p className="text-muted-foreground text-sm">
           Questions about this form?{" "}
           <a

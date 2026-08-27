@@ -27,7 +27,7 @@ const rowSchema = z.object({
 const bodySchema = z.object({
   organizationId: z.string().min(1),
   department: z.enum(departmentEnum),
-  orderedDate: z.coerce.date(),
+  orderName: z.string().trim().min(1, "Order name is required").max(100),
   rows: z.array(rowSchema).min(1, "At least one row is required"),
 });
 
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       organizationId: parsed.data.organizationId,
       userId: session.user.id,
       department: parsed.data.department,
+      orderName: parsed.data.orderName,
       description: row.description,
       pricePerPiece: row.pricePerPiece.toFixed(2),
       amount: row.quantity,
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
       comments: row.comments,
       additionalCosts: row.additionalCosts.toFixed(2),
       totalCosts: total.toFixed(2),
-      orderedDate: parsed.data.orderedDate,
+      orderedDate: new Date(),
       photoAdded: row.photoAdded,
       delivered: false,
       canceled: false,

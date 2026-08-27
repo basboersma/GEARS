@@ -201,6 +201,7 @@ export const orderRequest = pgTable("order_request", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   department: orderDepartment("department").notNull(),
+  orderName: text("order_name").default("Untitled order").notNull(),
   description: text("description").notNull(),
   pricePerPiece: numeric("price_per_piece").notNull(),
   amount: integer("amount").notNull(),
@@ -209,7 +210,9 @@ export const orderRequest = pgTable("order_request", {
   comments: varchar("comments", { length: 200 }).notNull(),
   additionalCosts: numeric("additional_costs").notNull(),
   totalCosts: numeric("total_costs").notNull(),
-  orderedDate: timestamp("ordered_date").notNull(),
+  orderedDate: timestamp("ordered_date")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
   photoAdded: boolean("photo_added").default(false).notNull(),
   delivered: boolean("delivered").default(false).notNull(),
   canceled: boolean("canceled").default(false).notNull(),
