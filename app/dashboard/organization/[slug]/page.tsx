@@ -16,6 +16,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const users = await getUsers(organization?.id || "");
   const membership = organization?.members.find((m) => m.userId === user.id);
   const isOwner = membership?.role === "owner";
+  const isAdmin = membership?.role === "admin";
   const isMember = Boolean(membership);
   const isOwnerOrAdmin =
     membership?.role === "owner" || membership?.role === "admin";
@@ -34,6 +35,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
 
       {isMember && organization?.id ? (
         <OrganizationAgenda
+          canEnableVoting={isAdmin}
           canManageAgenda={isOwnerOrAdmin}
           organizationId={organization.id}
         />

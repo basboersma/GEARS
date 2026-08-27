@@ -63,6 +63,35 @@ interface ParsedAgendaEvent extends AgendaEvent {
   endDateTime: Date;
 }
 
+type BatchState = "finalized" | "in_progress" | "attention";
+
+interface OrderBatchItem {
+  id: string;
+  description: string;
+  amount: number;
+  delivered: boolean;
+  ordered: boolean;
+  finalized: boolean;
+  status: "accepted" | "declined" | "pending";
+  photoNeeded: boolean;
+  photoUploaded: boolean;
+  totalCosts: string;
+  typeOfOrder: string;
+  urgency: string;
+}
+
+interface OrderBatch {
+  id: string;
+  orderName: string;
+  organizationId: string;
+  department: string;
+  createdByUserId: string;
+  orderedDate: string;
+  batchState: BatchState;
+  color: string;
+  items: OrderBatchItem[];
+}
+
 interface DiscussionPointDraft {
   clientId: string;
   id?: string;
@@ -220,15 +249,68 @@ function isMinutesItem(event: ParsedAgendaEvent) {
   );
 }
 
+function getBatchStyle(batchState: BatchState) {
+  if (batchState === "finalized") {
+    return {
+      block: "bg-[#FFD142] text-[#2c2413]",
+      item: "bg-white/55",
+      badge: "bg-[#f8c92f] text-[#3b2e14]",
+    };
+  }
+
+  if (batchState === "attention") {
+    return {
+      block: "bg-[#F0684D] text-white",
+      item: "bg-white/20",
+      badge: "bg-[#cf5a42] text-white",
+    };
+  }
+
+  return {
+    block: "bg-[#FFEDD1] text-[#3b2e14]",
+    item: "bg-white/60",
+    badge: "bg-[#f4d4a4] text-[#4f3819]",
+  };
+}
+
+function isOrderBatchItemFinalized(item: OrderBatchItem) {
+  return (
+    item.finalized ||
+    (item.ordered &&
+      item.delivered &&
+      item.status === "accepted" &&
+      (!item.photoNeeded || item.photoUploaded))
+  );
+}
+
+function getOrderBatchItemClass(item: OrderBatchItem) {
+  if (isOrderBatchItemFinalized(item)) {
+    return "bg-[#FFD142]/40 border-[#FFD142]";
+  }
+
+  if (item.status === "pending" || item.status === "declined") {
+    return "bg-[#F0684D]/20 border-[#F0684D]";
+  }
+
+  return "bg-[#FFEDD1] border-[#FFEDD1]";
+}
+
+function yesNo(value: boolean) {
+  return value ? "yes" : "no";
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This single component intentionally coordinates calendar navigation, creation flows, and minutes editing.
 export function OrganizationAgenda({
+  canEnableVoting,
   canManageAgenda,
   organizationId,
 }: {
+  canEnableVoting: boolean;
   canManageAgenda: boolean;
   organizationId: string;
 }) {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
+  const [orderBatches, setOrderBatches] = useState<OrderBatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingEvent, setIsSavingEvent] = useState(false);
@@ -237,6 +319,9 @@ export function OrganizationAgenda({
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedOrderBatchId, setSelectedOrderBatchId] = useState<
+    string | null
+  >(null);
   const [createItemType, setCreateItemType] =
     useState<AgendaItemType>("meeting");
   const [createForm, setCreateForm] = useState({
@@ -275,8 +360,12 @@ export function OrganizationAgenda({
         throw new Error(data?.error ?? "Failed to load agenda");
       }
 
-      const data = (await response.json()) as { events: AgendaEvent[] };
+      const data = (await response.json()) as {
+        events: AgendaEvent[];
+        orderBatches?: OrderBatch[];
+      };
       setEvents(data.events);
+      setOrderBatches(data.orderBatches ?? []);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(message);
@@ -465,6 +554,30 @@ export function OrganizationAgenda({
     [visibleEvents]
   );
 
+  const selectedOrderBatch = useMemo(
+    () =>
+      orderBatches.find((batch) => batch.id === selectedOrderBatchId) ?? null,
+    [orderBatches, selectedOrderBatchId]
+  );
+
+  const visibleOrderBatches = useMemo(() => {
+    return orderBatches.filter((batch) => {
+      const batchDate = parseEventDate(batch.orderedDate);
+
+      if (!batchDate) {
+        return false;
+      }
+
+      const batchEnd = addDays(batchDate, 1);
+      return eventIntersectsRange(
+        batchDate,
+        batchEnd,
+        calendarRange.start,
+        calendarRange.end
+      );
+    });
+  }, [calendarRange.end, calendarRange.start, orderBatches]);
+
   const goToPrevious = () => {
     if (view === "day") {
       setFocusDate((current) => addDays(current, -1));
@@ -608,7 +721,7 @@ export function OrganizationAgenda({
           allowVoting:
             createItemType === "meeting" ||
             createItemType === "general_members_assembly"
-              ? createForm.allowVoting
+              ? canEnableVoting && createForm.allowVoting
               : false,
           title:
             createItemType === "event" && createForm.isDeadline
@@ -704,7 +817,7 @@ export function OrganizationAgenda({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          allowVoting: eventAllowVoting,
+          ...(canEnableVoting ? { allowVoting: eventAllowVoting } : {}),
           minutesSummary: eventSummary,
           minutesDecisions: eventDecisions,
           minutesActions: eventActions,
@@ -1030,6 +1143,56 @@ export function OrganizationAgenda({
             })
           )}
         </div>
+
+        <div className="flex flex-col gap-3">
+          <p className="font-medium text-sm">Order batches in current {view}</p>
+
+          {visibleOrderBatches.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No order batches in this range.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {visibleOrderBatches.map((batch) => {
+                const style = getBatchStyle(batch.batchState);
+                const finalizedCount = batch.items.filter((item) =>
+                  isOrderBatchItemFinalized(item)
+                ).length;
+
+                return (
+                  <button
+                    className={`w-full rounded-2xl border border-black/10 p-4 text-left shadow-sm transition-opacity hover:opacity-90 ${style.block}`}
+                    key={batch.id}
+                    onClick={() => setSelectedOrderBatchId(batch.id)}
+                    type="button"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">
+                          {batch.orderName}
+                        </p>
+                        <p className="text-xs opacity-80">
+                          Dept {batch.department} · {batch.items.length} items
+                        </p>
+                        <p className="text-xs opacity-80">
+                          {dayLabelFormatter.format(
+                            new Date(batch.orderedDate)
+                          )}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`rounded-full px-2 py-1 font-medium text-[11px] ${style.badge}`}
+                      >
+                        {finalizedCount}/{batch.items.length} finalized
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1201,20 +1364,22 @@ export function OrganizationAgenda({
             {createItemType === "meeting" ||
             createItemType === "general_members_assembly" ? (
               <>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    checked={createForm.allowVoting}
-                    className="size-4"
-                    onChange={(event) =>
-                      setCreateForm((current) => ({
-                        ...current,
-                        allowVoting: event.target.checked,
-                      }))
-                    }
-                    type="checkbox"
-                  />
-                  Allow members to vote
-                </label>
+                {canEnableVoting ? (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      checked={createForm.allowVoting}
+                      className="size-4"
+                      onChange={(event) =>
+                        setCreateForm((current) => ({
+                          ...current,
+                          allowVoting: event.target.checked,
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                    Allow members to vote
+                  </label>
+                ) : null}
 
                 <div className="rounded-md border border-border p-3">
                   <p className="mb-2 font-medium text-sm">Discussion points</p>
@@ -1359,18 +1524,20 @@ export function OrganizationAgenda({
                 </p>
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  checked={eventAllowVoting}
-                  className="size-4"
-                  disabled={!canManageAgenda}
-                  onChange={(event) =>
-                    setEventAllowVoting(event.target.checked)
-                  }
-                  type="checkbox"
-                />
-                Allow member voting for this item
-              </label>
+              {canEnableVoting ? (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    checked={eventAllowVoting}
+                    className="size-4"
+                    disabled={!canManageAgenda}
+                    onChange={(event) =>
+                      setEventAllowVoting(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  Allow member voting for this item
+                </label>
+              ) : null}
 
               <div className="grid gap-2 md:grid-cols-3">
                 <div className="rounded-md border border-border/70 p-2">
@@ -1635,6 +1802,75 @@ export function OrganizationAgenda({
                   </Button>
                 ) : null}
               </DialogFooter>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedOrderBatchId(null);
+          }
+        }}
+        open={selectedOrderBatch !== null}
+      >
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedOrderBatch?.orderName ?? "Order batch"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedOrderBatch
+                ? `Department ${selectedOrderBatch.department} · ${selectedOrderBatch.items.length} items`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrderBatch ? (
+            <div className="grid gap-3">
+              {selectedOrderBatch.items.map((item) => {
+                const itemClass = getOrderBatchItemClass(item);
+
+                return (
+                  <article
+                    className={`rounded-xl border p-3 ${itemClass}`}
+                    key={item.id}
+                  >
+                    <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-medium text-sm">{item.description}</p>
+                      <span className="rounded-full bg-black/10 px-2 py-0.5 text-[11px]">
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+                      <p>Qty: {item.amount}</p>
+                      <p>Type: {item.typeOfOrder}</p>
+                      <p>Urgency: {item.urgency}</p>
+                      <p>Total: {item.totalCosts}</p>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded bg-black/10 px-2 py-1">
+                        Ordered: {yesNo(item.ordered)}
+                      </span>
+                      <span className="rounded bg-black/10 px-2 py-1">
+                        Delivered: {yesNo(item.delivered)}
+                      </span>
+                      <span className="rounded bg-black/10 px-2 py-1">
+                        Finalized: {yesNo(item.finalized)}
+                      </span>
+                      <span className="rounded bg-black/10 px-2 py-1">
+                        Photo needed: {yesNo(item.photoNeeded)}
+                      </span>
+                      <span className="rounded bg-black/10 px-2 py-1">
+                        Photo uploaded: {yesNo(item.photoUploaded)}
+                      </span>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : null}
         </DialogContent>

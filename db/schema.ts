@@ -116,6 +116,12 @@ export const orderUrgency = pgEnum("order_urgency", [
   "7 days",
 ]);
 
+export const orderRequestStatus = pgEnum("order_request_status", [
+  "accepted",
+  "declined",
+  "pending",
+]);
+
 export const agendaCategory = pgEnum("agenda_category", [
   "meeting",
   "review",
@@ -236,6 +242,11 @@ export const orderRequest = pgTable("order_request", {
     .notNull(),
   photoAdded: boolean("photo_added").default(false).notNull(),
   delivered: boolean("delivered").default(false).notNull(),
+  ordered: boolean("ordered").default(false).notNull(),
+  finalized: boolean("finalized").default(false).notNull(),
+  status: orderRequestStatus("status").default("pending").notNull(),
+  photoNeeded: boolean("photo_needed").default(false).notNull(),
+  photoUploaded: boolean("photo_uploaded").default(false).notNull(),
   canceled: boolean("canceled").default(false).notNull(),
   accepted: boolean("accepted").default(false).notNull(),
   createdAt: timestamp("created_at")

@@ -8,6 +8,7 @@ import {
   agendaDiscussionPointVote,
   agendaEvent,
   member,
+  orderRequest,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
@@ -68,10 +69,14 @@ async function canManageAgenda(userId: string, organizationId: string) {
   });
 
   if (!membership) {
-    return false;
+    return null;
   }
 
-  return membership.role === "owner" || membership.role === "admin";
+  return {
+    canManage: membership.role === "owner" || membership.role === "admin",
+    isAdmin: membership.role === "admin",
+    membership,
+  };
 }
 
 export async function GET(request: Request) {
@@ -91,11 +96,11 @@ export async function GET(request: Request) {
     );
   }
 
-  const hasAccess = await canManageAgenda(user.id, organizationId);
+  const access = await canManageAgenda(user.id, organizationId);
 
-  if (!hasAccess) {
+  if (!access) {
     return NextResponse.json(
-      { error: "Only owners and admins can view agenda" },
+      { error: "Only organization members can view agenda" },
       { status: 403 }
     );
   }
@@ -105,10 +110,87 @@ export async function GET(request: Request) {
     orderBy: [asc(agendaEvent.start), asc(agendaEvent.createdAt)],
   });
 
+  const orderRows = await db.query.orderRequest.findMany({
+    where: eq(orderRequest.organizationId, organizationId),
+    orderBy: [asc(orderRequest.orderedDate), asc(orderRequest.createdAt)],
+  });
+
+  const orderBatchesByKey = new Map<
+    string,
+    {
+      id: string;
+      orderName: string;
+      organizationId: string;
+      department: string;
+      createdByUserId: string;
+      orderedDate: Date;
+      items: typeof orderRows;
+    }
+  >();
+
+  for (const row of orderRows) {
+    const batchWindow = new Date(row.orderedDate).toISOString().slice(0, 16);
+    const key = [row.orderName, row.department, row.userId, batchWindow].join(
+      "::"
+    );
+
+    const current = orderBatchesByKey.get(key);
+
+    if (current) {
+      current.items.push(row);
+      continue;
+    }
+
+    orderBatchesByKey.set(key, {
+      id: key,
+      orderName: row.orderName,
+      organizationId: row.organizationId,
+      department: row.department,
+      createdByUserId: row.userId,
+      orderedDate: row.orderedDate,
+      items: [row],
+    });
+  }
+
+  const orderBatches = Array.from(orderBatchesByKey.values()).map((batch) => {
+    const isItemFinalized = (item: (typeof batch.items)[number]) =>
+      item.finalized ||
+      (item.ordered &&
+        item.delivered &&
+        item.status === "accepted" &&
+        (!item.photoNeeded || item.photoUploaded));
+
+    const allFinalized =
+      batch.items.length > 0 && batch.items.every(isItemFinalized);
+    const hasPendingOrDeclined = batch.items.some(
+      (item) => item.status === "pending" || item.status === "declined"
+    );
+
+    let batchState: "finalized" | "attention" | "in_progress" = "in_progress";
+    if (allFinalized) {
+      batchState = "finalized";
+    } else if (hasPendingOrDeclined) {
+      batchState = "attention";
+    }
+
+    let color = "#FFEDD1";
+    if (batchState === "finalized") {
+      color = "#FFD142";
+    } else if (batchState === "attention") {
+      color = "#F0684D";
+    }
+
+    return {
+      ...batch,
+      batchState,
+      color,
+    };
+  });
+
   const eventIds = events.map((event) => event.id);
 
   if (eventIds.length === 0) {
-    return NextResponse.json({ events: [] });
+    return NextResponse.json({ events: [], orderBatches });
   }
 
   const points = await db.query.agendaDiscussionPoint.findMany({
@@ -165,7 +247,7 @@ export async function GET(request: Request) {
     };
   });
 
-  return NextResponse.json({ events: eventWithPoints });
+  return NextResponse.json({ events: eventWithPoints, orderBatches });
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This handler validates multiple item types and derives persisted shape based on type/deadline rules.
@@ -189,11 +271,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const hasAccess = await canManageAgenda(user.id, parsed.data.organizationId);
+  const access = await canManageAgenda(user.id, parsed.data.organizationId);
 
-  if (!hasAccess) {
+  if (!access?.canManage) {
     return NextResponse.json(
       { error: "Only owners and admins can create agenda events" },
+      { status: 403 }
+    );
+  }
+
+  if (parsed.data.allowVoting && !access.isAdmin) {
+    return NextResponse.json(
+      { error: "Only admins can enable member voting" },
       { status: 403 }
     );
   }

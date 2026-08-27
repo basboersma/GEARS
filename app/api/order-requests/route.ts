@@ -66,6 +66,8 @@ export async function POST(request: Request) {
     );
   }
 
+  const now = new Date();
+
   const rowsToInsert = parsed.data.rows.map((row) => {
     const total = row.pricePerPiece * row.quantity;
 
@@ -83,13 +85,18 @@ export async function POST(request: Request) {
       comments: row.comments,
       additionalCosts: "0.00",
       totalCosts: total.toFixed(2),
-      orderedDate: new Date(),
+      orderedDate: now,
       photoAdded: false,
       delivered: false,
+      ordered: false,
+      finalized: false,
+      status: "pending" as const,
+      photoNeeded: false,
+      photoUploaded: false,
       canceled: false,
       accepted: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
   });
 

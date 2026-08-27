@@ -71,7 +71,11 @@ async function canManageEvent(userId: string, eventId: string) {
     membership && (membership.role === "owner" || membership.role === "admin")
   );
 
-  return { allowed, event };
+  return {
+    allowed,
+    event,
+    isAdmin: membership?.role === "admin",
+  };
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Update flow handles type/deadline transitions and coordinated replacement of discussion points and votes.
@@ -106,6 +110,13 @@ export async function PATCH(
         details: parsed.error.flatten(),
       },
       { status: 400 }
+    );
+  }
+
+  if (typeof parsed.data.allowVoting === "boolean" && !access.isAdmin) {
+    return NextResponse.json(
+      { error: "Only admins can enable member voting" },
+      { status: 403 }
     );
   }
 
