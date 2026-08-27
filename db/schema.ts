@@ -1,5 +1,14 @@
 import { relations } from "drizzle-orm";
-import { boolean, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  varchar,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -85,6 +94,28 @@ export const educationalInstitution = pgEnum("educational_institution", [
   "Guest",
 ]);
 
+export const orderDepartment = pgEnum("order_department", [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+]);
+
+export const orderType = pgEnum("order_type", [
+  "Hardware",
+  "Electronic",
+  "Software",
+  "Social",
+]);
+
+export const orderUrgency = pgEnum("order_urgency", [
+  "1 day",
+  "2 days",
+  "3 days",
+  "7 days",
+]);
+
 export type Role = (typeof role.enumValues)[number];
 
 export const member = pgTable("member", {
@@ -161,6 +192,35 @@ export const invitation = pgTable("invitation", {
     .references(() => user.id, { onDelete: "cascade" }),
 });
 
+export const orderRequest = pgTable("order_request", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  department: orderDepartment("department").notNull(),
+  pricePerPiece: numeric("price_per_piece").notNull(),
+  amount: integer("amount").notNull(),
+  typeOfOrder: orderType("type_of_order").notNull(),
+  urgency: orderUrgency("urgency").notNull(),
+  comments: varchar("comments", { length: 200 }).notNull(),
+  additionalCosts: numeric("additional_costs").notNull(),
+  totalCosts: numeric("total_costs").notNull(),
+  orderedDate: timestamp("ordered_date").notNull(),
+  photoAdded: boolean("photo_added").default(false).notNull(),
+  delivered: boolean("delivered").default(false).notNull(),
+  canceled: boolean("canceled").default(false).notNull(),
+  accepted: boolean("accepted").default(false).notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
 export const schema = {
   user,
   session,
@@ -169,6 +229,7 @@ export const schema = {
   organization,
   member,
   invitation,
+  orderRequest,
   studentProfile,
   organizationRelations,
   memberRelations,
