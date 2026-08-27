@@ -312,13 +312,13 @@ export function MemberProfileGate({
         }
         open={pdfPopup.open}
       >
-        <DialogContent className="h-[85vh] max-w-5xl">
-          <DialogHeader>
+        <DialogContent className="h-[92vh] w-[95vw] max-w-[95vw] gap-0 overflow-hidden p-0">
+          <DialogHeader className="sr-only">
             <DialogTitle>{pdfPopup.title}</DialogTitle>
           </DialogHeader>
 
           <iframe
-            className="h-full w-full rounded-md border"
+            className="h-full w-full border-0"
             src={pdfPopup.src}
             title={pdfPopup.title}
           />
