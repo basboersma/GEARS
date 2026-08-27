@@ -126,7 +126,7 @@ export function MemberProfileGate({
     <>
       <Dialog open>
         <DialogContent
-          className="sm:max-w-2xl"
+          className="w-[96vw] max-w-[96vw]"
           onEscapeKeyDown={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           showCloseButton={false}
