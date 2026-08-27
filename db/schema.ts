@@ -79,6 +79,12 @@ export type Organization = typeof organization.$inferSelect;
 
 export const role = pgEnum("role", ["member", "admin", "owner"]);
 
+export const educationalInstitution = pgEnum("educational_institution", [
+  "University of Groningen",
+  "Hanze",
+  "Guest",
+]);
+
 export type Role = (typeof role.enumValues)[number];
 
 export const member = pgTable("member", {
@@ -91,6 +97,33 @@ export const member = pgTable("member", {
     .references(() => user.id, { onDelete: "cascade" }),
   role: role("role").default("member").notNull(),
   createdAt: timestamp("created_at").notNull(),
+});
+
+export const studentProfile = pgTable("student_profile", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  firstName: text("first_name").notNull(),
+  surname: text("surname").notNull(),
+  studentNumber: text("student_number").notNull(),
+  educationalInstitution: educationalInstitution(
+    "educational_institution"
+  ).notNull(),
+  study: text("study").notNull(),
+  ibanNumber: text("iban_number").notNull(),
+  fieldsFilled: boolean("fields_filled")
+    .$defaultFn(() => false)
+    .notNull(),
+  inormationProcessingConsent: boolean("inormation_processing_consent")
+    .$defaultFn(() => false)
+    .notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
 });
 
 export const memberRelations = relations(member, ({ one }) => ({
@@ -132,6 +165,7 @@ export const schema = {
   organization,
   member,
   invitation,
+  studentProfile,
   organizationRelations,
   memberRelations,
 };
