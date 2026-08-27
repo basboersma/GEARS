@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -43,6 +37,7 @@ interface DiscussionPoint {
 
 interface AgendaEvent {
   id: string;
+  createdByUserId: string;
   start: string;
   end: string;
   title: string;
@@ -55,6 +50,7 @@ interface AgendaEvent {
   minutesSummary: string | null;
   minutesDecisions: string | null;
   minutesActions: string | null;
+  canEdit: boolean;
   discussionPoints: DiscussionPoint[];
 }
 
@@ -285,14 +281,14 @@ function isOrderBatchItemFinalized(item: OrderBatchItem) {
 
 function getOrderBatchItemClass(item: OrderBatchItem) {
   if (isOrderBatchItemFinalized(item)) {
-    return "bg-[#FFD142]/40 border-[#FFD142]";
+    return "border-[#FFD142]";
   }
 
   if (item.status === "declined") {
-    return "bg-[#F0684D]/20 border-[#F0684D]";
+    return "border-[#F0684D]";
   }
 
-  return "bg-[#FFEDD1] border-[#FFEDD1]";
+  return "border-[#FFEDD1]";
 }
 
 function yesNo(value: boolean) {
@@ -426,6 +422,7 @@ export function OrganizationAgenda({
     () => parsedEvents.find((event) => event.id === selectedEventId) ?? null,
     [parsedEvents, selectedEventId]
   );
+  const canEditSelectedEvent = Boolean(selectedEvent?.canEdit);
 
   useEffect(() => {
     if (!selectedEvent) {
@@ -544,14 +541,6 @@ export function OrganizationAgenda({
         inCurrentMonth: day.getMonth() === focusDate.getMonth(),
       })),
     [focusDate, monthCells, visibleEvents]
-  );
-
-  const selectedRangeEvents = useMemo(
-    () =>
-      [...visibleEvents].sort(
-        (a, b) => a.startDateTime.getTime() - b.startDateTime.getTime()
-      ),
-    [visibleEvents]
   );
 
   const selectedOrderBatch = useMemo(
@@ -764,27 +753,6 @@ export function OrganizationAgenda({
       toast.error(message);
     } finally {
       setIsCreating(false);
-    }
-  }
-
-  async function removeEvent(eventId: string) {
-    try {
-      const response = await fetch(`/api/agenda-events/${eventId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(data?.error ?? "Failed to delete item");
-      }
-
-      toast.success("Agenda item removed");
-      await loadAgenda();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(message);
     }
   }
 
@@ -1150,71 +1118,6 @@ export function OrganizationAgenda({
 
           {calendarBody}
         </div>
-
-        <div className="flex flex-col gap-3">
-          <p className="font-medium text-sm">Items in current {view}</p>
-
-          {selectedRangeEvents.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No events in this range.
-            </p>
-          ) : (
-            selectedRangeEvents.map((event) => {
-              const style = getEventStyle(event);
-              const label = event.isDeadline
-                ? "Deadline"
-                : itemTypeLabel[event.itemType];
-
-              return (
-                <article
-                  className={`rounded-lg border border-border border-l-4 bg-muted/30 p-3 ${style.border}`}
-                  key={event.id}
-                >
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-sm">{event.title}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {dayLabelFormatter.format(event.startDateTime)} ·{" "}
-                        {timeFormatter.format(event.startDateTime)} -{" "}
-                        {timeFormatter.format(event.endDateTime)}
-                      </p>
-                      <span
-                        className={`mt-1 inline-flex rounded-full px-2 py-0.5 font-medium text-[11px] ${style.badge}`}
-                      >
-                        {label}
-                      </span>
-                    </div>
-
-                    {canManageAgenda ? (
-                      <Button
-                        onClick={() => removeEvent(event.id)}
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    ) : null}
-                  </div>
-
-                  <p className="mb-2 text-muted-foreground text-sm">
-                    {event.description}
-                  </p>
-
-                  {isMinutesItem(event) ? (
-                    <Button
-                      onClick={() => setSelectedEventId(event.id)}
-                      type="button"
-                      variant="outline"
-                    >
-                      Open minutes and discussion points
-                    </Button>
-                  ) : null}
-                </article>
-              );
-            })
-          )}
-        </div>
       </div>
     );
   }
@@ -1551,7 +1454,7 @@ export function OrganizationAgenda({
                   <input
                     checked={eventAllowVoting}
                     className="size-4"
-                    disabled={!canManageAgenda}
+                    disabled={!canEditSelectedEvent}
                     onChange={(event) =>
                       setEventAllowVoting(event.target.checked)
                     }
@@ -1566,7 +1469,7 @@ export function OrganizationAgenda({
                   <p className="mb-1 font-medium text-sm">Minutes summary</p>
                   <textarea
                     className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    disabled={!canManageAgenda}
+                    disabled={!canEditSelectedEvent}
                     onChange={(event) => setEventSummary(event.target.value)}
                     value={eventSummary}
                   />
@@ -1575,7 +1478,7 @@ export function OrganizationAgenda({
                   <p className="mb-1 font-medium text-sm">Decisions</p>
                   <textarea
                     className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    disabled={!canManageAgenda}
+                    disabled={!canEditSelectedEvent}
                     onChange={(event) => setEventDecisions(event.target.value)}
                     value={eventDecisions}
                   />
@@ -1584,7 +1487,7 @@ export function OrganizationAgenda({
                   <p className="mb-1 font-medium text-sm">Action items</p>
                   <textarea
                     className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    disabled={!canManageAgenda}
+                    disabled={!canEditSelectedEvent}
                     onChange={(event) => setEventActions(event.target.value)}
                     value={eventActions}
                   />
@@ -1606,7 +1509,7 @@ export function OrganizationAgenda({
                         key={point.clientId}
                       >
                         <Input
-                          disabled={!canManageAgenda}
+                          disabled={!canEditSelectedEvent}
                           onChange={(event) =>
                             setEventDiscussionPoints((current) =>
                               current.map((entry, i) =>
@@ -1622,7 +1525,7 @@ export function OrganizationAgenda({
 
                         <textarea
                           className="mt-2 min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          disabled={!canManageAgenda}
+                          disabled={!canEditSelectedEvent}
                           onChange={(event) =>
                             setEventDiscussionPoints((current) =>
                               current.map((entry, i) =>
@@ -1642,7 +1545,7 @@ export function OrganizationAgenda({
                               <input
                                 checked={point.votingEnabled}
                                 className="size-4"
-                                disabled={!canManageAgenda}
+                                disabled={!canEditSelectedEvent}
                                 onChange={(event) =>
                                   setEventDiscussionPoints((current) =>
                                     current.map((entry, i) =>
@@ -1663,7 +1566,7 @@ export function OrganizationAgenda({
                             {point.votingEnabled ? (
                               <>
                                 <Input
-                                  disabled={!canManageAgenda}
+                                  disabled={!canEditSelectedEvent}
                                   onChange={(event) =>
                                     setEventDiscussionPoints((current) =>
                                       current.map((entry, i) =>
@@ -1688,7 +1591,7 @@ export function OrganizationAgenda({
                                     Against: {originalPoint?.votes.against ?? 0}
                                   </span>
                                   <span className="rounded bg-muted px-2 py-1">
-                                    Abstain: {originalPoint?.votes.abstain ?? 0}
+                                    Neutral: {originalPoint?.votes.abstain ?? 0}
                                   </span>
 
                                   {point.id ? (
@@ -1751,7 +1654,7 @@ export function OrganizationAgenda({
                                         type="button"
                                         variant="outline"
                                       >
-                                        Abstain
+                                        Neutral
                                       </Button>
                                     </div>
                                   ) : null}
@@ -1766,7 +1669,7 @@ export function OrganizationAgenda({
                 </div>
 
                 <div className="mt-2 flex gap-2">
-                  {canManageAgenda ? (
+                  {canEditSelectedEvent ? (
                     <>
                       <Button
                         onClick={() =>
@@ -1806,7 +1709,7 @@ export function OrganizationAgenda({
                 >
                   Cancel
                 </Button>
-                {canManageAgenda ? (
+                {canEditSelectedEvent ? (
                   <Button
                     disabled={isSavingEvent}
                     onClick={() => {
@@ -1856,12 +1759,12 @@ export function OrganizationAgenda({
 
                 return (
                   <article
-                    className={`rounded-xl border p-3 ${itemClass}`}
+                    className={`rounded-xl border bg-[#1a1919] p-3 text-white ${itemClass}`}
                     key={item.id}
                   >
                     <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
                       <p className="font-medium text-sm">{item.description}</p>
-                      <span className="rounded-full bg-black/10 px-2 py-0.5 text-[11px]">
+                      <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px]">
                         {item.status}
                       </span>
                     </div>
@@ -1874,19 +1777,19 @@ export function OrganizationAgenda({
                     </div>
 
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      <span className="rounded bg-black/10 px-2 py-1">
+                      <span className="rounded bg-white/15 px-2 py-1">
                         Ordered: {yesNo(item.ordered)}
                       </span>
-                      <span className="rounded bg-black/10 px-2 py-1">
+                      <span className="rounded bg-white/15 px-2 py-1">
                         Delivered: {yesNo(item.delivered)}
                       </span>
-                      <span className="rounded bg-black/10 px-2 py-1">
+                      <span className="rounded bg-white/15 px-2 py-1">
                         Finalized: {yesNo(item.finalized)}
                       </span>
-                      <span className="rounded bg-black/10 px-2 py-1">
+                      <span className="rounded bg-white/15 px-2 py-1">
                         Photo needed: {yesNo(item.photoNeeded)}
                       </span>
-                      <span className="rounded bg-black/10 px-2 py-1">
+                      <span className="rounded bg-white/15 px-2 py-1">
                         Photo uploaded: {yesNo(item.photoUploaded)}
                       </span>
                     </div>

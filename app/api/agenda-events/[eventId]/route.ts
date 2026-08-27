@@ -57,7 +57,7 @@ async function canManageEvent(userId: string, eventId: string) {
   });
 
   if (!event) {
-    return { allowed: false as const, event: null };
+    return { allowed: false as const, event: null, isAdmin: false as const };
   }
 
   const membership = await db.query.member.findFirst({
@@ -67,14 +67,52 @@ async function canManageEvent(userId: string, eventId: string) {
     ),
   });
 
-  const allowed = Boolean(
-    membership && (membership.role === "owner" || membership.role === "admin")
-  );
+  if (!membership) {
+    return {
+      allowed: false as const,
+      event,
+      isAdmin: false as const,
+    };
+  }
+
+  if (membership.role === "admin") {
+    return {
+      allowed: true as const,
+      event,
+      isAdmin: true as const,
+    };
+  }
+
+  if (membership.role === "member") {
+    return {
+      allowed: event.createdByUserId === userId,
+      event,
+      isAdmin: false as const,
+    };
+  }
+
+  if (event.createdByUserId === userId) {
+    return {
+      allowed: true as const,
+      event,
+      isAdmin: false as const,
+    };
+  }
+
+  const creatorMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, event.createdByUserId),
+      eq(member.organizationId, event.organizationId)
+    ),
+  });
+
+  const allowed =
+    creatorMembership?.role === "owner" || creatorMembership?.role === "member";
 
   return {
     allowed,
     event,
-    isAdmin: membership?.role === "admin",
+    isAdmin: false as const,
   };
 }
 
@@ -95,7 +133,7 @@ export async function PATCH(
 
   if (!access.allowed) {
     return NextResponse.json(
-      { error: "Only owners and admins can update agenda events" },
+      { error: "You are not allowed to update this agenda event" },
       { status: 403 }
     );
   }
@@ -230,7 +268,7 @@ export async function DELETE(
 
   if (!access.allowed) {
     return NextResponse.json(
-      { error: "Only owners and admins can delete agenda events" },
+      { error: "You are not allowed to delete this agenda event" },
       { status: 403 }
     );
   }

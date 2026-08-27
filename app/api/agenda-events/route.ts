@@ -110,6 +110,15 @@ export async function GET(request: Request) {
     orderBy: [asc(agendaEvent.start), asc(agendaEvent.createdAt)],
   });
 
+  const members = await db.query.member.findMany({
+    where: eq(member.organizationId, organizationId),
+  });
+
+  const roleByUserId = new Map(
+    members.map((entry) => [entry.userId, entry.role])
+  );
+  const viewerRole = access.membership.role;
+
   const orderRows = await db.query.orderRequest.findMany({
     where: eq(orderRequest.organizationId, organizationId),
     orderBy: [asc(orderRequest.orderedDate), asc(orderRequest.createdAt)],
@@ -224,6 +233,20 @@ export async function GET(request: Request) {
   }
 
   const eventWithPoints = events.map((event) => {
+    const creatorRole = roleByUserId.get(event.createdByUserId);
+
+    let canEdit = false;
+    if (viewerRole === "admin") {
+      canEdit = true;
+    } else if (viewerRole === "member") {
+      canEdit = event.createdByUserId === user.id;
+    } else if (viewerRole === "owner") {
+      canEdit =
+        event.createdByUserId === user.id ||
+        creatorRole === "owner" ||
+        creatorRole === "member";
+    }
+
     const eventPoints = (pointsByEventId.get(event.id) ?? []).map((point) => {
       const pointVotes = votesByPointId.get(point.id) ?? [];
 
@@ -241,6 +264,7 @@ export async function GET(request: Request) {
 
     return {
       ...event,
+      canEdit,
       discussionPoints: eventPoints,
     };
   });
