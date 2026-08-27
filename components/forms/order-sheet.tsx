@@ -31,8 +31,6 @@ interface Row {
   orderType: string;
   urgency: string;
   comments: string;
-  additionalCosts: string;
-  photoAdded: boolean;
 }
 
 const createEmptyRow = (): Row => ({
@@ -43,12 +41,10 @@ const createEmptyRow = (): Row => ({
   orderType: "",
   urgency: "",
   comments: "",
-  additionalCosts: "",
-  photoAdded: false,
 });
 
 const GRID =
-  "grid grid-cols-[2.25rem_minmax(11rem,1.5fr)_5.5rem_4.5rem_8rem_6.5rem_minmax(9rem,1fr)_5.5rem_4.5rem] gap-2";
+  "grid grid-cols-[2.25rem_minmax(11rem,1.5fr)_5.5rem_4.5rem_8rem_6.5rem_minmax(9rem,1fr)] gap-2";
 
 const fieldClass =
   "h-9 w-full rounded-md border border-input bg-card/70 px-2.5 text-sm text-card-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/25";
@@ -124,8 +120,6 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
             orderType: row.orderType,
             urgency: row.urgency,
             comments: row.comments,
-            additionalCosts: row.additionalCosts || 0,
-            photoAdded: row.photoAdded,
           })),
         }),
       });
@@ -157,10 +151,10 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
 
   return (
     <form
-      className="rounded-xl border border-[#FFD142] bg-card shadow-2xl shadow-black/40"
+      className="rounded-xl border-[#FFD142]/70 border-[0.5px] bg-card shadow-2xl shadow-black/40"
       onSubmit={handleSubmit}
     >
-      <header className="border-[#FFD142] border-b px-6 py-5">
+      <header className="border-[#FFD142]/70 border-b-[0.5px] px-6 py-5">
         <p className="font-mono text-[0.7rem] text-primary uppercase tracking-[0.22em]">
           Form PR-25
         </p>
@@ -169,7 +163,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
         </h1>
       </header>
 
-      <div className="border-[#FFD142] border-b px-6 py-5">
+      <div className="border-[#FFD142]/70 border-b-[0.5px] px-6 py-5">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <label className="flex w-full flex-col gap-1.5">
             <span className="font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.14em]">
@@ -206,7 +200,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
       <div className="overflow-x-auto px-6 py-5">
         <div className="min-w-[62rem]">
           <div
-            className={`${GRID} border-[#FFD142] border-b pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
+            className={`${GRID} border-[#FFD142]/70 border-b-[0.5px] pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
           >
             <span>#</span>
             <span>Description</span>
@@ -215,8 +209,6 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
             <span>Type of order</span>
             <span>Urgency</span>
             <span>Comments</span>
-            <span>Add. cost</span>
-            <span>Photo</span>
           </div>
 
           <div className="divide-y divide-border/60">
@@ -309,39 +301,13 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
                   }
                   value={row.comments}
                 />
-
-                <input
-                  aria-label={`Additional costs, line ${index + 1}`}
-                  className={`${fieldClass} text-right font-mono`}
-                  inputMode="decimal"
-                  min="0"
-                  onChange={(event) =>
-                    updateRow(index, { additionalCosts: event.target.value })
-                  }
-                  placeholder="0.00"
-                  step="0.01"
-                  type="number"
-                  value={row.additionalCosts}
-                />
-
-                <div className="flex items-center justify-center">
-                  <input
-                    aria-label={`Photo added, line ${index + 1}`}
-                    checked={row.photoAdded}
-                    className="size-4"
-                    onChange={(event) =>
-                      updateRow(index, { photoAdded: event.target.checked })
-                    }
-                    type="checkbox"
-                  />
-                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-4 border-[#FFD142] border-t px-6 py-5">
+      <footer className="flex flex-wrap items-center justify-between gap-4 border-[#FFD142]/70 border-t-[0.5px] px-6 py-5">
         <p className="text-muted-foreground text-sm">
           Questions about this form?{" "}
           <a

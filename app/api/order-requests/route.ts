@@ -20,8 +20,6 @@ const rowSchema = z.object({
     .string()
     .max(200, "Comments can be max 200 characters")
     .default(""),
-  additionalCosts: z.coerce.number().min(0).default(0),
-  photoAdded: z.boolean().default(false),
 });
 
 const bodySchema = z.object({
@@ -69,7 +67,7 @@ export async function POST(request: Request) {
   }
 
   const rowsToInsert = parsed.data.rows.map((row) => {
-    const total = row.pricePerPiece * row.quantity + row.additionalCosts;
+    const total = row.pricePerPiece * row.quantity;
 
     return {
       id: crypto.randomUUID(),
@@ -83,10 +81,10 @@ export async function POST(request: Request) {
       typeOfOrder: row.orderType,
       urgency: row.urgency,
       comments: row.comments,
-      additionalCosts: row.additionalCosts.toFixed(2),
+      additionalCosts: "0.00",
       totalCosts: total.toFixed(2),
       orderedDate: new Date(),
-      photoAdded: row.photoAdded,
+      photoAdded: false,
       delivered: false,
       canceled: false,
       accepted: false,
