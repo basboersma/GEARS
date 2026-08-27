@@ -5,6 +5,14 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 const categories = [
@@ -59,6 +67,53 @@ const timeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const timeOnlyRegex = /^(\d{1,2}):(\d{2})$/;
+
+const categoryStyles: Record<
+  (typeof categories)[number]["value"],
+  {
+    chip: string;
+    chipText: string;
+    badge: string;
+    border: string;
+  }
+> = {
+  meeting: {
+    chip: "border-blue-300/80 bg-blue-500/10 hover:bg-blue-500/20",
+    chipText: "text-blue-100",
+    badge: "bg-blue-500/20 text-blue-200",
+    border: "border-l-blue-400",
+  },
+  review: {
+    chip: "border-violet-300/80 bg-violet-500/10 hover:bg-violet-500/20",
+    chipText: "text-violet-100",
+    badge: "bg-violet-500/20 text-violet-200",
+    border: "border-l-violet-400",
+  },
+  task: {
+    chip: "border-emerald-300/80 bg-emerald-500/10 hover:bg-emerald-500/20",
+    chipText: "text-emerald-100",
+    badge: "bg-emerald-500/20 text-emerald-200",
+    border: "border-l-emerald-400",
+  },
+  deadline: {
+    chip: "border-rose-300/80 bg-rose-500/10 hover:bg-rose-500/20",
+    chipText: "text-rose-100",
+    badge: "bg-rose-500/20 text-rose-200",
+    border: "border-l-rose-400",
+  },
+  break: {
+    chip: "border-amber-300/80 bg-amber-500/10 hover:bg-amber-500/20",
+    chipText: "text-amber-100",
+    badge: "bg-amber-500/20 text-amber-200",
+    border: "border-l-amber-400",
+  },
+  personal: {
+    chip: "border-cyan-300/80 bg-cyan-500/10 hover:bg-cyan-500/20",
+    chipText: "text-cyan-100",
+    badge: "bg-cyan-500/20 text-cyan-200",
+    border: "border-l-cyan-400",
+  },
+};
 
 function getTodayIsoDate() {
   const now = new Date();
@@ -161,6 +216,41 @@ function clampEndAfterStart(startDateTime: Date, endDateTime: Date) {
   return endDateTime;
 }
 
+function buildStandardMinutesTemplate(event: {
+  title: string;
+  startDateTime: Date;
+  endDateTime: Date;
+  location: string | null;
+  attendees: string | null;
+}) {
+  const attendees = event.attendees?.trim() ? event.attendees : "TBD";
+  const location = event.location?.trim() ? event.location : "TBD";
+
+  return [
+    `Meeting: ${event.title}`,
+    `Date: ${dayLabelFormatter.format(event.startDateTime)}`,
+    `Time: ${timeFormatter.format(event.startDateTime)} - ${timeFormatter.format(event.endDateTime)}`,
+    `Location: ${location}`,
+    `Attendees: ${attendees}`,
+    "",
+    "1. Points to discuss",
+    "- [ ] Topic 1: ",
+    "- [ ] Topic 2: ",
+    "- [ ] Topic 3: ",
+    "",
+    "2. Votes to take",
+    "- Motion: ",
+    "- Options: For / Against / Abstain",
+    "- Result: ",
+    "- Notes: ",
+    "",
+    "3. Decisions and action items",
+    "- Decision 1: ",
+    "- Action owner: ",
+    "- Due date: ",
+  ].join("\n");
+}
+
 export function OrganizationAgenda({
   organizationId,
 }: {
@@ -169,8 +259,13 @@ export function OrganizationAgenda({
   const [events, setEvents] = useState<AgendaEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isMinutesSaving, setIsMinutesSaving] = useState(false);
   const [view, setView] = useState<CalendarView>("day");
   const [focusDate, setFocusDate] = useState(() => startOfDay(new Date()));
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(
+    null
+  );
+  const [minutesDraft, setMinutesDraft] = useState("");
   const lastWheelMoveAt = useRef(0);
   const [form, setForm] = useState({
     date: getTodayIsoDate(),
@@ -315,6 +410,28 @@ export function OrganizationAgenda({
     }
   }
 
+  async function saveMinutesFromDialog() {
+    if (!selectedMeetingId) {
+      return;
+    }
+
+    setIsMinutesSaving(true);
+
+    try {
+      await saveMinutes(selectedMeetingId, minutesDraft);
+      setEvents((current) =>
+        current.map((event) =>
+          event.id === selectedMeetingId
+            ? { ...event, minutes: minutesDraft }
+            : event
+        )
+      );
+      setSelectedMeetingId(null);
+    } finally {
+      setIsMinutesSaving(false);
+    }
+  }
+
   async function removeEvent(eventId: string) {
     try {
       const response = await fetch(`/api/agenda-events/${eventId}`, {
@@ -335,13 +452,6 @@ export function OrganizationAgenda({
       toast.error(message);
     }
   }
-
-  const handleMinutesBlur = (eventId: string, minutes: string) => {
-    saveMinutes(eventId, minutes).catch((error) => {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      toast.error(message);
-    });
-  };
 
   const parsedEvents = useMemo(() => {
     return events
@@ -532,6 +642,20 @@ export function OrganizationAgenda({
     [visibleEvents]
   );
 
+  const selectedMeeting = useMemo(
+    () => parsedEvents.find((event) => event.id === selectedMeetingId) ?? null,
+    [parsedEvents, selectedMeetingId]
+  );
+
+  useEffect(() => {
+    if (!selectedMeeting) {
+      return;
+    }
+
+    const defaultTemplate = buildStandardMinutesTemplate(selectedMeeting);
+    setMinutesDraft(selectedMeeting.minutes?.trim() || defaultTemplate);
+  }, [selectedMeeting]);
+
   let agendaContent: ReactNode;
 
   if (isLoading) {
@@ -545,19 +669,44 @@ export function OrganizationAgenda({
   } else {
     const renderEventChip = (
       event: AgendaEvent & { startDateTime: Date; endDateTime: Date }
-    ) => (
-      <button
-        className="w-full rounded-md border border-border/80 bg-background/80 px-2 py-1 text-left transition-colors hover:bg-accent"
-        key={event.id}
-        onClick={() => setFocusDate(startOfDay(event.startDateTime))}
-        type="button"
-      >
-        <p className="truncate font-medium text-xs">{event.title}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {timeFormatter.format(event.startDateTime)}
-        </p>
-      </button>
-    );
+    ) => {
+      const categoryStyle = categoryStyles[event.category];
+      const isMeetingEvent = event.category === "meeting" || event.isMeeting;
+
+      return (
+        <div className="group relative" key={event.id}>
+          <button
+            className={`w-full rounded-md border px-2 py-1 text-left transition-colors ${categoryStyle.chip} ${categoryStyle.chipText}`}
+            onClick={() => {
+              if (isMeetingEvent) {
+                setSelectedMeetingId(event.id);
+                return;
+              }
+
+              setFocusDate(startOfDay(event.startDateTime));
+            }}
+            type="button"
+          >
+            <p className="truncate font-medium text-xs">{event.title}</p>
+            <p className="text-[11px] text-current/85">
+              {timeFormatter.format(event.startDateTime)}
+            </p>
+          </button>
+
+          <div className="pointer-events-none absolute top-full left-0 z-30 mt-1 hidden w-64 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-lg group-focus-within:block group-hover:block">
+            <p className="line-clamp-1 font-medium text-xs">{event.title}</p>
+            <p className="mt-1 line-clamp-3 text-muted-foreground text-xs">
+              {event.description}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {dayLabelFormatter.format(event.startDateTime)} ·{" "}
+              {timeFormatter.format(event.startDateTime)} -{" "}
+              {timeFormatter.format(event.endDateTime)}
+            </p>
+          </div>
+        </div>
+      );
+    };
 
     let calendarBody: ReactNode;
 
@@ -729,7 +878,7 @@ export function OrganizationAgenda({
           ) : (
             selectedRangeEvents.map((event) => (
               <article
-                className="rounded-lg border border-border bg-muted/30 p-3"
+                className={`rounded-lg border border-border border-l-4 bg-muted/30 p-3 ${categoryStyles[event.category].border}`}
                 key={event.id}
               >
                 <div className="mb-2 flex items-start justify-between gap-2">
@@ -741,6 +890,11 @@ export function OrganizationAgenda({
                       {` - ${timeFormatter.format(event.endDateTime)}`}
                       {` · ${titleMap[event.category] ?? event.category}`}
                     </p>
+                    <span
+                      className={`mt-1 inline-flex rounded-full px-2 py-0.5 font-medium text-[11px] ${categoryStyles[event.category].badge}`}
+                    >
+                      {titleMap[event.category] ?? event.category}
+                    </span>
                   </div>
 
                   <Button
@@ -757,14 +911,15 @@ export function OrganizationAgenda({
                   {event.description}
                 </p>
 
-                <textarea
-                  className="min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  defaultValue={event.minutes ?? ""}
-                  onBlur={(blurEvent) => {
-                    handleMinutesBlur(event.id, blurEvent.currentTarget.value);
-                  }}
-                  placeholder="Meeting minutes"
-                />
+                {event.category === "meeting" || event.isMeeting ? (
+                  <Button
+                    onClick={() => setSelectedMeetingId(event.id)}
+                    type="button"
+                    variant="outline"
+                  >
+                    Open meeting minutes
+                  </Button>
+                ) : null}
               </article>
             ))
           )}
@@ -885,6 +1040,84 @@ export function OrganizationAgenda({
       </form>
 
       {agendaContent}
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedMeetingId(null);
+          }
+        }}
+        open={selectedMeeting !== null}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedMeeting?.title ?? "Meeting minutes"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedMeeting
+                ? `${dayLabelFormatter.format(selectedMeeting.startDateTime)} · ${timeFormatter.format(selectedMeeting.startDateTime)} - ${timeFormatter.format(selectedMeeting.endDateTime)}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedMeeting ? (
+            <>
+              <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+                <p className="font-medium text-sm">Description preview</p>
+                <p className="mt-1 text-muted-foreground text-sm">
+                  {selectedMeeting.description}
+                </p>
+              </div>
+
+              <textarea
+                className="min-h-72 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm"
+                onChange={(event) => setMinutesDraft(event.target.value)}
+                value={minutesDraft}
+              />
+
+              <DialogFooter className="justify-between gap-2 sm:justify-between">
+                <Button
+                  onClick={() =>
+                    setMinutesDraft(
+                      buildStandardMinutesTemplate(selectedMeeting)
+                    )
+                  }
+                  type="button"
+                  variant="outline"
+                >
+                  Use standard minutes format
+                </Button>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setSelectedMeetingId(null)}
+                    type="button"
+                    variant="ghost"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={isMinutesSaving}
+                    onClick={() => {
+                      saveMinutesFromDialog().catch((error) => {
+                        const message =
+                          error instanceof Error
+                            ? error.message
+                            : "Unknown error";
+                        toast.error(message);
+                      });
+                    }}
+                    type="button"
+                  >
+                    Save minutes
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
