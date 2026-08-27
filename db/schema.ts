@@ -115,6 +115,10 @@ export const studentProfile = pgTable("student_profile", {
   fieldsFilled: boolean("fields_filled")
     .$defaultFn(() => false)
     .notNull(),
+  paid: boolean("paid")
+    .$defaultFn(() => false)
+    .notNull(),
+  finalisationTime: timestamp("finalisation_time"),
   inormationProcessingConsent: boolean("inormation_processing_consent")
     .$defaultFn(() => false)
     .notNull(),
