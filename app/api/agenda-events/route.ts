@@ -119,10 +119,15 @@ export async function GET(request: Request) {
   );
   const viewerRole = access.membership.role;
 
-  const orderRows = await db.query.orderRequest.findMany({
-    where: eq(orderRequest.organizationId, organizationId),
-    orderBy: [asc(orderRequest.orderedDate), asc(orderRequest.createdAt)],
-  });
+  const canViewOrderBatches =
+    viewerRole === "owner" || viewerRole === "admin" || viewerRole === "member";
+
+  const orderRows = canViewOrderBatches
+    ? await db.query.orderRequest.findMany({
+        where: eq(orderRequest.organizationId, organizationId),
+        orderBy: [asc(orderRequest.orderedDate), asc(orderRequest.createdAt)],
+      })
+    : [];
 
   const orderBatchesByKey = new Map<
     string,

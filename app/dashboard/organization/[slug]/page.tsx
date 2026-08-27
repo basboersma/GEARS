@@ -1,10 +1,8 @@
 import Link from "next/link";
-import AllUsers from "@/components/all-users";
-import MembersTable from "@/components/members-table";
 import { OrganizationAgenda } from "@/components/organization-agenda";
 import { Button } from "@/components/ui/button";
 import { getOrganizationBySlug } from "@/server/organizations";
-import { getCurrentUser, getUsers } from "@/server/users";
+import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
 
@@ -13,7 +11,6 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const { user } = await getCurrentUser();
 
   const organization = await getOrganizationBySlug(slug);
-  const users = await getUsers(organization?.id || "");
   const membership = organization?.members.find((m) => m.userId === user.id);
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
@@ -41,8 +38,19 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         />
       ) : null}
 
-      <MembersTable members={organization?.members || []} />
-      <AllUsers organizationId={organization?.id || ""} users={users} />
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline">
+          <Link href={`/dashboard/organization/${slug}/members`}>
+            Organization Members
+          </Link>
+        </Button>
+
+        <Button asChild variant="outline">
+          <Link href={`/dashboard/organization/${slug}/invite-members`}>
+            Invite Members
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }
