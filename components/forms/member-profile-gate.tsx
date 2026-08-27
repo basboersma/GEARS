@@ -61,6 +61,15 @@ export function MemberProfileGate({
 }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [pdfPopup, setPdfPopup] = useState<{
+    open: boolean;
+    title: string;
+    src: string;
+  }>({
+    open: false,
+    title: "",
+    src: "",
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -105,148 +114,216 @@ export function MemberProfileGate({
     }
   };
 
+  const openPdfPopup = (title: string, src: string) => {
+    setPdfPopup({
+      open: true,
+      title,
+      src,
+    });
+  };
+
   return (
-    <Dialog open>
-      <DialogContent
-        className="sm:max-w-2xl"
-        onEscapeKeyDown={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
-        showCloseButton={false}
+    <>
+      <Dialog open>
+        <DialogContent
+          className="sm:max-w-2xl"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          showCloseButton={false}
+        >
+          <DialogHeader>
+            <DialogTitle>Complete your profile</DialogTitle>
+            <DialogDescription>
+              You must complete this form before you can continue using the
+              site.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form className="grid gap-4" onSubmit={form.handleSubmit(onSubmit)}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="surname"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Surname</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="studentNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Student number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="educationalInstitution"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Educational institution</FormLabel>
+                      <FormControl>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select an institution" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="University of Groningen">
+                              University of Groningen
+                            </SelectItem>
+                            <SelectItem value="Hanze">Hanze</SelectItem>
+                            <SelectItem value="Guest">Guest</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="study"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Study</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ibanNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IBAN number</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="informationProcessingConsent"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start gap-2 text-sm">
+                      <input
+                        checked={field.value}
+                        className="mt-1 size-4"
+                        onChange={(event) =>
+                          field.onChange(event.target.checked)
+                        }
+                        type="checkbox"
+                      />
+                      <p>
+                        I consent to the fact that I will fall under the{" "}
+                        <button
+                          className="underline"
+                          onClick={() =>
+                            openPdfPopup(
+                              "General House Rules",
+                              "/house_rules_gears.pdf"
+                            )
+                          }
+                          type="button"
+                        >
+                          general house rules
+                        </button>{" "}
+                        when working in a team or committee under the
+                        jurisdiction of Gears. Additionally I consent to the{" "}
+                        <button
+                          className="underline"
+                          onClick={() =>
+                            openPdfPopup(
+                              "Data processing",
+                              "/house_rules_gears.pdf"
+                            )
+                          }
+                          type="button"
+                        >
+                          processing
+                        </button>{" "}
+                        of my information.
+                      </p>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button className="w-full" disabled={isSaving} type="submit">
+                {isSaving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  "Save"
+                )}
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        onOpenChange={(open) =>
+          setPdfPopup((current) => ({
+            ...current,
+            open,
+          }))
+        }
+        open={pdfPopup.open}
       >
-        <DialogHeader>
-          <DialogTitle>Complete your profile</DialogTitle>
-          <DialogDescription>
-            You must complete this form before you can continue using the site.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogContent className="h-[85vh] max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>{pdfPopup.title}</DialogTitle>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form className="grid gap-4" onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First name</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="surname"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Surname</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="studentNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Student number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="educationalInstitution"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Educational institution</FormLabel>
-                    <FormControl>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select an institution" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="University of Groningen">
-                            University of Groningen
-                          </SelectItem>
-                          <SelectItem value="Hanze">Hanze</SelectItem>
-                          <SelectItem value="Guest">Guest</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="study"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Study</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="ibanNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>IBAN number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="informationProcessingConsent"
-              render={({ field }) => (
-                <FormItem>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      checked={field.value}
-                      className="size-4"
-                      onChange={(event) => field.onChange(event.target.checked)}
-                      type="checkbox"
-                    />
-                    I consent to the processing of my information.
-                  </label>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button className="w-full" disabled={isSaving} type="submit">
-              {isSaving ? <Loader2 className="size-4 animate-spin" /> : "Save"}
-            </Button>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          <iframe
+            className="h-full w-full rounded-md border"
+            src={pdfPopup.src}
+            title={pdfPopup.title}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
