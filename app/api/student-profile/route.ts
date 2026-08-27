@@ -84,3 +84,65 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true });
 }
+
+export async function PUT(request: Request) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const membership = await db.query.member.findFirst({
+    where: eq(member.userId, session.user.id),
+  });
+
+  if (!membership) {
+    return NextResponse.json(
+      { error: "Only organization members can edit this form" },
+      { status: 403 }
+    );
+  }
+
+  const payload = await request.json();
+  const parsed = studentProfileSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid form data",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 }
+    );
+  }
+
+  const existingProfile = await db.query.studentProfile.findFirst({
+    where: eq(studentProfile.userId, session.user.id),
+  });
+
+  if (!existingProfile) {
+    return NextResponse.json(
+      { error: "Profile not found. Complete the profile form first." },
+      { status: 404 }
+    );
+  }
+
+  await db
+    .update(studentProfile)
+    .set({
+      firstName: parsed.data.firstName,
+      surname: parsed.data.surname,
+      studentNumber: parsed.data.studentNumber,
+      educationalInstitution: parsed.data.educationalInstitution,
+      study: parsed.data.study,
+      ibanNumber: parsed.data.ibanNumber,
+      inormationProcessingConsent: parsed.data.informationProcessingConsent,
+      fieldsFilled: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(studentProfile.userId, session.user.id));
+
+  return NextResponse.json({ success: true });
+}

@@ -126,7 +126,7 @@ export function MemberProfileGate({
     <>
       <Dialog open>
         <DialogContent
-          className="w-[96vw] max-w-[96vw]"
+          className="!w-[96vw] !max-w-[96vw] sm:!max-w-[96vw]"
           onEscapeKeyDown={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           showCloseButton={false}
@@ -312,7 +312,7 @@ export function MemberProfileGate({
         }
         open={pdfPopup.open}
       >
-        <DialogContent className="h-[92vh] w-[95vw] max-w-[95vw] gap-0 overflow-hidden p-0">
+        <DialogContent className="!w-[96vw] !max-w-[96vw] sm:!max-w-[96vw] h-[92vh] gap-0 overflow-hidden p-0">
           <DialogHeader className="sr-only">
             <DialogTitle>{pdfPopup.title}</DialogTitle>
           </DialogHeader>
