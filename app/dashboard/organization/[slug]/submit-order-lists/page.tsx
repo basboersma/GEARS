@@ -33,8 +33,7 @@ export default async function SubmitOrderListsPage({
   if (
     !currentMembership ||
     currentMembership.organizationId !== org.id ||
-    (currentMembership.role !== "owner" &&
-      !(currentMembership.role === "admin" && org.slug === "treasurer"))
+    currentMembership.role !== "owner"
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }

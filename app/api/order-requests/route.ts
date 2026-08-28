@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, orderRequest, organization } from "@/db/schema";
+import { member, orderRequest } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const orderTypeEnum = ["Hardware", "Electronic", "Software", "Social"] as const;
@@ -51,28 +51,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const currentMembership = await db.query.member.findFirst({
+  const ownerMembership = await db.query.member.findFirst({
     where: and(
       eq(member.organizationId, parsed.data.organizationId),
-      eq(member.userId, session.user.id)
+      eq(member.userId, session.user.id),
+      eq(member.role, "owner")
     ),
   });
 
-  const targetOrganization = await db.query.organization.findFirst({
-    where: eq(organization.id, parsed.data.organizationId),
-  });
-
-  const canSubmit =
-    currentMembership?.role === "owner" ||
-    (currentMembership?.role === "admin" &&
-      targetOrganization?.slug === "treasurer");
-
-  if (!canSubmit) {
+  if (!ownerMembership) {
     return NextResponse.json(
-      {
-        error:
-          "Only organization owners can submit order sheets, except admins in Treasurer",
-      },
+      { error: "Only organization owners can submit order sheets" },
       { status: 403 }
     );
   }

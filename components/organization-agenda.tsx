@@ -321,10 +321,12 @@ function sortOrderBatchItems(items: OrderBatchItem[]) {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This single component intentionally coordinates calendar navigation, creation flows, and minutes editing.
 export function OrganizationAgenda({
   canEnableVoting,
+  canManageOrderTodo,
   canManageAgenda,
   organizationId,
 }: {
   canEnableVoting: boolean;
+  canManageOrderTodo: boolean;
   canManageAgenda: boolean;
   organizationId: string;
 }) {
@@ -609,7 +611,7 @@ export function OrganizationAgenda({
       photoNeeded?: boolean;
     }
   ) {
-    if (!canEnableVoting) {
+    if (!canManageOrderTodo) {
       return;
     }
 
@@ -1870,8 +1872,11 @@ export function OrganizationAgenda({
                       </span>
                     </div>
 
-                    {canEnableVoting ? (
+                    {canManageOrderTodo ? (
                       <div className="mt-3 flex flex-wrap gap-2">
+                        <p className="w-full text-[11px] text-white/70 uppercase tracking-[0.08em]">
+                          Admin to-do actions
+                        </p>
                         <Button
                           className={`${actionButtonClass} border-[#FFD142] bg-[#FFD142] text-[#2c2413] hover:bg-[#FFD142]/90`}
                           disabled={isUpdating}
@@ -1914,7 +1919,7 @@ export function OrganizationAgenda({
                           type="button"
                           variant="outline"
                         >
-                          {item.photoNeeded ? "Photo needed" : "Photo needed"}
+                          {item.photoNeeded ? "Photo needed ✓" : "Photo needed"}
                         </Button>
                       </div>
                     ) : null}
