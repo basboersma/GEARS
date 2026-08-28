@@ -88,6 +88,14 @@ interface OrderBatch {
   items: OrderBatchItem[];
 }
 
+interface AdminTodoItem {
+  batchId: string;
+  orderName: string;
+  department: string;
+  orderedDate: string;
+  item: OrderBatchItem;
+}
+
 interface DiscussionPointDraft {
   clientId: string;
   id?: string;
@@ -295,14 +303,44 @@ function yesNo(value: boolean) {
   return value ? "yes" : "no";
 }
 
+function getUrgencyRank(urgency: string) {
+  const rank: Record<string, number> = {
+    "1 day": 1,
+    "2 days": 2,
+    "3 days": 3,
+    "7 days": 4,
+  };
+
+  return rank[urgency] ?? 99;
+}
+
+function getActionButtonClass(active: boolean, tone: "yellow" | "red") {
+  const toneClass =
+    tone === "yellow"
+      ? "hover:border-[#FFD142] hover:bg-[#FFD142]"
+      : "hover:border-[#F0684D] hover:bg-[#F0684D]";
+
+  const activeBorder =
+    tone === "yellow" ? "border-[#FFD142]" : "border-[#F0684D]";
+
+  return [
+    "rounded-xl border px-2.5 py-1 text-xs transition-all",
+    "bg-[#1a1919] text-white",
+    active ? activeBorder : "border-white/30",
+    `${toneClass} hover:rounded-2xl hover:text-[#1a1919]`,
+  ].join(" ");
+}
+
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This single component intentionally coordinates calendar navigation, creation flows, and minutes editing.
 export function OrganizationAgenda({
   canEnableVoting,
   canManageAgenda,
+  isAdmin,
   organizationId,
 }: {
   canEnableVoting: boolean;
   canManageAgenda: boolean;
+  isAdmin: boolean;
   organizationId: string;
 }) {
   const [events, setEvents] = useState<AgendaEvent[]>([]);
@@ -339,6 +377,9 @@ export function OrganizationAgenda({
   const [eventDiscussionPoints, setEventDiscussionPoints] = useState<
     DiscussionPointDraft[]
   >([]);
+  const [isUpdatingOrderItemId, setIsUpdatingOrderItemId] = useState<
+    string | null
+  >(null);
   const createMenuRef = useRef<HTMLDivElement | null>(null);
   const lastWheelMoveAt = useRef(0);
 
@@ -566,6 +607,72 @@ export function OrganizationAgenda({
       );
     });
   }, [calendarRange.end, calendarRange.start, orderBatches]);
+
+  const adminTodoItems = useMemo(() => {
+    if (!isAdmin) {
+      return [] as AdminTodoItem[];
+    }
+
+    return orderBatches
+      .flatMap((batch) =>
+        batch.items.map((item) => ({
+          batchId: batch.id,
+          orderName: batch.orderName,
+          department: batch.department,
+          orderedDate: batch.orderedDate,
+          item,
+        }))
+      )
+      .sort((a, b) => {
+        const urgencyDelta =
+          getUrgencyRank(a.item.urgency) - getUrgencyRank(b.item.urgency);
+
+        if (urgencyDelta !== 0) {
+          return urgencyDelta;
+        }
+
+        return (
+          new Date(a.orderedDate).getTime() - new Date(b.orderedDate).getTime()
+        );
+      });
+  }, [isAdmin, orderBatches]);
+
+  async function updateOrderItem(
+    orderRequestId: string,
+    patch: {
+      status?: "pending" | "accepted" | "declined";
+      ordered?: boolean;
+      photoNeeded?: boolean;
+    }
+  ) {
+    try {
+      setIsUpdatingOrderItemId(orderRequestId);
+      const response = await fetch("/api/order-requests", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderRequestId,
+          ...patch,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to update order item");
+      }
+
+      await loadAgenda();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    } finally {
+      setIsUpdatingOrderItemId(null);
+    }
+  }
 
   const goToPrevious = () => {
     if (view === "day") {
@@ -1118,6 +1225,116 @@ export function OrganizationAgenda({
 
           {calendarBody}
         </div>
+
+        {isAdmin ? (
+          <div className="rounded-lg border border-[#FFD142]/50 bg-[#1a1919] p-3 text-white">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-sm">Order To-Do (Admin)</h3>
+              <span className="text-white/70 text-xs">Sorted by urgency</span>
+            </div>
+
+            {adminTodoItems.length === 0 ? (
+              <p className="text-sm text-white/70">No order items yet.</p>
+            ) : (
+              <div className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
+                {adminTodoItems.map((todo) => (
+                  <button
+                    className="rounded-xl border border-white/20 bg-white/5 p-3 text-left transition-colors hover:border-[#FFD142]/70"
+                    key={todo.item.id}
+                    onClick={() => setSelectedOrderBatchId(todo.batchId)}
+                    type="button"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-medium text-sm">
+                        {todo.item.description}
+                      </p>
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">
+                        {todo.item.urgency}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-white/70 text-xs">
+                      {todo.orderName} · Dept {todo.department}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        className={getActionButtonClass(
+                          todo.item.status === "accepted",
+                          "yellow"
+                        )}
+                        disabled={isUpdatingOrderItemId === todo.item.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          updateOrderItem(todo.item.id, {
+                            status: "accepted",
+                          }).catch(() => undefined);
+                        }}
+                        type="button"
+                      >
+                        Accepted
+                      </button>
+
+                      <button
+                        className={getActionButtonClass(
+                          todo.item.status === "declined",
+                          "red"
+                        )}
+                        disabled={isUpdatingOrderItemId === todo.item.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          updateOrderItem(todo.item.id, {
+                            status: "declined",
+                          }).catch(() => undefined);
+                        }}
+                        type="button"
+                      >
+                        Declined
+                      </button>
+
+                      <button
+                        className={getActionButtonClass(
+                          todo.item.ordered,
+                          "yellow"
+                        )}
+                        disabled={isUpdatingOrderItemId === todo.item.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          updateOrderItem(todo.item.id, {
+                            ordered: !todo.item.ordered,
+                          }).catch(() => undefined);
+                        }}
+                        type="button"
+                      >
+                        Ordered
+                      </button>
+
+                      <button
+                        className={getActionButtonClass(
+                          todo.item.photoNeeded,
+                          "yellow"
+                        )}
+                        disabled={
+                          isUpdatingOrderItemId === todo.item.id ||
+                          todo.item.photoNeeded
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          updateOrderItem(todo.item.id, {
+                            photoNeeded: true,
+                          }).catch(() => undefined);
+                        }}
+                        type="button"
+                      >
+                        Photo Needed
+                      </button>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -1793,6 +2010,77 @@ export function OrganizationAgenda({
                         Photo uploaded: {yesNo(item.photoUploaded)}
                       </span>
                     </div>
+
+                    {isAdmin ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          className={getActionButtonClass(
+                            item.status === "accepted",
+                            "yellow"
+                          )}
+                          disabled={isUpdatingOrderItemId === item.id}
+                          onClick={() => {
+                            updateOrderItem(item.id, {
+                              status: "accepted",
+                            }).catch(() => undefined);
+                          }}
+                          type="button"
+                        >
+                          Accepted
+                        </button>
+
+                        <button
+                          className={getActionButtonClass(
+                            item.status === "declined",
+                            "red"
+                          )}
+                          disabled={isUpdatingOrderItemId === item.id}
+                          onClick={() => {
+                            updateOrderItem(item.id, {
+                              status: "declined",
+                            }).catch(() => undefined);
+                          }}
+                          type="button"
+                        >
+                          Declined
+                        </button>
+
+                        <button
+                          className={getActionButtonClass(
+                            item.ordered,
+                            "yellow"
+                          )}
+                          disabled={isUpdatingOrderItemId === item.id}
+                          onClick={() => {
+                            updateOrderItem(item.id, {
+                              ordered: !item.ordered,
+                            }).catch(() => undefined);
+                          }}
+                          type="button"
+                        >
+                          Ordered
+                        </button>
+
+                        <button
+                          className={getActionButtonClass(
+                            item.photoNeeded,
+                            "yellow"
+                          )}
+                          disabled={
+                            isUpdatingOrderItemId === item.id ||
+                            item.photoNeeded
+                          }
+                          onClick={() => {
+                            updateOrderItem(item.id, {
+                              photoNeeded: true,
+                            }).catch(() => undefined);
+                          }}
+                          type="button"
+                        >
+                          Photo Needed
+                        </button>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}

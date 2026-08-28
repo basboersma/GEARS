@@ -29,6 +29,24 @@ const bodySchema = z.object({
   rows: z.array(rowSchema).min(1, "At least one row is required"),
 });
 
+const patchSchema = z
+  .object({
+    orderRequestId: z.string().min(1),
+    status: z.enum(["pending", "accepted", "declined"]).optional(),
+    ordered: z.boolean().optional(),
+    photoNeeded: z.boolean().optional(),
+  })
+  .refine(
+    (payload) =>
+      payload.status !== undefined ||
+      payload.ordered !== undefined ||
+      payload.photoNeeded !== undefined,
+    {
+      message: "Provide at least one field to update",
+      path: ["orderRequestId"],
+    }
+  );
+
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -106,4 +124,79 @@ export async function POST(request: Request) {
     success: true,
     inserted: rowsToInsert.length,
   });
+}
+
+export async function PATCH(request: Request) {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const payload = await request.json();
+  const parsed = patchSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid order update payload",
+        details: parsed.error.flatten(),
+      },
+      { status: 400 }
+    );
+  }
+
+  const existing = await db.query.orderRequest.findFirst({
+    where: eq(orderRequest.id, parsed.data.orderRequestId),
+  });
+
+  if (!existing) {
+    return NextResponse.json(
+      { error: "Order request not found" },
+      { status: 404 }
+    );
+  }
+
+  const adminMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.organizationId, existing.organizationId),
+      eq(member.userId, session.user.id),
+      eq(member.role, "admin")
+    ),
+  });
+
+  if (!adminMembership) {
+    return NextResponse.json(
+      { error: "Only organization admins can update order requests" },
+      { status: 403 }
+    );
+  }
+
+  const nextStatus = parsed.data.status;
+  let accepted = existing.accepted;
+
+  if (nextStatus === "accepted") {
+    accepted = true;
+  } else if (nextStatus === "declined") {
+    accepted = false;
+  }
+
+  await db
+    .update(orderRequest)
+    .set({
+      ...(nextStatus ? { status: nextStatus } : {}),
+      ...(parsed.data.ordered !== undefined
+        ? { ordered: parsed.data.ordered }
+        : {}),
+      ...(parsed.data.photoNeeded !== undefined
+        ? { photoNeeded: parsed.data.photoNeeded }
+        : {}),
+      accepted,
+      updatedAt: new Date(),
+    })
+    .where(eq(orderRequest.id, parsed.data.orderRequestId));
+
+  return NextResponse.json({ success: true });
 }
