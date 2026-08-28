@@ -1,10 +1,4 @@
 {
   "framework": "nextjs",
-  "buildCommand": "pnpm build",
-  "crons": [
-    {
-      "path": "/api/rabobank/sync-transactions",
-      "schedule": "*/15 * * * *"
-    }
-  ]
+  "buildCommand": "pnpm build"
 }
