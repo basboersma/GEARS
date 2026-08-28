@@ -50,12 +50,6 @@ export default async function OrganizationPage({ params }: { params: Params }) {
             Invite Members
           </Link>
         </Button>
-
-        <Button asChild variant="outline">
-          <Link href={`/dashboard/organization/${slug}/rabobank`}>
-            Rabobank
-          </Link>
-        </Button>
       </div>
     </div>
   );

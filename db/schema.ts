@@ -143,10 +143,6 @@ export const agendaVoteValue = pgEnum("agenda_vote_value", [
   "abstain",
 ]);
 
-export const rabobankConnectionProduct = pgEnum("rabobank_connection_product", [
-  "account_information",
-]);
-
 export type Role = (typeof role.enumValues)[number];
 
 export const member = pgTable("member", {
@@ -336,56 +332,6 @@ export const agendaDiscussionPointVote = pgTable(
   }
 );
 
-export const rabobankConnection = pgTable("rabobank_connection", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  createdByUserId: text("created_by_user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  product: rabobankConnectionProduct("product").notNull(),
-  scope: text("scope").notNull(),
-  consentId: text("consent_id"),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at"),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-  accountId: text("account_id"),
-  iban: text("iban"),
-  accountName: text("account_name"),
-  status: text("status").default("active").notNull(),
-  createdAt: timestamp("created_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  updatedAt: timestamp("updated_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
-
-export const rabobankTransaction = pgTable("rabobank_transaction", {
-  id: text("id").primaryKey(),
-  connectionId: text("connection_id")
-    .notNull()
-    .references(() => rabobankConnection.id, { onDelete: "cascade" }),
-  externalId: text("external_id").notNull(),
-  accountId: text("account_id"),
-  bookingDate: text("booking_date"),
-  valueDate: text("value_date"),
-  amount: text("amount"),
-  currency: text("currency"),
-  description: text("description"),
-  counterpartyName: text("counterparty_name"),
-  counterpartyIban: text("counterparty_iban"),
-  rawPayload: text("raw_payload").notNull(),
-  createdAt: timestamp("created_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  updatedAt: timestamp("updated_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
-
 export const schema = {
   user,
   session,
@@ -398,8 +344,6 @@ export const schema = {
   agendaEvent,
   agendaDiscussionPoint,
   agendaDiscussionPointVote,
-  rabobankConnection,
-  rabobankTransaction,
   studentProfile,
   organizationRelations,
   memberRelations,
