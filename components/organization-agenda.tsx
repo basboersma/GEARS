@@ -280,12 +280,17 @@ function isOrderBatchItemFinalized(item: OrderBatchItem) {
 }
 
 function getOrderBatchItemClass(item: OrderBatchItem) {
-  if (isOrderBatchItemFinalized(item)) {
-    return "border-[#FFD142]";
-  }
-
   if (item.status === "declined") {
     return "border-[#F0684D]";
+  }
+
+  if (
+    item.status === "accepted" ||
+    item.ordered ||
+    item.photoNeeded ||
+    isOrderBatchItemFinalized(item)
+  ) {
+    return "border-[#FFD142]";
   }
 
   return "border-[#FFEDD1]";
@@ -293,6 +298,24 @@ function getOrderBatchItemClass(item: OrderBatchItem) {
 
 function yesNo(value: boolean) {
   return value ? "yes" : "no";
+}
+
+const urgencyRank: Record<string, number> = {
+  "1 day": 0,
+  "2 days": 1,
+  "3 days": 2,
+  "7 days": 3,
+};
+
+function sortOrderBatchItems(items: OrderBatchItem[]) {
+  return [...items].sort((left, right) => {
+    const leftRank = urgencyRank[left.urgency] ?? Number.MAX_SAFE_INTEGER;
+    const rightRank = urgencyRank[right.urgency] ?? Number.MAX_SAFE_INTEGER;
+
+    return (
+      leftRank - rightRank || left.description.localeCompare(right.description)
+    );
+  });
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This single component intentionally coordinates calendar navigation, creation flows, and minutes editing.
@@ -339,6 +362,9 @@ export function OrganizationAgenda({
   const [eventDiscussionPoints, setEventDiscussionPoints] = useState<
     DiscussionPointDraft[]
   >([]);
+  const [updatingOrderItemId, setUpdatingOrderItemId] = useState<string | null>(
+    null
+  );
   const createMenuRef = useRef<HTMLDivElement | null>(null);
   const lastWheelMoveAt = useRef(0);
 
@@ -549,6 +575,14 @@ export function OrganizationAgenda({
     [orderBatches, selectedOrderBatchId]
   );
 
+  const selectedOrderBatchItems = useMemo(() => {
+    if (!selectedOrderBatch) {
+      return [];
+    }
+
+    return sortOrderBatchItems(selectedOrderBatch.items);
+  }, [selectedOrderBatch]);
+
   const visibleOrderBatches = useMemo(() => {
     return orderBatches.filter((batch) => {
       const batchDate = parseEventDate(batch.orderedDate);
@@ -566,6 +600,45 @@ export function OrganizationAgenda({
       );
     });
   }, [calendarRange.end, calendarRange.start, orderBatches]);
+
+  async function updateOrderItem(
+    orderRequestId: string,
+    patch: {
+      status?: "accepted" | "declined";
+      ordered?: boolean;
+      photoNeeded?: boolean;
+    }
+  ) {
+    if (!canEnableVoting) {
+      return;
+    }
+
+    setUpdatingOrderItemId(orderRequestId);
+
+    try {
+      const response = await fetch(`/api/order-requests/${orderRequestId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to update order item");
+      }
+
+      await loadAgenda();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    } finally {
+      setUpdatingOrderItemId(null);
+    }
+  }
 
   const goToPrevious = () => {
     if (view === "day") {
@@ -1754,8 +1827,11 @@ export function OrganizationAgenda({
 
           {selectedOrderBatch ? (
             <div className="grid gap-3">
-              {selectedOrderBatch.items.map((item) => {
+              {selectedOrderBatchItems.map((item) => {
                 const itemClass = getOrderBatchItemClass(item);
+                const isUpdating = updatingOrderItemId === item.id;
+                const actionButtonClass =
+                  "border text-[11px] font-medium transition-all hover:rounded-full disabled:opacity-60";
 
                 return (
                   <article
@@ -1793,6 +1869,55 @@ export function OrganizationAgenda({
                         Photo uploaded: {yesNo(item.photoUploaded)}
                       </span>
                     </div>
+
+                    {canEnableVoting ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          className={`${actionButtonClass} border-[#FFD142] bg-[#FFD142] text-[#2c2413] hover:bg-[#FFD142]/90`}
+                          disabled={isUpdating}
+                          onClick={() =>
+                            updateOrderItem(item.id, { status: "accepted" })
+                          }
+                          type="button"
+                          variant="outline"
+                        >
+                          Accepted
+                        </Button>
+                        <Button
+                          className={`${actionButtonClass} border-[#F0684D] bg-[#F0684D] text-white hover:bg-[#F0684D]/90`}
+                          disabled={isUpdating}
+                          onClick={() =>
+                            updateOrderItem(item.id, { status: "declined" })
+                          }
+                          type="button"
+                          variant="outline"
+                        >
+                          Declined
+                        </Button>
+                        <Button
+                          className={`${actionButtonClass} border-[#FFD142] bg-[#FFD142] text-[#2c2413] hover:bg-[#FFD142]/90`}
+                          disabled={isUpdating || item.ordered}
+                          onClick={() =>
+                            updateOrderItem(item.id, { ordered: true })
+                          }
+                          type="button"
+                          variant="outline"
+                        >
+                          Ordered
+                        </Button>
+                        <Button
+                          className={`${actionButtonClass} border-[#FFD142] bg-[#FFD142] text-[#2c2413] hover:bg-[#FFD142]/90`}
+                          disabled={isUpdating || item.photoNeeded}
+                          onClick={() =>
+                            updateOrderItem(item.id, { photoNeeded: true })
+                          }
+                          type="button"
+                          variant="outline"
+                        >
+                          {item.photoNeeded ? "Photo needed" : "Photo needed"}
+                        </Button>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
