@@ -145,15 +145,6 @@ export const agendaVoteValue = pgEnum("agenda_vote_value", [
 
 export const rabobankConnectionProduct = pgEnum("rabobank_connection_product", [
   "account_information",
-  "payment_initiation",
-]);
-
-export const rabobankPaymentStatus = pgEnum("rabobank_payment_status", [
-  "pending",
-  "accepted",
-  "rejected",
-  "completed",
-  "failed",
 ]);
 
 export type Role = (typeof role.enumValues)[number];
@@ -395,29 +386,6 @@ export const rabobankTransaction = pgTable("rabobank_transaction", {
     .notNull(),
 });
 
-export const rabobankPayment = pgTable("rabobank_payment", {
-  id: text("id").primaryKey(),
-  connectionId: text("connection_id")
-    .notNull()
-    .references(() => rabobankConnection.id, { onDelete: "cascade" }),
-  externalPaymentId: text("external_payment_id"),
-  status: rabobankPaymentStatus("status").default("pending").notNull(),
-  creditorName: text("creditor_name").notNull(),
-  creditorIban: text("creditor_iban").notNull(),
-  debtorIban: text("debtor_iban").notNull(),
-  amount: text("amount").notNull(),
-  currency: text("currency").notNull(),
-  remittanceInformation: text("remittance_information"),
-  executionDate: text("execution_date"),
-  rawPayload: text("raw_payload").notNull(),
-  createdAt: timestamp("created_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  updatedAt: timestamp("updated_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
-
 export const schema = {
   user,
   session,
@@ -432,7 +400,6 @@ export const schema = {
   agendaDiscussionPointVote,
   rabobankConnection,
   rabobankTransaction,
-  rabobankPayment,
   studentProfile,
   organizationRelations,
   memberRelations,

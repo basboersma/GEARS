@@ -8,11 +8,8 @@ import {
 import { readFileSync } from "node:fs";
 import https from "node:https";
 
-export type RabobankProduct = "account_information" | "payment_initiation";
-
 export interface RabobankStatePayload {
   organizationId: string;
-  product: RabobankProduct;
   userId: string;
   nonce: string;
 }
@@ -184,15 +181,10 @@ function requestJson<T>(
 }
 
 export function buildRabobankAuthorizationUrl(payload: RabobankStatePayload) {
-  const scopes: Record<RabobankProduct, string> = {
-    account_information: "bai.accountinformation.read",
-    payment_initiation: "bspi.single.read-write",
-  };
-
   const url = new URL(`${oauthBaseUrl}/authorize`);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", getClientCredentials().clientId);
-  url.searchParams.set("scope", scopes[payload.product]);
+  url.searchParams.set("scope", "bai.accountinformation.read");
   url.searchParams.set("state", createStateToken(payload));
   url.searchParams.set(
     "redirect_uri",
@@ -284,8 +276,4 @@ export function rabobankApiRequest<T>(options: RabobankRequestOptions) {
     agent: getMtlsAgent(),
     body: body || undefined,
   });
-}
-
-export function createRabobankPaymentId() {
-  return randomUUID();
 }

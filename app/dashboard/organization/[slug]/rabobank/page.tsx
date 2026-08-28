@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import RabobankPaymentForm from "@/components/forms/rabobank-payment-form";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db/drizzle";
 import { member, organization, rabobankConnection } from "@/db/schema";
@@ -40,8 +39,8 @@ export default async function RabobankPage({ params }: { params: Params }) {
         <div>
           <h1 className="font-bold text-2xl">Rabobank</h1>
           <p className="text-muted-foreground text-sm">
-            Connect account insight and payment initiation for this
-            organization.
+            Connect account insight for this organization and keep transactions
+            synced automatically.
           </p>
         </div>
         <Button asChild size="icon" type="button" variant="outline">
@@ -59,17 +58,8 @@ export default async function RabobankPage({ params }: { params: Params }) {
           <h2 className="font-semibold text-lg">Connections</h2>
           <div className="mt-3 flex flex-col gap-2">
             <Button asChild variant="outline">
-              <Link
-                href={`/api/rabobank/connect?organizationId=${org.id}&product=account_information`}
-              >
+              <Link href={`/api/rabobank/connect?organizationId=${org.id}`}>
                 Connect account insight
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link
-                href={`/api/rabobank/connect?organizationId=${org.id}&product=payment_initiation`}
-              >
-                Connect payment initiation
               </Link>
             </Button>
           </div>
@@ -99,41 +89,13 @@ export default async function RabobankPage({ params }: { params: Params }) {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="font-semibold text-lg">Sync transactions</h2>
+          <h2 className="font-semibold text-lg">Automatic sync</h2>
           <p className="mt-1 text-muted-foreground text-sm">
-            Pull booked transactions from Rabobank into the database.
+            Booked transactions are refreshed automatically by the scheduled
+            sync job. You can still connect a new account insight consent from
+            this page.
           </p>
-          <form
-            action={`/api/rabobank/sync-transactions?organizationId=${org.id}`}
-            className="mt-3"
-            method="post"
-          >
-            <Button type="submit">Sync now</Button>
-          </form>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="font-semibold text-lg">Create payment</h2>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Initiate a SEPA credit transfer through Rabobank.
-        </p>
-        {connections.find(
-          (connection) => connection.product === "payment_initiation"
-        ) ? (
-          <RabobankPaymentForm
-            connectionId={
-              connections.find(
-                (connection) => connection.product === "payment_initiation"
-              )?.id ?? ""
-            }
-            organizationId={org.id}
-          />
-        ) : (
-          <p className="mt-3 text-muted-foreground text-sm">
-            Connect payment initiation first to enable the form.
-          </p>
-        )}
       </div>
     </div>
   );

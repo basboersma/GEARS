@@ -60,51 +60,9 @@ type RabobankTransactionRecord = Record<string, unknown> & {
   };
 };
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This handler validates access, refreshes tokens, fetches accounts, and persists transactions.
-export async function POST(request: Request) {
-  const { user } = await getCurrentUser();
-  const { searchParams } = new URL(request.url);
-  const organizationId = searchParams.get("organizationId");
+type RabobankConnectionRecord = typeof rabobankConnection.$inferSelect;
 
-  if (!organizationId) {
-    return NextResponse.json(
-      { error: "organizationId is required" },
-      { status: 400 }
-    );
-  }
-
-  const connection = await db.query.rabobankConnection.findFirst({
-    where: and(
-      eq(rabobankConnection.organizationId, organizationId),
-      eq(rabobankConnection.product, "account_information")
-    ),
-  });
-
-  if (!connection) {
-    return NextResponse.json(
-      { error: "No Rabobank account-information connection found" },
-      { status: 404 }
-    );
-  }
-
-  if (connection.organizationId !== organizationId) {
-    return NextResponse.json({ error: "Connection mismatch" }, { status: 403 });
-  }
-
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(member.organizationId, organizationId),
-      eq(member.userId, user.id)
-    ),
-  });
-
-  if (!membership) {
-    return NextResponse.json(
-      { error: "Only organization members can sync" },
-      { status: 403 }
-    );
-  }
-
+async function refreshAccessToken(connection: RabobankConnectionRecord) {
   let accessToken = connection.accessToken;
 
   if (
@@ -131,11 +89,16 @@ export async function POST(request: Request) {
       .where(eq(rabobankConnection.id, connection.id));
   }
 
+  return accessToken;
+}
+
+async function syncConnectionTransactions(
+  connection: RabobankConnectionRecord
+) {
+  const accessToken = await refreshAccessToken(connection);
+
   if (!accessToken) {
-    return NextResponse.json(
-      { error: "Rabobank access token missing" },
-      { status: 400 }
-    );
+    return { accounts: 0, transactions: 0 };
   }
 
   const accountList = await rabobankApiRequest<{
@@ -153,6 +116,7 @@ export async function POST(request: Request) {
     const accountId = String(
       account.resourceId ?? account.accountId ?? account.id ?? ""
     );
+
     if (!accountId) {
       continue;
     }
@@ -245,9 +209,116 @@ export async function POST(request: Request) {
     }
   }
 
+  return { accounts: accounts.length, transactions: inserted };
+}
+
+async function syncOrganizationTransactions(organizationId: string) {
+  const connections = await db.query.rabobankConnection.findMany({
+    where: and(
+      eq(rabobankConnection.organizationId, organizationId),
+      eq(rabobankConnection.product, "account_information")
+    ),
+  });
+
+  let accounts = 0;
+  let transactions = 0;
+
+  for (const connection of connections) {
+    const result = await syncConnectionTransactions(connection);
+    accounts += result.accounts;
+    transactions += result.transactions;
+  }
+
+  return { connections: connections.length, accounts, transactions };
+}
+
+async function syncAllAccountInformationConnections() {
+  const connections = await db.query.rabobankConnection.findMany({
+    where: eq(rabobankConnection.product, "account_information"),
+  });
+
+  let organizations = 0;
+  let accounts = 0;
+  let transactions = 0;
+
+  for (const connection of connections) {
+    const result = await syncConnectionTransactions(connection);
+    organizations += 1;
+    accounts += result.accounts;
+    transactions += result.transactions;
+  }
+
+  return { connections: organizations, accounts, transactions };
+}
+
+export async function POST(request: Request) {
+  const { user } = await getCurrentUser();
+  const { searchParams } = new URL(request.url);
+  const organizationId = searchParams.get("organizationId");
+
+  if (!organizationId) {
+    return NextResponse.json(
+      { error: "organizationId is required" },
+      { status: 400 }
+    );
+  }
+
+  const connection = await db.query.rabobankConnection.findFirst({
+    where: and(
+      eq(rabobankConnection.organizationId, organizationId),
+      eq(rabobankConnection.product, "account_information")
+    ),
+  });
+
+  if (!connection) {
+    return NextResponse.json(
+      { error: "No Rabobank account-information connection found" },
+      { status: 404 }
+    );
+  }
+
+  if (connection.organizationId !== organizationId) {
+    return NextResponse.json({ error: "Connection mismatch" }, { status: 403 });
+  }
+
+  const membership = await db.query.member.findFirst({
+    where: and(
+      eq(member.organizationId, organizationId),
+      eq(member.userId, user.id)
+    ),
+  });
+
+  if (!membership) {
+    return NextResponse.json(
+      { error: "Only organization members can sync" },
+      { status: 403 }
+    );
+  }
+
+  const result = await syncOrganizationTransactions(organizationId);
+
   return NextResponse.json({
     success: true,
-    accounts: accounts.length,
-    transactions: inserted,
+    connections: result.connections,
+    accounts: result.accounts,
+    transactions: result.transactions,
+  });
+}
+
+export async function GET(request: Request) {
+  if (request.headers.get("x-vercel-cron") !== "1") {
+    return NextResponse.json(
+      { error: "Cron access required" },
+      { status: 403 }
+    );
+  }
+
+  const result = await syncAllAccountInformationConnections();
+
+  return NextResponse.json({
+    success: true,
+    connections: result.connections,
+    accounts: result.accounts,
+    transactions: result.transactions,
   });
 }

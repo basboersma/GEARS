@@ -5,14 +5,7 @@ import { member, organization, rabobankConnection } from "@/db/schema";
 import {
   decodeRabobankStateToken,
   exchangeRabobankAuthorizationCode,
-  type RabobankProduct,
 } from "@/lib/rabobank";
-
-function normalizeProduct(product: RabobankProduct) {
-  return product === "payment_initiation"
-    ? "payment_initiation"
-    : "account_information";
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -73,11 +66,8 @@ export async function GET(request: Request) {
     id: crypto.randomUUID(),
     organizationId: decoded.organizationId,
     createdByUserId: decoded.userId,
-    product: normalizeProduct(decoded.product),
-    scope:
-      decoded.product === "payment_initiation"
-        ? "bspi.single.read-write"
-        : "bai.accountinformation.read",
+    product: "account_information",
+    scope: "bai.accountinformation.read",
     accessToken: token.access_token,
     refreshToken: token.refresh_token ?? null,
     accessTokenExpiresAt: new Date(Date.now() + token.expires_in * 1000),
