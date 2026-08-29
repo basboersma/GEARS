@@ -73,7 +73,7 @@ async function canManageAgenda(userId: string, organizationId: string) {
   }
 
   return {
-    canManage: membership.role === "admin",
+    canManage: membership.role === "owner" || membership.role === "admin",
     isAdmin: membership.role === "admin",
     membership,
   };
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 
   if (!access) {
     return NextResponse.json(
-      { error: "Only organization admins can view agenda" },
+      { error: "Only organization members can view agenda" },
       { status: 403 }
     );
   }
@@ -119,7 +119,8 @@ export async function GET(request: Request) {
   );
   const viewerRole = access.membership.role;
 
-  const canViewOrderBatches = viewerRole === "admin";
+  const canViewOrderBatches =
+    viewerRole === "owner" || viewerRole === "admin" || viewerRole === "member";
 
   const orderRows = canViewOrderBatches
     ? await db.query.orderRequest.findMany({

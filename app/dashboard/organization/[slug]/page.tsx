@@ -15,7 +15,8 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
   const isMember = Boolean(membership);
-  const canViewAgenda = isAdmin;
+  const isOwnerOrAdmin =
+    membership?.role === "owner" || membership?.role === "admin";
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 py-10">
@@ -29,10 +30,10 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         </Button>
       ) : null}
 
-      {isMember && canViewAgenda && organization?.id ? (
+      {isMember && organization?.id ? (
         <OrganizationAgenda
           canEnableVoting={isAdmin}
-          canManageAgenda={isAdmin}
+          canManageAgenda={isOwnerOrAdmin}
           organizationId={organization.id}
         />
       ) : null}
