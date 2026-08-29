@@ -452,10 +452,14 @@ function BudgetBreakdownPanel({ data }: { data: BudgetHierarchyNode }) {
           colors={(node) => node.data.color ?? "#8b5cf6"}
           data={data}
           enableLabels
-          labelSkipSize={18}
-          labelTextColor="#111827"
+          labelAlign="start"
+          labelBaseline="center"
+          labelPaddingX={6}
+          labelPaddingY={6}
+          labelSkipHeight={24}
+          labelSkipWidth={28}
+          labelTextColor={{ from: "color", modifiers: [["darker", 1.5]] }}
           margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          padAngle={0.4}
           valueFormat=">-.0s"
         />
       </div>
