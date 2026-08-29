@@ -23,9 +23,9 @@ export default async function Dashboard() {
     where: eq(member.userId, currentUser.id),
   });
 
-  const isAdmin = memberships.some((membership) => membership.role === "admin");
-  const isOwner = memberships.some((membership) => membership.role === "owner");
-  const showAdminButton = isAdmin && !isOwner;
+  const showAdminButton = memberships.some(
+    (membership) => membership.role === "admin"
+  );
 
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-2">
