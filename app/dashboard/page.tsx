@@ -33,14 +33,15 @@ export default async function Dashboard() {
     (entry) => entry.organizationId
   );
 
+  const organizationNamesById = new Map(
+    organizations.map((organization) => [organization.id, organization.name])
+  );
+
   const adminOrderItems =
     adminOrganizationIds.length === 0
       ? []
       : await db.query.orderRequest.findMany({
           where: inArray(orderRequest.organizationId, adminOrganizationIds),
-          with: {
-            organization: true,
-          },
           orderBy: [
             desc(orderRequest.orderedDate),
             desc(orderRequest.createdAt),
@@ -102,8 +103,9 @@ export default async function Dashboard() {
                     <div>
                       <p className="font-medium">{item.orderName}</p>
                       <p className="text-muted-foreground text-xs">
-                        {item.organization?.name ?? "Organization"} · Department{" "}
-                        {item.department}
+                        {organizationNamesById.get(item.organizationId) ??
+                          "Organization"}{" "}
+                        · Department {item.department}
                       </p>
                     </div>
                     <span className="rounded-full bg-secondary px-2 py-1 text-[10px] uppercase tracking-[0.08em]">

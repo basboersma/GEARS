@@ -34,7 +34,6 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         <OrganizationAgenda
           canEnableVoting={isAdmin}
           canManageAgenda={isOwnerOrAdmin}
-          canManageOrderTodo={false}
           organizationId={organization.id}
         />
       ) : null}
