@@ -1,78 +1,118 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default function ActivitiesPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link
-            className="font-black text-lg uppercase tracking-[0.18em]"
-            href="/"
-          >
-            GEARS
-          </Link>
-          <nav className="hidden items-center gap-6 md:flex">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/activities", label: "Activities" },
-              { href: "/membership", label: "Membership" },
-              { href: "/about", label: "About" },
-              { href: "/contact", label: "Contact" },
-            ].map((item) => (
-              <Link
-                className="text-muted-foreground text-sm transition-colors hover:text-foreground"
-                href={item.href}
-                key={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
+    <div className="site">
+      <header className="site-header">
+        <div className="site-header-inner">
+          <div className="brand">
+            <div className="brand-text">
+              <div aria-label="GEARS logo" className="brand-logo" role="img">
+                G
+              </div>
+              <div className="brand-text-lines">
+                <span className="brand-name">GEARS</span>
+                <span className="brand-subtitle">
+                  Gronigen Engineering and Robotics Study Association
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <nav className="nav">
+            <Link href="/">Home</Link>
+            <Link href="/activities">Activities</Link>
+            <Link href="/membership">Membership</Link>
+            <Link href="/about">About</Link>
+            <Link href="/contact">Contact</Link>
+            <Link href="/login">Login</Link>
+            <Link className="nav-cta" href="/login">
+              JOIN GEARS
+            </Link>
           </nav>
-          <Button
-            asChild
-            className="rounded-full bg-[#F59E0B] text-slate-950 hover:bg-[#fbbf24]"
-          >
-            <Link href="/login">JOIN GEARS</Link>
-          </Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <p className="text-[#b45309] text-[10px] uppercase tracking-[0.24em]">
-            Activities
-          </p>
-          <h1 className="mt-3 font-black text-4xl sm:text-5xl">
-            What we do together
-          </h1>
+      <main>
+        <section className="section" id="teams">
+          <div className="section-header">
+            <h2>Teams</h2>
+            <p>
+              Join one of our project teams to work on robotics and engineering
+              challenges throughout the year.
+            </p>
+          </div>
+
+          <div className="grid-3 grid">
+            <article className="card">
+              <h3>Makercie Rover Team</h3>
+              <p>
+                Makercie is a student rover team focused on space exploration
+                and challenge-based engineering. Founded in 2023, the team has
+                grown into an interdisciplinary group from the University of
+                Groningen and Hanze, and won the Remote Formula of the European
+                Rover Challenge.
+              </p>
+              <ul className="card-list">
+                <li>
+                  Learn more at{" "}
+                  <a
+                    href="https://makercie.nl/"
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    makercie.nl
+                  </a>
+                </li>
+                <li>On-site and remote rover challenge experience</li>
+                <li>Interdisciplinary engineering team structure</li>
+              </ul>
+            </article>
+
+            <article className="card">
+              <h3>Kiwi Aerospace CanSat Team</h3>
+              <p>
+                Kiwi Aerospace is a six-member engineering student team
+                competing in the World CanSat Challenge 2026 in Mexico City,
+                hosted by UNAM and PEU. The team designs, builds, and launches a
+                2U model satellite with full end-to-end ownership across the
+                mission lifecycle.
+              </p>
+              <ul className="card-list">
+                <li>Real-time telemetry and environmental sensing payload</li>
+                <li>
+                  Custom autogyro controlled descent and safe egg recovery
+                </li>
+                <li>From design reviews to flight operations and analysis</li>
+              </ul>
+            </article>
+
+            <article className="card">
+              <h3>Coming Soon</h3>
+              <p>New activity updates will be announced here soon.</p>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <footer className="site-footer">
+        <div className="footer-info">
+          <strong>GEARS</strong>
+          <span>KVK: 42017832</span>
+          <span>Nijenborgh 4, 9747 AG, Groningen</span>
+          <span>Platform for facilitating student teams.</span>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              title: "Community events",
-              text: "From socials to student exchanges, we create room for people to meet, connect, and build momentum.",
-            },
-            {
-              title: "Workshops",
-              text: "Practical sessions, skills-sharing, and peer-led learning that helps members grow beyond the classroom.",
-            },
-            {
-              title: "Collaborations",
-              text: "We bring organisations, students, and partners together to turn shared ideas into action.",
-            },
-          ].map((item) => (
-            <div
-              className="rounded-2xl border border-border bg-muted/20 p-6"
-              key={item.title}
-            >
-              <h2 className="font-semibold text-xl">{item.title}</h2>
-              <p className="mt-3 text-muted-foreground">{item.text}</p>
-            </div>
-          ))}
+        <div className="footer-meta">
+          <span>© {new Date().getFullYear()} GEARS</span>
+          <span className="footer-links">
+            <a href="/privacy.html">Privacy policy</a>
+            <a href="/termsandconditions.html">
+              Terms and Conditions for Membership
+            </a>
+          </span>
         </div>
-      </main>
+      </footer>
     </div>
   );
 }

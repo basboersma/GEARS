@@ -1,78 +1,106 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default function MembershipPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link
-            className="font-black text-lg uppercase tracking-[0.18em]"
-            href="/"
-          >
-            GEARS
-          </Link>
-          <nav className="hidden items-center gap-6 md:flex">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/activities", label: "Activities" },
-              { href: "/membership", label: "Membership" },
-              { href: "/about", label: "About" },
-              { href: "/contact", label: "Contact" },
-            ].map((item) => (
-              <Link
-                className="text-muted-foreground text-sm transition-colors hover:text-foreground"
-                href={item.href}
-                key={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
+    <div className="site">
+      <header className="site-header">
+        <div className="site-header-inner">
+          <div className="brand">
+            <div className="brand-text">
+              <div aria-label="GEARS logo" className="brand-logo" role="img">
+                G
+              </div>
+              <div className="brand-text-lines">
+                <span className="brand-name">GEARS</span>
+                <span className="brand-subtitle">
+                  Gronigen Engineering and Robotics Study Association
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <nav className="nav">
+            <Link href="/">Home</Link>
+            <Link href="/activities">Activities</Link>
+            <Link href="/membership">Membership</Link>
+            <Link href="/about">About</Link>
+            <Link href="/contact">Contact</Link>
+            <Link href="/login">Login</Link>
+            <Link className="nav-cta" href="/login">
+              JOIN GEARS
+            </Link>
           </nav>
-          <Button
-            asChild
-            className="rounded-full bg-[#F59E0B] text-slate-950 hover:bg-[#fbbf24]"
-          >
-            <Link href="/login">JOIN GEARS</Link>
-          </Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <p className="text-[#b45309] text-[10px] uppercase tracking-[0.24em]">
-            Membership
-          </p>
-          <h1 className="mt-3 font-black text-4xl sm:text-5xl">
-            Membership that supports action
-          </h1>
+      <main>
+        <section className="section" id="membership">
+          <div className="membership">
+            <div className="membership-info">
+              <div className="membership-heading">
+                <h2>Become a member</h2>
+                <p>
+                  Membership is open to all students interested in robotics,
+                  engineering, and innovation. Join to build, compete,
+                  collaborate, and shape the future of GEARS together.
+                </p>
+              </div>
+              <ul>
+                <li>Apply to join one of our active competition teams</li>
+                <li>
+                  Support the association through communication, events,
+                  outreach, and operations
+                </li>
+                <li>
+                  Access member-only build sessions, labs, and project evenings
+                </li>
+                <li>
+                  Priority access to workshops, company visits, and GEARS events
+                </li>
+              </ul>
+              <p className="membership-note">
+                For now, membership registration is handled via Google Forms.
+                After you sign up, we will contact you by email with the next
+                steps and payment details.
+              </p>
+            </div>
+
+            <div className="membership-actions">
+              <div className="membership-pricing-card">
+                <span className="membership-price-badge">
+                  Limited launch offer
+                </span>
+                <span className="membership-price-highlight">
+                  First 25 members: only €2.50
+                </span>
+                <span className="membership-price">Then €10 per year</span>
+                <Link className="btn btn-primary membership-btn" href="/login">
+                  Fill in membership form
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="site-footer">
+        <div className="footer-info">
+          <strong>GEARS</strong>
+          <span>KVK: 42017832</span>
+          <span>Nijenborgh 4, 9747 AG, Groningen</span>
+          <span>Platform for facilitating student teams.</span>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              title: "Student members",
-              text: "Join a network of students who want to build, organise, and contribute beyond their own bubble.",
-            },
-            {
-              title: "Organisations",
-              text: "Connect with partner groups, run joint initiatives, and strengthen the student ecosystem together.",
-            },
-            {
-              title: "Supporters",
-              text: "Back the mission by helping create opportunities, events, and long-term collaboration across campuses.",
-            },
-          ].map((item) => (
-            <div
-              className="rounded-2xl border border-border bg-muted/20 p-6"
-              key={item.title}
-            >
-              <h2 className="font-semibold text-xl">{item.title}</h2>
-              <p className="mt-3 text-muted-foreground">{item.text}</p>
-            </div>
-          ))}
+        <div className="footer-meta">
+          <span>© {new Date().getFullYear()} GEARS</span>
+          <span className="footer-links">
+            <a href="/privacy.html">Privacy policy</a>
+            <a href="/termsandconditions.html">
+              Terms and Conditions for Membership
+            </a>
+          </span>
         </div>
-      </main>
+      </footer>
     </div>
   );
 }

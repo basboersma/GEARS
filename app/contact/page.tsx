@@ -1,60 +1,100 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-border border-b bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link
-            className="font-black text-lg uppercase tracking-[0.18em]"
-            href="/"
-          >
-            GEARS
-          </Link>
-          <nav className="hidden items-center gap-6 md:flex">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/activities", label: "Activities" },
-              { href: "/membership", label: "Membership" },
-              { href: "/about", label: "About" },
-              { href: "/contact", label: "Contact" },
-            ].map((item) => (
-              <Link
-                className="text-muted-foreground text-sm transition-colors hover:text-foreground"
-                href={item.href}
-                key={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
+    <div className="site">
+      <header className="site-header">
+        <div className="site-header-inner">
+          <div className="brand">
+            <div className="brand-text">
+              <div aria-label="GEARS logo" className="brand-logo" role="img">
+                G
+              </div>
+              <div className="brand-text-lines">
+                <span className="brand-name">GEARS</span>
+                <span className="brand-subtitle">
+                  Gronigen Engineering and Robotics Study Association
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <nav className="nav">
+            <Link href="/">Home</Link>
+            <Link href="/activities">Activities</Link>
+            <Link href="/membership">Membership</Link>
+            <Link href="/about">About</Link>
+            <Link href="/contact">Contact</Link>
+            <Link href="/login">Login</Link>
+            <Link className="nav-cta" href="/login">
+              JOIN GEARS
+            </Link>
           </nav>
-          <Button
-            asChild
-            className="rounded-full bg-[#F59E0B] text-slate-950 hover:bg-[#fbbf24]"
-          >
-            <Link href="/login">JOIN GEARS</Link>
-          </Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <p className="text-[#b45309] text-[10px] uppercase tracking-[0.24em]">
-            Contact
-          </p>
-          <h1 className="mt-3 font-black text-4xl sm:text-5xl">
-            Let’s connect
-          </h1>
+      <main>
+        <section className="section section-alt" id="contact">
+          <div className="section-header">
+            <h2>Contact &amp; partners</h2>
+            <p>
+              Interested in collaborating, sponsoring hardware or inviting us
+              for a demo? Reach out to the GEARS board.
+            </p>
+          </div>
+
+          <div className="contact-grid">
+            <div>
+              <h3>Contact</h3>
+              <p>
+                Board: <a href="mailto:board@gearsnl.org">board@gearsnl.org</a>
+              </p>
+              <p>
+                Chair: <a href="mailto:chair@gearsnl.org">chair@gearsnl.org</a>
+              </p>
+              <p>
+                Secretary:{" "}
+                <a href="mailto:secretary@gearsnl.org">secretary@gearsnl.org</a>
+              </p>
+              <p>
+                Treasurer:{" "}
+                <a href="mailto:treasurer@gearsnl.org">treasurer@gearsnl.org</a>
+              </p>
+              <p>
+                External Affairs:{" "}
+                <a href="mailto:extern@gearsnl.org">extern@gearsnl.org</a>
+              </p>
+              <p>
+                <a href="https://www.linkedin.com/company/gearsnl/">Linkedin</a>
+              </p>
+              <p>
+                <a href="https://www.instagram.com/gearsnl?igsh=dTI2czI4d3M2ZmRl&utm_source=qr">
+                  Instagram
+                </a>
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="site-footer">
+        <div className="footer-info">
+          <strong>GEARS</strong>
+          <span>KVK: 42017832</span>
+          <span>Nijenborgh 4, 9747 AG, Groningen</span>
+          <span>Platform for facilitating student teams.</span>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted/20 p-8">
-          <p className="text-base text-muted-foreground">
-            Want to get in touch, collaborate, or learn more about GEARS? Reach
-            out through the community channels and we’ll be happy to help.
-          </p>
+        <div className="footer-meta">
+          <span>© {new Date().getFullYear()} GEARS</span>
+          <span className="footer-links">
+            <a href="/privacy.html">Privacy policy</a>
+            <a href="/termsandconditions.html">
+              Terms and Conditions for Membership
+            </a>
+          </span>
         </div>
-      </main>
+      </footer>
     </div>
   );
 }
