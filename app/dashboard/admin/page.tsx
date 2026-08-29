@@ -40,20 +40,28 @@ export default async function AdminDashboardPage() {
     },
   });
 
-  const [totalBudgetRow, organizationBudgetRows] = await Promise.all([
-    db.query.budgetSetting.findFirst(),
-    db.query.organizationBudget.findMany({
-      where: inArray(organizationBudget.organizationId, organizationIds),
-    }),
-  ]);
+  let totalBudget = 0;
+  let budgetMap = new Map<string, number>();
 
-  const totalBudget = Number(totalBudgetRow?.totalBudget ?? 0);
-  const budgetMap = new Map(
-    organizationBudgetRows.map((entry) => [
-      entry.organizationId,
-      Number(entry.allocatedBudget ?? 0),
-    ])
-  );
+  try {
+    const [totalBudgetRow, organizationBudgetRows] = await Promise.all([
+      db.query.budgetSetting.findFirst(),
+      db.query.organizationBudget.findMany({
+        where: inArray(organizationBudget.organizationId, organizationIds),
+      }),
+    ]);
+
+    totalBudget = Number(totalBudgetRow?.totalBudget ?? 0);
+    budgetMap = new Map(
+      organizationBudgetRows.map((entry) => [
+        entry.organizationId,
+        Number(entry.allocatedBudget ?? 0),
+      ])
+    );
+  } catch {
+    totalBudget = 0;
+    budgetMap = new Map();
+  }
 
   const summaries = await Promise.all(
     organizations.map(async (org) => {
