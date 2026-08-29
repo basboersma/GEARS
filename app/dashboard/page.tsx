@@ -2,7 +2,6 @@ import { eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db/drizzle";
 import { member, organization } from "@/db/schema";
-import { getActiveOrganization } from "@/server/organizations";
 import { getCurrentUser } from "@/server/users";
 
 export default async function Dashboard() {
@@ -29,13 +28,10 @@ export default async function Dashboard() {
     orderBy: (organization, { asc }) => [asc(organization.name)],
   });
 
-  const activeOrganization = await getActiveOrganization(currentUser.id);
-  const selectedOrganization =
-    organizations.find((item) => item.id === activeOrganization?.id) ??
-    organizations[0];
+  const firstOrganization = organizations[0];
 
-  if (selectedOrganization?.slug) {
-    redirect(`/dashboard/organization/${selectedOrganization.slug}`);
+  if (firstOrganization?.slug) {
+    redirect(`/dashboard/organization/${firstOrganization.slug}`);
   }
 
   redirect("/dashboard/admin");

@@ -23,11 +23,11 @@ export function OrganizationSwitcher({
   const { data: activeOrganization } = authClient.useActiveOrganization();
 
   const handleChangeOrganization = async (organizationId: string) => {
-    try {
-      const targetOrganization = organizations.find(
-        (organization) => organization.id === organizationId
-      );
+    const nextOrganization = organizations.find(
+      (organization) => organization.id === organizationId
+    );
 
+    try {
       const { error } = await authClient.organization.setActive({
         organizationId,
       });
@@ -38,13 +38,14 @@ export function OrganizationSwitcher({
         return;
       }
 
-      toast.success("Organization switched successfully");
-
-      if (targetOrganization?.slug) {
-        router.push(`/dashboard/organization/${targetOrganization.slug}`);
+      if (nextOrganization?.slug) {
+        router.push(`/dashboard/organization/${nextOrganization.slug}`);
       } else {
-        router.refresh();
+        router.push("/dashboard");
       }
+
+      router.refresh();
+      toast.success("Organization switched successfully");
     } catch (error) {
       console.error(error);
       toast.error("Failed to switch organization");
@@ -54,10 +55,10 @@ export function OrganizationSwitcher({
   return (
     <Select
       onValueChange={handleChangeOrganization}
-      value={activeOrganization?.id ?? organizations[0]?.id}
+      value={activeOrganization?.id}
     >
       <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder="Select organization" />
+        <SelectValue placeholder="Organization" />
       </SelectTrigger>
       <SelectContent>
         {organizations.map((organization) => (
