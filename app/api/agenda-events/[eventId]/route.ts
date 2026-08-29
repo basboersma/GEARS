@@ -75,7 +75,7 @@ async function canManageEvent(userId: string, eventId: string) {
     };
   }
 
-  if (membership.role === "admin") {
+  if (membership.role === "admin" || membership.role === "owner") {
     return {
       allowed: true as const,
       event,

@@ -55,7 +55,15 @@ export async function PATCH(
     ),
   });
 
-  if (!membership) {
+  const ownerMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, user.id),
+      eq(member.organizationId, item.organizationId),
+      eq(member.role, "owner")
+    ),
+  });
+
+  if (!(membership || ownerMembership)) {
     return NextResponse.json(
       { error: "Only organization admins can update order items" },
       { status: 403 }
