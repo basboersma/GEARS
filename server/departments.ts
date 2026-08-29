@@ -6,7 +6,9 @@ import { db } from "@/db/drizzle";
 import { member, organizationDepartment } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
-export async function getOrganizationDepartments(organizationId: string) {
+export async function getOrganizationDepartments(
+  organizationId: string
+): Promise<(typeof organizationDepartment.$inferSelect)[]> {
   const departments = await db.query.organizationDepartment.findMany({
     where: eq(organizationDepartment.organizationId, organizationId),
     orderBy: (organizationDepartment, { asc }) => [

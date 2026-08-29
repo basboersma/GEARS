@@ -362,6 +362,7 @@ export const schema = {
   account,
   verification,
   organization,
+  organizationDepartment,
   member,
   invitation,
   orderRequest,
@@ -370,5 +371,6 @@ export const schema = {
   agendaDiscussionPointVote,
   studentProfile,
   organizationRelations,
+  organizationDepartmentRelations,
   memberRelations,
 };
