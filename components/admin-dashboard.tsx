@@ -292,127 +292,6 @@ function OrgDetailSidebar({
   );
 }
 
-function UpcomingOrdersPanel({
-  orders,
-  onSelectOrder,
-}: {
-  orders: UpcomingOrderList[];
-  onSelectOrder: (order: UpcomingOrderList) => void;
-}) {
-  return (
-    <aside className="rounded-xl border bg-muted/20 p-4">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-lg">Upcoming orders</h3>
-        <span className="rounded-full bg-primary/10 px-2 py-1 font-medium text-primary text-xs">
-          {orders.length}
-        </span>
-      </div>
-
-      <div className="space-y-2">
-        {orders.length > 0 ? (
-          orders.map((order) => (
-            <button
-              className="w-full rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
-              key={order.id}
-              onClick={() => onSelectOrder(order)}
-              type="button"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate font-medium text-sm">
-                  {order.orderName}
-                </p>
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-[10px] text-amber-700 uppercase tracking-[0.12em]">
-                  {order.items.length}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                {order.organizationName}
-              </p>
-            </button>
-          ))
-        ) : (
-          <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
-            No upcoming orders.
-          </p>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function OrderListDetailDialog({
-  order,
-  onClose,
-}: {
-  order: UpcomingOrderList | null;
-  onClose: () => void;
-}) {
-  return (
-    <Dialog onOpenChange={(open) => !open && onClose()} open={Boolean(order)}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{order?.orderName ?? "Upcoming order"}</DialogTitle>
-          <DialogDescription>
-            {order
-              ? `${order.organizationName} • ${order.items.length} items`
-              : "Order details"}
-          </DialogDescription>
-        </DialogHeader>
-
-        {order ? (
-          <div className="space-y-3">
-            {order.items.map((item) => (
-              <div className="rounded-lg border bg-muted/20 p-3" key={item.id}>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-sm">{item.description}</p>
-                    <p className="mt-1 text-muted-foreground text-xs">
-                      {item.typeOfOrder} • {item.urgency} • Qty {item.quantity}
-                    </p>
-                  </div>
-                  <span className="font-medium text-sm">
-                    {formatCurrency(item.totalCosts)}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.12em]">
-                  {[
-                    { label: "Photo", checked: item.photoAdded },
-                    { label: "Needed", checked: item.photoNeeded },
-                    { label: "Uploaded", checked: item.photoUploaded },
-                    { label: "Ordered", checked: item.ordered },
-                    { label: "Delivered", checked: item.delivered },
-                    { label: "Finalized", checked: item.finalized },
-                    { label: "Accepted", checked: item.accepted },
-                  ].map(({ label, checked }) => (
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
-                        checked
-                          ? "bg-emerald-500/10 text-emerald-700"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                      key={label}
-                    >
-                      {checked ? "✓" : "○"}
-                      {label}
-                    </span>
-                  ))}
-                </div>
-
-                {item.comments ? (
-                  <p className="mt-3 text-muted-foreground text-xs">
-                    {item.comments}
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function DeleteOrganizationDialog({
   open,
   onOpenChange,
@@ -486,8 +365,6 @@ export function AdminDashboard({
     organizations[0]?.id ?? null
   );
   const [orgDetailOpen, setOrgDetailOpen] = useState(false);
-  const [selectedOrderList, setSelectedOrderList] =
-    useState<UpcomingOrderList | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [removalKey, setRemovalKey] = useState("");
   const [pendingDelete, setPendingDelete] =
@@ -546,22 +423,6 @@ export function AdminDashboard({
   };
 
   const selectedOrg = activeOrganization;
-  const allUpcomingOrders = useMemo(
-    () =>
-      organizations
-        .flatMap((organization) =>
-          organization.upcomingOrders.map((order) => ({
-            ...order,
-            organizationName: organization.name,
-          }))
-        )
-        .sort(
-          (a, b) =>
-            a.orderName.localeCompare(b.orderName) ||
-            Number(a.date) - Number(b.date)
-        ),
-    [organizations]
-  );
 
   return (
     <div className="min-h-screen w-full px-3 py-6 sm:px-4 lg:px-6">
@@ -643,12 +504,17 @@ export function AdminDashboard({
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button asChild variant="outline">
                         <Link
                           href={`/dashboard/organization/${selectedOrg.slug}`}
                         >
                           Open organization
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline">
+                        <Link href="/dashboard/admin/orders">
+                          Upcoming orders
                         </Link>
                       </Button>
                       <Button
@@ -665,7 +531,7 @@ export function AdminDashboard({
                     </div>
                   </div>
 
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_360px]">
+                  <div className="space-y-4">
                     <div className="space-y-4">
                       <div className="rounded-xl border p-4">
                         <h3 className="mb-3 font-semibold text-lg">Members</h3>
@@ -730,11 +596,6 @@ export function AdminDashboard({
                         </div>
                       </div>
                     </div>
-
-                    <UpcomingOrdersPanel
-                      onSelectOrder={setSelectedOrderList}
-                      orders={allUpcomingOrders}
-                    />
                   </div>
                 </>
               ) : null}
@@ -743,10 +604,6 @@ export function AdminDashboard({
         </div>
       )}
 
-      <OrderListDetailDialog
-        onClose={() => setSelectedOrderList(null)}
-        order={selectedOrderList}
-      />
       <DeleteOrganizationDialog
         isPending={isPending}
         onCancel={() => {
