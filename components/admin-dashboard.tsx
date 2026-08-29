@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { saveOrganizationBudget, saveTotalBudget } from "@/server/budgets";
 import { removeMember } from "@/server/members";
 import { deleteOrganization } from "@/server/organizations";
 
@@ -65,6 +66,7 @@ interface OrganizationSummary {
   orderedTotal: number;
   pendingTotal: number;
   upcomingOrders: UpcomingOrderList[];
+  allocatedBudget: number;
 }
 
 function formatCurrency(value: number) {
@@ -212,11 +214,25 @@ function OrgDetailSidebar({
   selectedOrg,
   onClose,
   onRemove,
+  totalBudget,
+  onBudgetChange,
 }: {
   selectedOrg: OrganizationSummary;
   onClose: () => void;
   onRemove: (organization: OrganizationSummary) => void;
+  totalBudget: number;
+  onBudgetChange: (organizationId: string, amount: number) => Promise<void>;
 }) {
+  const [budgetValue, setBudgetValue] = useState(
+    String(selectedOrg.allocatedBudget ?? 0)
+  );
+  const [isSaving, startSaving] = useTransition();
+
+  const remainingBudget = Math.max(
+    totalBudget - selectedOrg.allocatedBudget,
+    0
+  );
+
   return (
     <aside className="w-full max-w-[48%] shrink-0 border-r bg-background p-4">
       <div className="flex items-center justify-between gap-3 border-b pb-4">
@@ -271,6 +287,46 @@ function OrgDetailSidebar({
             orderedTotal={selectedOrg.orderedTotal}
             pendingTotal={selectedOrg.pendingTotal}
           />
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Budget</h3>
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+                Allocated budget
+              </span>
+              <input
+                className="w-full rounded-md border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                min="0"
+                onChange={(event) => setBudgetValue(event.target.value)}
+                step="0.01"
+                type="number"
+                value={budgetValue}
+              />
+            </label>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Remaining</span>
+              <span className="font-medium">
+                {formatCurrency(remainingBudget)}
+              </span>
+            </div>
+            <Button
+              className="w-full"
+              disabled={isSaving}
+              onClick={() => {
+                startSaving(async () => {
+                  await onBudgetChange(
+                    selectedOrg.id,
+                    Number(budgetValue || 0)
+                  );
+                });
+              }}
+              variant="outline"
+            >
+              Save budget
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-2">
@@ -355,8 +411,10 @@ function DeleteOrganizationDialog({
 
 export function AdminDashboard({
   organizations,
+  totalBudget,
 }: {
   organizations: OrganizationSummary[];
+  totalBudget: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -422,6 +480,30 @@ export function AdminDashboard({
     });
   };
 
+  const handleBudgetChange = async (organizationId: string, amount: number) => {
+    const result = await saveOrganizationBudget(organizationId, amount);
+
+    if (!result.success) {
+      toast.error(result.error || "Unable to update the organization budget.");
+      return;
+    }
+
+    toast.success("Organization budget saved.");
+    router.refresh();
+  };
+
+  const handleTotalBudgetChange = async (amount: number) => {
+    const result = await saveTotalBudget(amount);
+
+    if (!result.success) {
+      toast.error("Unable to update the total budget.");
+      return;
+    }
+
+    toast.success("Total budget updated.");
+    router.refresh();
+  };
+
   const selectedOrg = activeOrganization;
 
   return (
@@ -452,6 +534,50 @@ export function AdminDashboard({
         </div>
       </div>
 
+      <div className="mb-4 rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+              Total budget
+            </p>
+            <p className="mt-1 font-semibold text-2xl">
+              {formatCurrency(totalBudget)}
+            </p>
+          </div>
+          <div className="flex w-full max-w-xs flex-col gap-2">
+            <label
+              className="text-muted-foreground text-xs uppercase tracking-[0.12em]"
+              htmlFor="admin-total-budget"
+            >
+              Set total budget
+            </label>
+            <div className="flex gap-2">
+              <input
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                defaultValue={String(totalBudget)}
+                id="admin-total-budget"
+                min="0"
+                step="0.01"
+                type="number"
+              />
+              <Button
+                onClick={() => {
+                  const input = document.getElementById(
+                    "admin-total-budget"
+                  ) as HTMLInputElement | null;
+                  const value = Number(input?.value ?? 0);
+                  handleTotalBudgetChange(value);
+                }}
+                type="button"
+                variant="outline"
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {organizations.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
           You are not an admin for any organization.
@@ -469,6 +595,7 @@ export function AdminDashboard({
           <div className="flex min-w-0 flex-1">
             {selectedOrg && orgDetailOpen ? (
               <OrgDetailSidebar
+                onBudgetChange={handleBudgetChange}
                 onClose={() => setOrgDetailOpen(false)}
                 onRemove={(organization) => {
                   setPendingDelete(organization);
@@ -476,8 +603,11 @@ export function AdminDashboard({
                   setOrgDetailOpen(false);
                 }}
                 selectedOrg={selectedOrg}
+                totalBudget={totalBudget}
               />
-            ) : null}
+            ) : (
+              <div className="hidden w-[28rem] max-w-[38%] border-r bg-background/40 xl:block" />
+            )}
 
             <main className="flex flex-1 flex-col gap-4 p-4">
               {selectedOrg ? (

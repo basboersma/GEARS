@@ -80,9 +80,60 @@ export const organization = pgTable("organization", {
   metadata: text("metadata"),
 });
 
-export const organizationRelations = relations(organization, ({ many }) => ({
-  members: many(member),
+export const budgetSetting = pgTable("budget_setting", {
+  id: text("id").primaryKey(),
+  totalBudget: numeric("total_budget", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const organizationBudget = pgTable("organization_budget", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  allocatedBudget: numeric("allocated_budget", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const organizationRelations = relations(
+  organization,
+  ({ many, one }) => ({
+    members: many(member),
+    budget: one(organizationBudget, {
+      fields: [organization.id],
+      references: [organizationBudget.organizationId],
+    }),
+  })
+);
+
+export const budgetSettingRelations = relations(budgetSetting, ({ many }) => ({
+  organizationBudgets: many(organizationBudget),
 }));
+
+export const organizationBudgetRelations = relations(
+  organizationBudget,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [organizationBudget.organizationId],
+      references: [organization.id],
+    }),
+  })
+);
 
 export type Organization = typeof organization.$inferSelect;
 
@@ -338,6 +389,8 @@ export const schema = {
   account,
   verification,
   organization,
+  budgetSetting,
+  organizationBudget,
   member,
   invitation,
   orderRequest,

@@ -1,7 +1,13 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { db } from "@/db/drizzle";
-import { agendaEvent, member, orderRequest, organization } from "@/db/schema";
+import {
+  agendaEvent,
+  member,
+  orderRequest,
+  organization,
+  organizationBudget,
+} from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 export default async function AdminDashboardPage() {
@@ -33,6 +39,21 @@ export default async function AdminDashboardPage() {
       },
     },
   });
+
+  const [totalBudgetRow, organizationBudgetRows] = await Promise.all([
+    db.query.budgetSetting.findFirst(),
+    db.query.organizationBudget.findMany({
+      where: inArray(organizationBudget.organizationId, organizationIds),
+    }),
+  ]);
+
+  const totalBudget = Number(totalBudgetRow?.totalBudget ?? 0);
+  const budgetMap = new Map(
+    organizationBudgetRows.map((entry) => [
+      entry.organizationId,
+      Number(entry.allocatedBudget ?? 0),
+    ])
+  );
 
   const summaries = await Promise.all(
     organizations.map(async (org) => {
@@ -120,9 +141,10 @@ export default async function AdminDashboardPage() {
         orderedTotal,
         pendingTotal,
         upcomingOrders,
+        allocatedBudget: budgetMap.get(org.id) ?? 0,
       };
     })
   );
 
-  return <AdminDashboard organizations={summaries} />;
+  return <AdminDashboard organizations={summaries} totalBudget={totalBudget} />;
 }
