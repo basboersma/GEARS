@@ -3,7 +3,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/drizzle";
-import { member, organization } from "@/db/schema";
+import { member, organization, session } from "@/db/schema";
 import { getCurrentUser } from "./users";
 
 function matchesOrganizationRemovalKey(input: string) {
@@ -41,6 +41,20 @@ export async function getOrganizations() {
 }
 
 export async function getActiveOrganization(userId: string) {
+  const activeSession = await db.query.session.findFirst({
+    where: eq(session.userId, userId),
+  });
+
+  if (activeSession?.activeOrganizationId) {
+    const activeOrganization = await db.query.organization.findFirst({
+      where: eq(organization.id, activeSession.activeOrganizationId),
+    });
+
+    if (activeOrganization) {
+      return activeOrganization;
+    }
+  }
+
   const memberUser = await db.query.member.findFirst({
     where: eq(member.userId, userId),
   });
