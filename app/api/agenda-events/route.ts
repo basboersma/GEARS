@@ -73,7 +73,7 @@ async function canManageAgenda(userId: string, organizationId: string) {
   }
 
   return {
-    canManage: membership.role === "owner" || membership.role === "admin",
+    canManage: membership.role === "admin",
     isAdmin: membership.role === "admin",
     membership,
   };
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 
   if (!access) {
     return NextResponse.json(
-      { error: "Only organization members can view agenda" },
+      { error: "Only organization admins can view agenda" },
       { status: 403 }
     );
   }
