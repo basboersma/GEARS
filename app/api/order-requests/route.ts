@@ -11,7 +11,11 @@ const urgencyEnum = ["1 day", "2 days", "3 days", "7 days"] as const;
 const departmentEnum = ["1", "2", "3", "4", "5"] as const;
 
 const rowSchema = z.object({
-  description: z.string().trim().min(1, "Description is required"),
+  description: z
+    .string()
+    .trim()
+    .url("Link must be a valid URL")
+    .min(1, "Link is required"),
   pricePerPiece: z.coerce.number().positive("Price must be greater than 0"),
   quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
   orderType: z.enum(orderTypeEnum),

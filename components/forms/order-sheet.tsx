@@ -45,6 +45,7 @@ const createEmptyRow = (): Row => ({
 
 const GRID =
   "grid grid-cols-[2.25rem_minmax(11rem,1.5fr)_5.5rem_4.5rem_8rem_6.5rem_minmax(9rem,1fr)] gap-2";
+const URL_PATTERN = /^https?:\/\//i;
 
 const fieldClass =
   "h-9 w-full rounded-md border border-input bg-card/70 px-2.5 text-sm text-card-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-ring focus:bg-card focus:ring-2 focus:ring-ring/25";
@@ -90,6 +91,9 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
 
     const hasInvalid = filled.some(
       (row) =>
+        row.description === "" ||
+        row.description.trim() === "" ||
+        !URL_PATTERN.test(row.description.trim()) ||
         row.pricePerPiece === "" ||
         row.quantity === "" ||
         row.orderType === "" ||
@@ -203,7 +207,7 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
             className={`${GRID} border-[#FFD142] border-b pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
           >
             <span>#</span>
-            <span>Description</span>
+            <span>Link</span>
             <span>Price / pc</span>
             <span>Qty</span>
             <span>Type of order</span>
@@ -224,11 +228,13 @@ export function OrderSheet({ organizationId }: { organizationId: string }) {
                 </span>
 
                 <input
-                  aria-label={`Description, line ${index + 1}`}
+                  aria-label={`Link, line ${index + 1}`}
                   className={fieldClass}
                   onChange={(event) =>
                     updateRow(index, { description: event.target.value })
                   }
+                  placeholder="https://example.com"
+                  type="url"
                   value={row.description}
                 />
 

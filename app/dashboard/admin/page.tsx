@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { db } from "@/db/drizzle";
 import { agendaEvent, member, orderRequest, organization } from "@/db/schema";
@@ -44,6 +44,7 @@ export default async function AdminDashboardPage() {
         }),
         db.query.orderRequest.findMany({
           where: eq(orderRequest.organizationId, org.id),
+          orderBy: [asc(orderRequest.orderName), asc(orderRequest.orderedDate)],
         }),
       ]);
 
@@ -57,6 +58,55 @@ export default async function AdminDashboardPage() {
         )
         .reduce((sum, row) => sum + Number(row.totalCosts || 0), 0);
 
+      const upcomingOrders = Object.values(
+        orderRows
+          .filter(
+            (row) => !(row.canceled || row.ordered) && row.status !== "accepted"
+          )
+          .reduce<Record<string, (typeof orderRows)[number][]>>(
+            (groups, row) => {
+              const key = row.orderName || "Untitled order";
+              groups[key] ??= [];
+              groups[key].push(row);
+              return groups;
+            },
+            {}
+          )
+      )
+        .map((list) =>
+          list.sort((a, b) => Number(a.orderedDate) - Number(b.orderedDate))
+        )
+        .map((rowsForList) => ({
+          id: rowsForList[0]?.id ?? crypto.randomUUID(),
+          orderName: rowsForList[0]?.orderName ?? "Untitled order",
+          organizationId: org.id,
+          organizationName: org.name,
+          date: rowsForList[0]?.orderedDate ?? new Date(),
+          items: rowsForList.map((row) => ({
+            id: row.id,
+            department: row.department,
+            description: row.description,
+            quantity: row.amount,
+            urgency: row.urgency,
+            typeOfOrder: row.typeOfOrder,
+            totalCosts: Number(row.totalCosts || 0),
+            photoAdded: row.photoAdded,
+            delivered: row.delivered,
+            ordered: row.ordered,
+            finalized: row.finalized,
+            accepted: row.accepted,
+            photoNeeded: row.photoNeeded,
+            photoUploaded: row.photoUploaded,
+            status: row.status,
+            comments: row.comments,
+          })),
+        }))
+        .sort(
+          (a, b) =>
+            a.orderName.localeCompare(b.orderName) ||
+            Number(a.date) - Number(b.date)
+        );
+
       return {
         id: org.id,
         name: org.name,
@@ -69,6 +119,7 @@ export default async function AdminDashboardPage() {
         })),
         orderedTotal,
         pendingTotal,
+        upcomingOrders,
       };
     })
   );
