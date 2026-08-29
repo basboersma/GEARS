@@ -18,6 +18,8 @@ export const URGENCIES = [
   { value: "7 days", label: "7 days" },
 ] as const;
 
+export const DEPARTMENTS = ["1", "2", "3", "4", "5"] as const;
+
 const ROW_COUNT = 25;
 const CONTACT_EMAIL = "orders@company.com";
 
@@ -50,13 +52,7 @@ const fieldClass =
 
 const selectClass = `${fieldClass} cursor-pointer appearance-none bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23a8a4a0' stroke-width='1.5'%3E%3Cpath d='M4 6.5 8 10.5l4-4'/%3E%3C/svg%3E")] bg-[length:14px_14px] bg-[position:right_0.5rem_center] bg-no-repeat pr-7`;
 
-export function OrderSheet({
-  organizationId,
-  departmentOptions,
-}: {
-  organizationId: string;
-  departmentOptions: string[];
-}) {
+export function OrderSheet({ organizationId }: { organizationId: string }) {
   const [rows, setRows] = useState<Row[]>(() =>
     Array.from({ length: ROW_COUNT }, () => createEmptyRow())
   );
@@ -195,7 +191,7 @@ export function OrderSheet({
               value={department}
             >
               <option value="">Select department</option>
-              {departmentOptions.map((value) => (
+              {DEPARTMENTS.map((value) => (
                 <option key={value} value={value}>
                   {value}
                 </option>

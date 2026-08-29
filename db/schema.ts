@@ -79,12 +79,10 @@ export const organization = pgTable("organization", {
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull().default("0"),
-  adminPage: boolean("admin_page").default(false).notNull(),
 });
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
-  departments: many(organizationDepartment),
 }));
 
 export type Organization = typeof organization.$inferSelect;
@@ -104,27 +102,6 @@ export const orderDepartment = pgEnum("order_department", [
   "4",
   "5",
 ]);
-
-export const organizationDepartment = pgTable("organization_department", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  createdAt: timestamp("created_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
-
-export const organizationDepartmentRelations = relations(
-  organizationDepartment,
-  ({ one }) => ({
-    organization: one(organization, {
-      fields: [organizationDepartment.organizationId],
-      references: [organization.id],
-    }),
-  })
-);
 
 export const orderType = pgEnum("order_type", [
   "Hardware",
@@ -251,7 +228,7 @@ export const orderRequest = pgTable("order_request", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  department: text("department").notNull(),
+  department: orderDepartment("department").notNull(),
   orderName: text("order_name").default("Untitled order").notNull(),
   description: text("description").notNull(),
   pricePerPiece: numeric("price_per_piece").notNull(),
@@ -362,7 +339,6 @@ export const schema = {
   account,
   verification,
   organization,
-  organizationDepartment,
   member,
   invitation,
   orderRequest,
@@ -371,6 +347,5 @@ export const schema = {
   agendaDiscussionPointVote,
   studentProfile,
   organizationRelations,
-  organizationDepartmentRelations,
   memberRelations,
 };

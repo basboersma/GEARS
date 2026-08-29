@@ -6,7 +6,6 @@ import { OrderSheet } from "@/components/forms/order-sheet";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db/drizzle";
 import { member, organization } from "@/db/schema";
-import { getOrganizationDepartments } from "@/server/departments";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -39,8 +38,6 @@ export default async function SubmitOrderListsPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const departments = await getOrganizationDepartments(org.id);
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-10">
       <div className="flex items-center justify-between gap-3">
@@ -54,18 +51,7 @@ export default async function SubmitOrderListsPage({
           </Link>
         </Button>
       </div>
-
-      {departments.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-4 text-muted-foreground text-sm">
-          No departments have been set up for this organisation yet. Owners can
-          add departments from the organisation page.
-        </div>
-      ) : null}
-
-      <OrderSheet
-        departmentOptions={departments.map((entry) => entry.name)}
-        organizationId={org.id}
-      />
+      <OrderSheet organizationId={org.id} />
     </div>
   );
 }
