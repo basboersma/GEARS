@@ -1,10 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/drizzle";
 import { member, type Role } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { isAdmin } from "./permissions";
+import { getCurrentUser } from "./users";
 
 export const addMember = async (
   organizationId: string,
@@ -26,9 +26,27 @@ export const addMember = async (
 };
 
 export const removeMember = async (memberId: string) => {
-  const admin = await isAdmin();
+  const { currentUser } = await getCurrentUser();
 
-  if (!admin) {
+  const targetMember = await db.query.member.findFirst({
+    where: eq(member.id, memberId),
+  });
+
+  if (!targetMember) {
+    return {
+      success: false,
+      error: "Member not found.",
+    };
+  }
+
+  const currentMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, currentUser.id),
+      eq(member.organizationId, targetMember.organizationId)
+    ),
+  });
+
+  if (!currentMembership || currentMembership.role !== "admin") {
     return {
       success: false,
       error: "You are not authorized to remove members.",

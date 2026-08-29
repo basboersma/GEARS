@@ -45,7 +45,9 @@ export default async function Dashboard() {
       </Dialog>
 
       {showAdminButton ? (
-        <Button variant="default">Admin Dashboard</Button>
+        <Button asChild variant="default">
+          <Link href="/dashboard/admin">Admin Dashboard</Link>
+        </Button>
       ) : null}
 
       <div className="flex flex-col gap-2">
