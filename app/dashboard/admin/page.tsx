@@ -7,24 +7,8 @@ import { getCurrentUser } from "@/server/users";
 export default async function AdminDashboardPage() {
   const { currentUser } = await getCurrentUser();
 
-  const adminMemberships = await db.query.member.findMany({
-    where: and(eq(member.userId, currentUser.id), eq(member.role, "admin")),
-  });
-
-  if (adminMemberships.length === 0) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
-          You do not have admin access to any organization.
-        </div>
-      </div>
-    );
-  }
-
-  const organizationIds = adminMemberships.map((entry) => entry.organizationId);
-
-  const organizations = await db.query.organization.findMany({
-    where: inArray(organization.id, organizationIds),
+  const adminPageOrganization = await db.query.organization.findFirst({
+    where: eq(organization.adminPage, true),
     with: {
       members: {
         with: {
@@ -34,6 +18,47 @@ export default async function AdminDashboardPage() {
     },
   });
 
+  const adminMemberships = await db.query.member.findMany({
+    where: and(eq(member.userId, currentUser.id), eq(member.role, "admin")),
+  });
+
+  const targetOrganizationIds = adminPageOrganization
+    ? [adminPageOrganization.id]
+    : adminMemberships.map((entry) => entry.organizationId);
+
+  const organizations = await db.query.organization.findMany({
+    where: inArray(organization.id, targetOrganizationIds),
+    with: {
+      members: {
+        with: {
+          user: true,
+        },
+      },
+    },
+  });
+
+  if (adminPageOrganization && !organizations.length) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+          You do not have admin access to the selected admin page.
+        </div>
+      </div>
+    );
+  }
+
+  if (!adminPageOrganization && adminMemberships.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+          You do not have admin access to any organization.
+        </div>
+      </div>
+    );
+  }
+
+  const organizationIds = targetOrganizationIds;
+
   const allOrderRows = await db.query.orderRequest.findMany({
     where: inArray(orderRequest.organizationId, organizationIds),
   });
@@ -42,13 +67,6 @@ export default async function AdminDashboardPage() {
     (sum, org) => sum + Number(org.budget ?? 0),
     0
   );
-
-  const typeColors: Record<string, string> = {
-    Hardware: "#8b5cf6",
-    Electronic: "#3b82f6",
-    Software: "#10b981",
-    Social: "#f59e0b",
-  };
 
   const budgetBreakdown = {
     name: "Total Budget",
@@ -71,35 +89,14 @@ export default async function AdminDashboardPage() {
       );
 
       const departmentChildren = Object.entries(departmentMap).map(
-        ([department, rows]) => {
-          const departmentTotal = rows.reduce(
+        ([department, rows]) => ({
+          name: `Department ${department}`,
+          value: rows.reduce(
             (sum, row) => sum + Number(row.totalCosts || 0),
             0
-          );
-
-          const typeChildren = Object.entries(
-            rows.reduce<Record<string, typeof rows>>((groups, row) => {
-              const key = row.typeOfOrder || "Other";
-              groups[key] ??= [];
-              groups[key].push(row);
-              return groups;
-            }, {})
-          ).map(([typeOfOrder, typeRows]) => ({
-            name: typeOfOrder,
-            value: typeRows.reduce(
-              (sum, row) => sum + Number(row.totalCosts || 0),
-              0
-            ),
-            color: typeColors[typeOfOrder] ?? "#94a3b8",
-          }));
-
-          return {
-            name: `Department ${department}`,
-            value: departmentTotal,
-            color: "#c084fc",
-            children: typeChildren.length > 0 ? typeChildren : undefined,
-          };
-        }
+          ),
+          color: "#c084fc",
+        })
       );
 
       return {

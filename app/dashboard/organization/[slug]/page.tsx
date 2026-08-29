@@ -1,6 +1,10 @@
+import { and, eq } from "drizzle-orm";
 import Link from "next/link";
+import AdminDashboardPage from "@/app/dashboard/admin/page";
 import { OrganizationAgenda } from "@/components/organization-agenda";
 import { Button } from "@/components/ui/button";
+import { db } from "@/db/drizzle";
+import { member } from "@/db/schema";
 import { getOrganizationBySlug } from "@/server/organizations";
 import { getCurrentUser } from "@/server/users";
 
@@ -17,6 +21,24 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const isMember = Boolean(membership);
   const isOwnerOrAdmin =
     membership?.role === "owner" || membership?.role === "admin";
+
+  if (organization?.adminPage) {
+    const adminMemberships = await db.query.member.findMany({
+      where: and(eq(member.userId, user.id), eq(member.role, "admin")),
+    });
+
+    if (adminMemberships.length === 0) {
+      return (
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+            You do not have admin access to the admin page.
+          </div>
+        </div>
+      );
+    }
+
+    return <AdminDashboardPage />;
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 py-10">

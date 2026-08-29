@@ -79,11 +79,38 @@ export const organization = pgTable("organization", {
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull().default("0"),
+  adminPage: boolean("admin_page").default(false).notNull(),
+});
+
+export const organizationDepartment = pgTable("organization_department", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
 });
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
+  departments: many(organizationDepartment),
 }));
+
+export const organizationDepartmentRelations = relations(
+  organizationDepartment,
+  ({ one, many }) => ({
+    organization: one(organization, {
+      fields: [organizationDepartment.organizationId],
+      references: [organization.id],
+    }),
+    orderRequests: many(orderRequest),
+  })
+);
 
 export type Organization = typeof organization.$inferSelect;
 
@@ -228,7 +255,11 @@ export const orderRequest = pgTable("order_request", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  department: orderDepartment("department").notNull(),
+  departmentId: text("department_id").references(
+    () => organizationDepartment.id,
+    { onDelete: "set null" }
+  ),
+  department: text("department"),
   orderName: text("order_name").default("Untitled order").notNull(),
   description: text("description").notNull(),
   pricePerPiece: numeric("price_per_piece").notNull(),
@@ -333,6 +364,21 @@ export const agendaDiscussionPointVote = pgTable(
   }
 );
 
+export const orderRequestRelations = relations(orderRequest, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orderRequest.organizationId],
+    references: [organization.id],
+  }),
+  department: one(organizationDepartment, {
+    fields: [orderRequest.departmentId],
+    references: [organizationDepartment.id],
+  }),
+  user: one(user, {
+    fields: [orderRequest.userId],
+    references: [user.id],
+  }),
+}));
+
 export const schema = {
   user,
   session,
@@ -341,11 +387,14 @@ export const schema = {
   organization,
   member,
   invitation,
+  organizationDepartment,
   orderRequest,
   agendaEvent,
   agendaDiscussionPoint,
   agendaDiscussionPointVote,
   studentProfile,
   organizationRelations,
+  organizationDepartmentRelations,
+  orderRequestRelations,
   memberRelations,
 };
