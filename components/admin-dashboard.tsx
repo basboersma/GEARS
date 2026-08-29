@@ -1,8 +1,10 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { CreateOrganizationForm } from "@/components/forms/create-organization-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +15,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { saveOrganizationBudget, saveTotalBudget } from "@/server/budgets";
+import { removeMember } from "@/server/members";
+import { deleteOrganization } from "@/server/organizations";
 
 interface Member {
   id: string;
@@ -78,6 +83,49 @@ function getInitials(name: string) {
     .map((word) => word[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2);
+}
+
+function PieChart({
+  orderedTotal,
+  pendingTotal,
+}: {
+  orderedTotal: number;
+  pendingTotal: number;
+}) {
+  const total = orderedTotal + pendingTotal;
+  const orderedShare = total > 0 ? (orderedTotal / total) * 100 : 0;
+  const pendingShare = total > 0 ? 100 - orderedShare : 0;
+
+  return (
+    <div className="flex items-center gap-4">
+      <div
+        className="relative size-24 rounded-full border border-border"
+        style={{
+          background: `conic-gradient(#22c55e 0 ${orderedShare}%, #fbbf24 ${orderedShare}% 100%)`,
+        }}
+      >
+        <div className="absolute inset-3 rounded-full bg-background" />
+        <div className="absolute inset-0 flex items-center justify-center text-center font-semibold text-[10px] leading-tight">
+          {total > 0 ? `${Math.round(orderedShare)}%` : "0%"}
+        </div>
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
+          <span>Ordered: {formatCurrency(orderedTotal)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block size-2.5 rounded-full bg-amber-400" />
+          <span>Pending: {formatCurrency(pendingTotal)}</span>
+        </div>
+        <div className="text-muted-foreground text-xs">
+          Ordered share: {Math.round(orderedShare)}% · Pending share:{" "}
+          {Math.round(pendingShare)}%
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function OrganizationSidebar({
@@ -163,6 +211,314 @@ function OrganizationSidebar({
   );
 }
 
+function OrgDetailSidebar({
+  selectedOrg,
+  totalBudget,
+  onClose,
+  onRemove,
+  onBudgetChange,
+  onTotalBudgetChange,
+}: {
+  selectedOrg: OrganizationSummary;
+  totalBudget: number;
+  onClose: () => void;
+  onRemove: (organization: OrganizationSummary) => void;
+  onBudgetChange: (organizationId: string, amount: number) => Promise<void>;
+  onTotalBudgetChange: (amount: number) => Promise<void>;
+}) {
+  const [budgetValue, setBudgetValue] = useState(
+    String(selectedOrg.allocatedBudget ?? 0)
+  );
+  const [totalBudgetValue, setTotalBudgetValue] = useState(
+    String(totalBudget ?? 0)
+  );
+  const [isSaving, startSaving] = useTransition();
+
+  useEffect(() => {
+    setBudgetValue(String(selectedOrg.allocatedBudget ?? 0));
+    setTotalBudgetValue(String(totalBudget ?? 0));
+  }, [selectedOrg, totalBudget]);
+
+  return (
+    <aside className="w-[50%] min-w-0 shrink-0 border-r bg-background p-4">
+      <div className="flex items-center justify-between gap-3 border-b pb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex size-12 items-center justify-center rounded-xl font-bold text-sm text-white"
+            style={{
+              background:
+                "linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%)",
+            }}
+          >
+            {getInitials(selectedOrg.name)}
+          </div>
+          <div>
+            <p className="font-semibold text-lg">{selectedOrg.name}</p>
+            <p className="text-muted-foreground text-xs">
+              {selectedOrg.members.length} members
+            </p>
+          </div>
+        </div>
+        <Button
+          className="h-8 w-8 rounded-full p-0"
+          onClick={onClose}
+          type="button"
+          variant="outline"
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+      </div>
+
+      <div className="mt-4 space-y-4 overflow-y-auto">
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Budget</h3>
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+                Total budget
+              </span>
+              <input
+                className="w-full rounded-md border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                min="0"
+                onChange={(event) => setTotalBudgetValue(event.target.value)}
+                step="0.01"
+                type="number"
+                value={totalBudgetValue}
+              />
+            </label>
+            <Button
+              className="w-full"
+              disabled={isSaving}
+              onClick={() => {
+                startSaving(async () => {
+                  await onTotalBudgetChange(Number(totalBudgetValue || 0));
+                });
+              }}
+              type="button"
+              variant="outline"
+            >
+              Save total budget
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Order value</h3>
+          <PieChart
+            orderedTotal={selectedOrg.orderedTotal}
+            pendingTotal={selectedOrg.pendingTotal}
+          />
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Agenda</h3>
+          <div className="space-y-2">
+            {selectedOrg.agendaItems.length > 0 ? (
+              selectedOrg.agendaItems.map((agendaItem) => (
+                <div
+                  className="rounded-lg border p-2 text-sm"
+                  key={agendaItem.id}
+                >
+                  <p className="font-medium">{agendaItem.title}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {new Date(agendaItem.start).toLocaleString()}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
+                No agenda items yet.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Upcoming orders</h3>
+          <div className="space-y-2">
+            {selectedOrg.upcomingOrders.length > 0 ? (
+              selectedOrg.upcomingOrders.slice(0, 3).map((order) => (
+                <div className="rounded-lg border p-2 text-sm" key={order.id}>
+                  <p className="font-medium">{order.orderName}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {new Date(order.date).toLocaleDateString()}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
+                No upcoming orders.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Members</h3>
+          <div className="space-y-2">
+            {selectedOrg.members.map((member) => (
+              <div
+                className="flex items-center justify-between gap-3 rounded-lg border p-2 text-sm"
+                key={member.id}
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{member.user.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {member.user.email}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
+                    {member.role}
+                  </span>
+                  {member.role !== "owner" ? (
+                    <Button
+                      onClick={() => {
+                        startSaving(async () => {
+                          const result = await removeMember(member.id);
+                          if (!result.success) {
+                            toast.error(
+                              result.error || "Unable to remove member."
+                            );
+                            return;
+                          }
+                          toast.success("Member removed.");
+                          window.location.reload();
+                        });
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="destructive"
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-3">
+          <h3 className="mb-2 font-semibold text-base">Budget allocation</h3>
+          <div className="space-y-3">
+            <label className="block space-y-1">
+              <span className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+                Organization budget
+              </span>
+              <input
+                className="w-full rounded-md border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                min="0"
+                onChange={(event) => setBudgetValue(event.target.value)}
+                step="0.01"
+                type="number"
+                value={budgetValue}
+              />
+            </label>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Remaining</span>
+              <span className="font-medium">
+                {formatCurrency(
+                  Math.max(totalBudget - selectedOrg.allocatedBudget, 0)
+                )}
+              </span>
+            </div>
+            <Button
+              className="w-full"
+              disabled={isSaving}
+              onClick={() => {
+                startSaving(async () => {
+                  await onBudgetChange(
+                    selectedOrg.id,
+                    Number(budgetValue || 0)
+                  );
+                });
+              }}
+              type="button"
+              variant="outline"
+            >
+              Save org budget
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            className="flex-1"
+            onClick={() => onRemove(selectedOrg)}
+            type="button"
+            variant="destructive"
+          >
+            <Trash2 className="mr-2 size-4" />
+            Remove org
+          </Button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function DeleteOrganizationDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  onCancel,
+  removalKey,
+  onKeyChange,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  removalKey: string;
+  onKeyChange: (value: string) => void;
+  isPending: boolean;
+}) {
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Remove organisation</DialogTitle>
+          <DialogDescription>
+            Enter the removal key to permanently delete this organisation.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="font-medium text-sm" htmlFor="removal-key">
+              Removal key
+            </label>
+            <input
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+              id="removal-key"
+              onChange={(event) => onKeyChange(event.target.value)}
+              placeholder="Enter saved org removal key"
+              type="password"
+              value={removalKey}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button onClick={onCancel} type="button" variant="outline">
+              Cancel
+            </Button>
+            <Button
+              disabled={isPending || !removalKey.trim()}
+              onClick={onConfirm}
+              type="button"
+              variant="destructive"
+            >
+              Confirm removal
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AdminDashboard({
   organizations,
   totalBudget,
@@ -170,10 +526,17 @@ export function AdminDashboard({
   organizations: OrganizationSummary[];
   totalBudget: number;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState(false);
   const [activeOrganizationId, setActiveOrganizationId] = useState(
     organizations[0]?.id ?? null
   );
+  const [orgDetailOpen, setOrgDetailOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [removalKey, setRemovalKey] = useState("");
+  const [pendingDelete, setPendingDelete] =
+    useState<OrganizationSummary | null>(null);
 
   const activeOrganization = useMemo(
     () =>
@@ -184,6 +547,56 @@ export function AdminDashboard({
       null,
     [activeOrganizationId, organizations]
   );
+
+  const openOrganization = (organization: OrganizationSummary) => {
+    setActiveOrganizationId(organization.id);
+    setOrgDetailOpen(true);
+  };
+
+  const handleDeleteOrganization = () => {
+    if (!pendingDelete) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await deleteOrganization(pendingDelete.id, removalKey);
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to remove organization.");
+        return;
+      }
+
+      toast.success("Organization removed.");
+      setDeleteOpen(false);
+      setPendingDelete(null);
+      setRemovalKey("");
+      router.refresh();
+    });
+  };
+
+  const handleBudgetChange = async (organizationId: string, amount: number) => {
+    const result = await saveOrganizationBudget(organizationId, amount);
+
+    if (!result.success) {
+      toast.error(result.error || "Unable to update the organization budget.");
+      return;
+    }
+
+    toast.success("Organization budget saved.");
+    router.refresh();
+  };
+
+  const handleTotalBudgetChange = async (amount: number) => {
+    const result = await saveTotalBudget(amount);
+
+    if (!result.success) {
+      toast.error(result.error || "Unable to update the total budget.");
+      return;
+    }
+
+    toast.success("Total budget updated.");
+    router.refresh();
+  };
 
   const selectedOrg = activeOrganization;
 
@@ -197,7 +610,9 @@ export function AdminDashboard({
         <div className="flex items-center gap-2">
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline">Create Organisation</Button>
+              <Button type="button" variant="outline">
+                Create Organisation
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -209,10 +624,10 @@ export function AdminDashboard({
               <CreateOrganizationForm />
             </DialogContent>
           </Dialog>
-          <Button asChild variant="outline">
+          <Button asChild type="button" variant="outline">
             <Link href="/dashboard">Back to dashboard</Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild type="button" variant="outline">
             <Link href="/dashboard/admin/orders">Upcoming orders</Link>
           </Button>
         </div>
@@ -235,17 +650,53 @@ export function AdminDashboard({
         <div className="flex min-h-[75vh] w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
           <OrganizationSidebar
             collapsed={collapsed}
-            onSelect={(organization) =>
-              setActiveOrganizationId(organization.id)
-            }
+            onSelect={openOrganization}
             onToggleCollapse={() => setCollapsed((value) => !value)}
             organizations={organizations}
             selectedOrg={selectedOrg}
           />
 
-          <main className="flex flex-1 bg-muted/10" />
+          <div className="flex min-w-0 flex-1">
+            {selectedOrg && orgDetailOpen ? (
+              <OrgDetailSidebar
+                onBudgetChange={handleBudgetChange}
+                onClose={() => setOrgDetailOpen(false)}
+                onRemove={(organization) => {
+                  setPendingDelete(organization);
+                  setDeleteOpen(true);
+                  setOrgDetailOpen(false);
+                }}
+                onTotalBudgetChange={handleTotalBudgetChange}
+                selectedOrg={selectedOrg}
+                totalBudget={totalBudget}
+              />
+            ) : (
+              <div className="flex-1 bg-muted/10" />
+            )}
+            <div className="flex-1 bg-muted/5" />
+          </div>
         </div>
       )}
+
+      <DeleteOrganizationDialog
+        isPending={isPending}
+        onCancel={() => {
+          setDeleteOpen(false);
+          setPendingDelete(null);
+          setRemovalKey("");
+        }}
+        onConfirm={handleDeleteOrganization}
+        onKeyChange={setRemovalKey}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) {
+            setPendingDelete(null);
+            setRemovalKey("");
+          }
+        }}
+        open={deleteOpen}
+        removalKey={removalKey}
+      />
     </div>
   );
 }
