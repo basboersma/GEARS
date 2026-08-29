@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -7,9 +8,13 @@ export default function HomePage() {
         <div className="site-header-inner">
           <div className="brand">
             <div className="brand-text">
-              <div aria-label="GEARS logo" className="brand-logo" role="img">
-                G
-              </div>
+              <Image
+                alt="GEARS logo"
+                className="brand-logo"
+                height={48}
+                src="/gears_branding/gears_logo_small.jpeg"
+                width={48}
+              />
               <div className="brand-text-lines">
                 <span className="brand-name">GEARS</span>
                 <span className="brand-subtitle">
@@ -37,9 +42,13 @@ export default function HomePage() {
         <section className="hero">
           <div className="hero-content">
             <div className="hero-logo-wrapper">
-              <div aria-label="GEARS logo" className="hero-logo" role="img">
-                GEARS
-              </div>
+              <Image
+                alt="GEARS Robotics & Engineering Association"
+                className="hero-logo"
+                height={180}
+                src="/gears_branding/gears_logo.png"
+                width={420}
+              />
             </div>
             <p className="hero-tagline">
               Gronigen Engineering and Robotics Study Association

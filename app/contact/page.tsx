@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function ContactPage() {
@@ -7,9 +8,13 @@ export default function ContactPage() {
         <div className="site-header-inner">
           <div className="brand">
             <div className="brand-text">
-              <div aria-label="GEARS logo" className="brand-logo" role="img">
-                G
-              </div>
+              <Image
+                alt="GEARS logo"
+                className="brand-logo"
+                height={48}
+                src="/gears_branding/gears_logo_small.jpeg"
+                width={48}
+              />
               <div className="brand-text-lines">
                 <span className="brand-name">GEARS</span>
                 <span className="brand-subtitle">
