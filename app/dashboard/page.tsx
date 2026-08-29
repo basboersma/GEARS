@@ -11,7 +11,15 @@ export default async function Dashboard() {
     where: eq(member.userId, currentUser.id),
   });
 
+  const adminPageOrg = await db.query.organization.findFirst({
+    where: eq(organization.adminPage, true),
+  });
+
   if (memberships.some((membership) => membership.role === "admin")) {
+    if (adminPageOrg?.slug) {
+      redirect(`/dashboard/organization/${adminPageOrg.slug}`);
+    }
+
     redirect("/dashboard/admin");
   }
 
@@ -20,6 +28,10 @@ export default async function Dashboard() {
   );
 
   if (organizationIds.length === 0) {
+    if (adminPageOrg?.slug) {
+      redirect(`/dashboard/organization/${adminPageOrg.slug}`);
+    }
+
     redirect("/dashboard/admin");
   }
 
@@ -32,6 +44,10 @@ export default async function Dashboard() {
 
   if (firstOrganization?.slug) {
     redirect(`/dashboard/organization/${firstOrganization.slug}`);
+  }
+
+  if (adminPageOrg?.slug) {
+    redirect(`/dashboard/organization/${adminPageOrg.slug}`);
   }
 
   redirect("/dashboard/admin");

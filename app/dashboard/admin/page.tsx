@@ -43,13 +43,6 @@ export default async function AdminDashboardPage() {
     0
   );
 
-  const typeColors: Record<string, string> = {
-    Hardware: "#8b5cf6",
-    Electronic: "#3b82f6",
-    Software: "#10b981",
-    Social: "#f59e0b",
-  };
-
   const budgetBreakdown = {
     name: "Total Budget",
     value: totalBudget,
@@ -71,35 +64,14 @@ export default async function AdminDashboardPage() {
       );
 
       const departmentChildren = Object.entries(departmentMap).map(
-        ([department, rows]) => {
-          const departmentTotal = rows.reduce(
+        ([department, rows]) => ({
+          name: `Department ${department}`,
+          value: rows.reduce(
             (sum, row) => sum + Number(row.totalCosts || 0),
             0
-          );
-
-          const typeChildren = Object.entries(
-            rows.reduce<Record<string, typeof rows>>((groups, row) => {
-              const key = row.typeOfOrder || "Other";
-              groups[key] ??= [];
-              groups[key].push(row);
-              return groups;
-            }, {})
-          ).map(([typeOfOrder, typeRows]) => ({
-            name: typeOfOrder,
-            value: typeRows.reduce(
-              (sum, row) => sum + Number(row.totalCosts || 0),
-              0
-            ),
-            color: typeColors[typeOfOrder] ?? "#94a3b8",
-          }));
-
-          return {
-            name: `Department ${department}`,
-            value: departmentTotal,
-            color: "#c084fc",
-            children: typeChildren.length > 0 ? typeChildren : undefined,
-          };
-        }
+          ),
+          color: "#c084fc",
+        })
       );
 
       return {
