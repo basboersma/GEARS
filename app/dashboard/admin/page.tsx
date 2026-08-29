@@ -34,10 +34,85 @@ export default async function AdminDashboardPage() {
     },
   });
 
+  const allOrderRows = await db.query.orderRequest.findMany({
+    where: inArray(orderRequest.organizationId, organizationIds),
+  });
+
   const totalBudget = organizations.reduce(
     (sum, org) => sum + Number(org.budget ?? 0),
     0
   );
+
+  const typeColors: Record<string, string> = {
+    Hardware: "#8b5cf6",
+    Electronic: "#3b82f6",
+    Software: "#10b981",
+    Social: "#f59e0b",
+  };
+
+  const budgetBreakdown = {
+    name: "Total budget",
+    color: "#FFD142",
+    children: organizations.map((org) => {
+      const orgRows = allOrderRows.filter(
+        (row) => row.organizationId === org.id
+      );
+      const orgTotal = orgRows.reduce(
+        (sum, row) => sum + Number(row.totalCosts || 0),
+        0
+      );
+
+      const departmentMap = orgRows.reduce<Record<string, typeof orgRows>>(
+        (groups, row) => {
+          const key = row.department || "Unknown";
+          groups[key] ??= [];
+          groups[key].push(row);
+          return groups;
+        },
+        {}
+      );
+
+      const departmentChildren = Object.entries(departmentMap).map(
+        ([department, rows]) => {
+          const departmentTotal = rows.reduce(
+            (sum, row) => sum + Number(row.totalCosts || 0),
+            0
+          );
+
+          const typeChildren = Object.entries(
+            rows.reduce<Record<string, typeof rows>>((groups, row) => {
+              const key = row.typeOfOrder || "Other";
+              groups[key] ??= [];
+              groups[key].push(row);
+              return groups;
+            }, {})
+          ).map(([typeOfOrder, typeRows]) => ({
+            name: typeOfOrder,
+            value: typeRows.reduce(
+              (sum, row) => sum + Number(row.totalCosts || 0),
+              0
+            ),
+            color: typeColors[typeOfOrder] ?? "#94a3b8",
+          }));
+
+          return {
+            name: `Department ${department}`,
+            value: departmentTotal,
+            color: "#c084fc",
+            children: typeChildren.length > 0 ? typeChildren : undefined,
+          };
+        }
+      );
+
+      return {
+        name: org.name,
+        value: orgTotal,
+        color: "#8b5cf6",
+        children:
+          departmentChildren.length > 0 ? departmentChildren : undefined,
+      };
+    }),
+  };
 
   const summaries = await Promise.all(
     organizations.map(async (org) => {
@@ -130,5 +205,11 @@ export default async function AdminDashboardPage() {
     })
   );
 
-  return <AdminDashboard organizations={summaries} totalBudget={totalBudget} />;
+  return (
+    <AdminDashboard
+      budgetBreakdown={budgetBreakdown}
+      organizations={summaries}
+      totalBudget={totalBudget}
+    />
+  );
 }

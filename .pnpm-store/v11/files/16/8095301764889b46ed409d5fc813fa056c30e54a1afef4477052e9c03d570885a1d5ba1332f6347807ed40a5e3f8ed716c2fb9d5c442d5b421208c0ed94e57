@@ -1,0 +1,27 @@
+import { Ref, ReactElement } from 'react';
+import { SpringValue, Interpolation } from '@react-spring/web';
+import { BorderRadiusCorners } from '@nivo/theming';
+import { NodeWithRectAndColor, RectNodeComponent, NodeInteractionHandlers, RectNodeHandle } from './types';
+export interface RectNodeWrapperProps<Node extends NodeWithRectAndColor> extends NodeInteractionHandlers<Node> {
+    nodeComponent: RectNodeComponent<Node>;
+    node: Node;
+    style: {
+        progress: SpringValue<number>;
+        x: SpringValue<number>;
+        y: SpringValue<number>;
+        transform: Interpolation<string, string>;
+        width: Interpolation<number, number>;
+        height: Interpolation<number, number>;
+        color: SpringValue<string>;
+        opacity: SpringValue<number>;
+        borderRadius: BorderRadiusCorners;
+        borderWidth: number;
+        borderColor: SpringValue<string>;
+    };
+    isInteractive: boolean;
+    testId?: string;
+}
+export declare const RectNodeWrapper: <Node extends NodeWithRectAndColor>(props: RectNodeWrapperProps<Node> & {
+    ref?: Ref<RectNodeHandle>;
+}) => ReactElement;
+//# sourceMappingURL=RectNodeWrapper.d.ts.map

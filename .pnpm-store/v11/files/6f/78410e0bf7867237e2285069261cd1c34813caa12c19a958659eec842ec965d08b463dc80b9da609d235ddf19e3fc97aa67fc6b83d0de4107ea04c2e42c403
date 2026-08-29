@@ -1,0 +1,23 @@
+import { TransitionFn } from '@react-spring/web';
+import { RectTransitionMode, Anchor, AnchorWithRect } from './types';
+export interface RectAnchorTransitionModeConfig {
+    enter: (anchor: AnchorWithRect) => Anchor;
+    update: (anchor: AnchorWithRect) => Anchor;
+    leave: (anchor: AnchorWithRect) => Anchor;
+}
+export declare const rectAnchorTransitionModeById: Record<RectTransitionMode, RectAnchorTransitionModeConfig>;
+export interface ReactAnchorTransitionExtra<Node extends AnchorWithRect, ExtraProps extends Record<string, any> = Record<string, never>> {
+    enter: (node: Node) => ExtraProps;
+    update: (node: Node) => ExtraProps;
+    leave: (node: Node) => ExtraProps;
+}
+export type RectAnchorTransitionProps<ExtraProps extends Record<string, any> = Record<string, never>> = Anchor & {
+    progress: number;
+} & ExtraProps;
+export declare const useRectAnchorTransitionMode: <Node extends AnchorWithRect, ExtraProps extends Record<string, any> = Record<string, never>>(mode: RectTransitionMode, extraTransition?: ReactAnchorTransitionExtra<Node, ExtraProps>) => {
+    enter: (node: Node) => RectAnchorTransitionProps<ExtraProps>;
+    update: (node: Node) => RectAnchorTransitionProps<ExtraProps>;
+    leave: (node: Node) => RectAnchorTransitionProps<ExtraProps>;
+};
+export declare const useRectAnchorsTransition: <Node extends AnchorWithRect, ExtraProps extends Record<string, any> = Record<string, never>>(nodes: Node[], mode?: RectTransitionMode, extra?: ReactAnchorTransitionExtra<Node, ExtraProps>) => TransitionFn<Node, RectAnchorTransitionProps<ExtraProps>>;
+//# sourceMappingURL=useRectAnchorsTransition.d.ts.map

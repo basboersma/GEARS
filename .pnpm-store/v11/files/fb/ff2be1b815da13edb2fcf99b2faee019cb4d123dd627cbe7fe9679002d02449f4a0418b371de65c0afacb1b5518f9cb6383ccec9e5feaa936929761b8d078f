@@ -1,0 +1,25 @@
+import { NodeWithRectAndColor, RectTransitionMode } from '../types';
+import { RectLabelsProps as PublicRectLabelProps, RectLabelComponent } from './types';
+interface RectLabelsProps<Node extends NodeWithRectAndColor> {
+    nodes: readonly Node[];
+    uid: PublicRectLabelProps<Node>['uid'];
+    label: PublicRectLabelProps<Node>['label'];
+    boxAnchor: PublicRectLabelProps<Node>['labelBoxAnchor'];
+    isOutside?: PublicRectLabelProps<Node>['labelIsOutside'];
+    align?: PublicRectLabelProps<Node>['labelAlign'];
+    baseline?: PublicRectLabelProps<Node>['labelBaseline'];
+    paddingX?: PublicRectLabelProps<Node>['labelPaddingX'];
+    paddingY?: PublicRectLabelProps<Node>['labelPaddingY'];
+    offsetX?: PublicRectLabelProps<Node>['labelOffsetX'];
+    offsetY?: PublicRectLabelProps<Node>['labelOffsetY'];
+    rotation?: PublicRectLabelProps<Node>['labelRotation'];
+    skipWidth?: PublicRectLabelProps<Node>['labelSkipWidth'];
+    skipHeight?: PublicRectLabelProps<Node>['labelSkipHeight'];
+    textColor: PublicRectLabelProps<Node>['labelTextColor'];
+    transitionMode?: RectTransitionMode;
+    component: RectLabelComponent<Node>;
+    getTestId?: (node: Omit<Node, 'rect'>) => string;
+}
+export declare const RectLabels: <Node extends NodeWithRectAndColor>({ nodes, uid, label: labelAccessor, boxAnchor, isOutside, align, baseline, paddingX, paddingY, offsetX, offsetY, rotation, skipWidth, skipHeight, textColor, transitionMode, component, getTestId, }: RectLabelsProps<Node>) => import("react/jsx-runtime").JSX.Element;
+export {};
+//# sourceMappingURL=RectLabels.d.ts.map

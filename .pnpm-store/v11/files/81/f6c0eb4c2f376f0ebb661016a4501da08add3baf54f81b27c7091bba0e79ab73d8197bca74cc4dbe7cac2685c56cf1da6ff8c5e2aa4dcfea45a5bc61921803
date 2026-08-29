@@ -1,0 +1,21 @@
+import { RefObject, MutableRefObject } from 'react';
+import { PropertyAccessor } from '@nivo/core';
+import { InheritedColorConfig } from '@nivo/colors';
+import { BorderRadius } from '@nivo/theming';
+import { NodeWithRectAndColor, RectTransitionMode, RectNodeComponent, NodeInteractionHandlers, RectNodeHandle } from './types';
+export interface RectNodesProps<Node extends NodeWithRectAndColor> extends NodeInteractionHandlers<Node> {
+    nodes: readonly Node[];
+    uid: PropertyAccessor<Node, string>;
+    borderRadius?: BorderRadius;
+    borderColor: InheritedColorConfig<Node>;
+    borderWidth?: number;
+    isInteractive: boolean;
+    transitionMode?: RectTransitionMode;
+    animateOnMount?: boolean;
+    component: RectNodeComponent<Node>;
+    isFocusable?: boolean;
+    getTestId?: (node: Node) => string;
+    nodeRefs?: MutableRefObject<Record<string, RefObject<RectNodeHandle>>>;
+}
+export declare const RectNodes: <Node extends NodeWithRectAndColor>({ nodes, uid, component, borderRadius, borderWidth, borderColor, isInteractive, onMouseEnter, onMouseMove, onMouseLeave, onClick, onDoubleClick, onFocus, onBlur, onKeyDown, onWheel, onContextMenu, transitionMode, animateOnMount, getTestId, nodeRefs, }: RectNodesProps<Node>) => import("react/jsx-runtime").JSX.Element;
+//# sourceMappingURL=RectNodes.d.ts.map

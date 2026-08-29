@@ -1,0 +1,67 @@
+import { DataProps, IcicleCommonProps, IcicleNode, IcicleChartContext, IcicleZoomFunction, IcicleOrientation, IcicleNodesA11yProps } from './types';
+/**
+ * This hook handles the main logic of the icicle chart.
+ *
+ * The logic is split into three parts:
+ * 1. Computing base nodes
+ * 2. Add a11y properties
+ * 3. Applying the zoom
+ * 4. Applying the spacing
+ *
+ * This might not be the most efficient, but this is the best we can do for now.
+ */
+export declare const useIcicle: <Datum>({ data, sort, identity, value, valueFormat, width, height, orientation, gapX, gapY, colors, colorBy, inheritColorFromParent, childColor, enableZooming, zoomMode, isFocusable, withA11y, nodeRole, nodeAriaLabel, nodeAriaLabelledBy, nodeAriaDescribedBy, nodeAriaHidden, }: DataProps<Datum> & Pick<IcicleCommonProps<Datum>, "sort" | "identity" | "value" | "valueFormat" | "orientation" | "gapX" | "gapY" | "colors" | "colorBy" | "inheritColorFromParent" | "childColor" | "enableZooming" | "zoomMode"> & {
+    width: number;
+    height: number;
+    isFocusable?: boolean;
+    withA11y?: boolean;
+} & Omit<IcicleNodesA11yProps<Datum>, "isFocusable">) => {
+    nodes: {
+        rect: {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        };
+        id: string;
+        data: Omit<Datum, "children">;
+        value: number;
+        formattedValue: string;
+        percentage: number;
+        isVisible: boolean;
+        color: string;
+        fill?: string;
+        hierarchy: import("./types").IcicleNodeHierarchy;
+        a11y: import("@nivo/rects").NodeA11yProps;
+    }[];
+    nodeByPath: Record<string, IcicleNode<Datum>>;
+    zoom: (nodePath: string | null) => null | undefined;
+};
+export declare const useIcicleNav: <Datum>(nodes: IcicleNode<Datum>[], nodeByPath: Record<string, IcicleNode<Datum>>, orientation: IcicleOrientation) => {
+    nodeRefs: import("react").MutableRefObject<import("@nivo/rects").NodeRefMap>;
+    nav: {
+        moveUp: (path: string) => void;
+        movePrev: (path: string) => void;
+        moveNext: (path: string) => void;
+        moveDown: (path: string) => void;
+    };
+};
+export declare const useMemoizeChartContext: <Context>({ orientation, zoom, }: {
+    orientation: IcicleOrientation;
+    zoom: IcicleZoomFunction;
+}, extra: Context) => IcicleChartContext<Context>;
+/**
+ * This hook returns the chart context, which contains global properties
+ * that might be useful when using custom components for nodes or labels.
+ *
+ * Let's say you want to create a custom node/label component, and you want
+ * to pass a custom function to the nodes or labels which requires a state
+ * defined outside the Icicle chart.
+ * Without the context, you would have to pass the state down to the node/label,
+ * which is not ideal, you would have to make the node/label component dynamic,
+ * defeating the purpose of memoization.
+ * With the context, you're able to define custom components externally while
+ * still having access to the chart context.
+ */
+export declare const useIcicleContext: <Context = Record<string, unknown>>() => IcicleChartContext<Context>;
+//# sourceMappingURL=hooks.d.ts.map

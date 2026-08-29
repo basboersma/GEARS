@@ -1,0 +1,3 @@
+import { RectTransitionMode } from './types';
+export declare const RECT_TRANSITION_MODES: readonly RectTransitionMode[];
+//# sourceMappingURL=constants.d.ts.map

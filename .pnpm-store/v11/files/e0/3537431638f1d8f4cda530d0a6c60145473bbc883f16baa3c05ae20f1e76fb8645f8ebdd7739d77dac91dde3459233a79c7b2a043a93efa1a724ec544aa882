@@ -1,0 +1,26 @@
+import { MutableRefObject } from 'react';
+import { RectNodeComponent, NodeRefMap } from '@nivo/rects';
+import { IcicleSvgPropsWithDefaults, IcicleNode, IcicleInteractionHandlers } from './types';
+export interface IcicleNodesProps<Datum> extends IcicleInteractionHandlers<Datum> {
+    nodeRefs: MutableRefObject<NodeRefMap>;
+    nodes: IcicleNode<Datum>[];
+    component: RectNodeComponent<IcicleNode<Datum>>;
+    borderRadius: IcicleSvgPropsWithDefaults<Datum>['borderRadius'];
+    borderWidth: IcicleSvgPropsWithDefaults<Datum>['borderWidth'];
+    borderColor: IcicleSvgPropsWithDefaults<Datum>['borderColor'];
+    isInteractive: IcicleSvgPropsWithDefaults<Datum>['isInteractive'];
+    enableZooming: IcicleSvgPropsWithDefaults<Datum>['enableZooming'];
+    zoom: (path: string | null) => void;
+    tooltip: IcicleSvgPropsWithDefaults<Datum>['tooltip'];
+    isFocusable: IcicleSvgPropsWithDefaults<Datum>['isFocusable'];
+    nav: {
+        moveUp: (path: string) => void;
+        movePrev: (path: string) => void;
+        moveNext: (path: string) => void;
+        moveDown: (path: string) => void;
+    };
+    animateOnMount: IcicleSvgPropsWithDefaults<Datum>['animateOnMount'];
+    transitionMode: IcicleSvgPropsWithDefaults<Datum>['rectsTransitionMode'];
+}
+export declare const IcicleNodes: <Datum>({ nodeRefs, nodes, component, borderRadius, borderWidth, borderColor, isInteractive, enableZooming, zoom, onMouseEnter, onMouseMove, onMouseLeave, onClick, onDoubleClick, onFocus, onBlur, onKeyDown, onWheel, onContextMenu, tooltip, isFocusable, nav, animateOnMount, transitionMode, }: IcicleNodesProps<Datum>) => import("react/jsx-runtime").JSX.Element;
+//# sourceMappingURL=IcicleNodes.d.ts.map

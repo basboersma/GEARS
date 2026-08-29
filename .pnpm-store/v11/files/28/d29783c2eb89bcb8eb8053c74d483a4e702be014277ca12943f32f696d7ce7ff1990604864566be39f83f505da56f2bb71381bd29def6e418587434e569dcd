@@ -1,4 +1,4 @@
-import { defineErrorCodes } from "@better-auth/core";
+import { defineErrorCodes } from "@better-auth/core/utils";
 
 //#region src/plugins/organization/error-codes.ts
 const ORGANIZATION_ERROR_CODES = defineErrorCodes({

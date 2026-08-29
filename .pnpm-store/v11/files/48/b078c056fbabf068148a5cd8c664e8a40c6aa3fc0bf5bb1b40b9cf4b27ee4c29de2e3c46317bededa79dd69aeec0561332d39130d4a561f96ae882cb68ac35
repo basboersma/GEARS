@@ -1,0 +1,6 @@
+import { NodeRefMap } from './types';
+/**
+ * Create and Syncs nodeRefs.
+ */
+export declare const useNodeRefs: (nodeIds: readonly string[]) => import("react").MutableRefObject<NodeRefMap>;
+//# sourceMappingURL=hooks.d.ts.map

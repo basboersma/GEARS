@@ -1,0 +1,3 @@
+import { IcicleNode } from './types';
+export declare const IcicleTooltip: <Datum>({ id, formattedValue, color }: IcicleNode<Datum>) => import("react/jsx-runtime").JSX.Element;
+//# sourceMappingURL=IcicleTooltip.d.ts.map

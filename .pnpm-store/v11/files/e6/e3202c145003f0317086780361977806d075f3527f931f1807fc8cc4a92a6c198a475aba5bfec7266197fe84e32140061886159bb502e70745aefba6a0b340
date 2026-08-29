@@ -1,0 +1,5 @@
+import { ReactElement } from 'react';
+import { DefaultChartContext, ResponsiveProps, WithChartRef } from '@nivo/core';
+import { IcicleHtmlProps } from './types';
+export declare const ResponsiveIcicleHtml: <Datum, Context = DefaultChartContext>(props: WithChartRef<ResponsiveProps<IcicleHtmlProps<Datum, Context>>, HTMLDivElement>) => ReactElement;
+//# sourceMappingURL=ResponsiveIcicleHtml.d.ts.map

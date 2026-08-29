@@ -1,0 +1,4 @@
+import { NodeWithRectAndColor } from '../types';
+import { RectLabelProps } from './types';
+export declare const RectLabelSvg: <Node extends NodeWithRectAndColor>({ label, color, style, testId, }: RectLabelProps<Node>) => import("react/jsx-runtime").JSX.Element;
+//# sourceMappingURL=RectLabelSvg.d.ts.map

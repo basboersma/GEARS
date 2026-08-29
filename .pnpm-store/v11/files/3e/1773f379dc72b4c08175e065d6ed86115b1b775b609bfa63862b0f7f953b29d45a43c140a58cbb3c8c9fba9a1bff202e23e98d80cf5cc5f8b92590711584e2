@@ -1,0 +1,7 @@
+import { IcicleCommonProps, IcicleSvgPropsWithDefaults, IcicleHtmlPropsWithDefaults, IcicleLayerId, DefaultIcicleDatum } from './types';
+export declare const commonDefaultProps: Omit<IcicleCommonProps<DefaultIcicleDatum>, 'data' | 'valueFormat' | 'layers' | 'width' | 'height' | 'margin' | 'theme'> & {
+    layers: IcicleLayerId[];
+};
+export declare const svgDefaultProps: Omit<IcicleSvgPropsWithDefaults<DefaultIcicleDatum>, 'data' | 'width' | 'height' | 'margin' | 'theme'>;
+export declare const htmlDefaultProps: Omit<IcicleHtmlPropsWithDefaults<DefaultIcicleDatum>, 'data' | 'width' | 'height' | 'margin' | 'theme'>;
+//# sourceMappingURL=defaults.d.ts.map

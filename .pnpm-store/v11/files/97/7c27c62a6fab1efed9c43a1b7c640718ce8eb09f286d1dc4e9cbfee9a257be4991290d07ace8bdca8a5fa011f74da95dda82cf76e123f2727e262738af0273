@@ -1,0 +1,31 @@
+import { BoxAnchor } from '@nivo/core';
+import { Rect } from '../types';
+import { RectLabelsProps } from './types';
+export type AnchorGetter = (rect: Rect) => {
+    x: number;
+    y: number;
+};
+export interface AnchorGetterOptions {
+    isOutside: boolean;
+    paddingX: number;
+    paddingY: number;
+    offsetX: number;
+    offsetY: number;
+}
+type AnchorGetterFactory = (options: AnchorGetterOptions) => AnchorGetter;
+export declare const anchorCenterFactory: AnchorGetterFactory;
+export declare const anchorTopLeftFactory: AnchorGetterFactory;
+export declare const anchorTopFactory: AnchorGetterFactory;
+export declare const anchorTopRightFactory: AnchorGetterFactory;
+export declare const anchorRightFactory: AnchorGetterFactory;
+export declare const anchorBottomRightFactory: AnchorGetterFactory;
+export declare const anchorBottomFactory: AnchorGetterFactory;
+export declare const anchorBottomLeftFactory: AnchorGetterFactory;
+export declare const anchorLeftFactory: AnchorGetterFactory;
+export declare const anchorGetter: (anchor: BoxAnchor, options: AnchorGetterOptions) => AnchorGetter;
+export declare const getTextLayout: (boxAnchor: BoxAnchor, isOutside: boolean, align: RectLabelsProps<any>["labelAlign"], baseline: RectLabelsProps<any>["labelBaseline"]) => {
+    align: import("@nivo/theming").TextAlign;
+    baseline: import("@nivo/theming").TextBaseline;
+};
+export {};
+//# sourceMappingURL=compute.d.ts.map

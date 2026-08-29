@@ -1,0 +1,26 @@
+import { TransitionFn } from '@react-spring/web';
+import { Rect, NodeWithRect, RectTransitionMode } from './types';
+export interface RectTransitionModeConfig {
+    enter: (rect: Rect) => Rect;
+    update: (rect: Rect) => Rect;
+    leave: (rect: Rect) => Rect;
+}
+export declare const rectTransitionModeById: Record<RectTransitionMode, RectTransitionModeConfig>;
+export interface RectTransitionExtra<Node extends NodeWithRect, ExtraProps extends Record<string, any> = Record<string, never>> {
+    enter: (node: Node) => ExtraProps;
+    update: (node: Node) => ExtraProps;
+    leave: (node: Node) => ExtraProps;
+}
+export type RectTransitionProps<ExtraProps extends Record<string, any> = Record<string, never>> = Rect & {
+    progress: number;
+} & ExtraProps;
+export declare const useRectTransitionMode: <Node extends NodeWithRect, ExtraProps extends Record<string, any> = Record<string, never>>(mode: RectTransitionMode, extraTransition?: RectTransitionExtra<Node, ExtraProps>) => {
+    enter: (node: Node) => RectTransitionProps<ExtraProps>;
+    update: (node: Node) => RectTransitionProps<ExtraProps>;
+    leave: (node: Node) => RectTransitionProps<ExtraProps>;
+};
+/**
+ * This hook can be used to animate a group of rectangles.
+ */
+export declare const useRectsTransition: <Node extends NodeWithRect, ExtraProps extends Record<string, any> = Record<string, never>>(nodes: readonly Node[], getUid: (node: Node) => string, mode?: RectTransitionMode, animateOnMount?: boolean, extra?: RectTransitionExtra<Node, ExtraProps>) => TransitionFn<Node, RectTransitionProps<ExtraProps>>;
+//# sourceMappingURL=useRectsTransition.d.ts.map

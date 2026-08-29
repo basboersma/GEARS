@@ -1,5 +1,6 @@
 "use client";
 
+import { ResponsiveIcicle } from "@nivo/icicle";
 import { ChevronLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -67,6 +68,13 @@ interface OrganizationSummary {
   pendingTotal: number;
   upcomingOrders: UpcomingOrderList[];
   allocatedBudget: number;
+}
+
+interface BudgetHierarchyNode {
+  name: string;
+  value?: number;
+  color?: string;
+  children?: BudgetHierarchyNode[];
 }
 
 function formatCurrency(value: number) {
@@ -424,6 +432,37 @@ function OrgDetailSidebar({
   );
 }
 
+function BudgetBreakdownPanel({ data }: { data: BudgetHierarchyNode }) {
+  return (
+    <div className="flex h-full min-h-[420px] flex-1 flex-col bg-muted/5 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+            Allocation
+          </p>
+          <h3 className="font-semibold text-lg">Budget structure</h3>
+        </div>
+      </div>
+
+      <div className="h-[420px] w-full rounded-xl border bg-background/60 p-2">
+        <ResponsiveIcicle
+          borderColor={{ from: "color", modifiers: [["darker", 0.4]] }}
+          borderRadius={2}
+          childColor={{ from: "color", modifiers: [["brighter", 0.15]] }}
+          colors={(node) => node.data.color ?? "#8b5cf6"}
+          data={data}
+          enableLabels
+          labelSkipSize={18}
+          labelTextColor="#111827"
+          margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          padAngle={0.4}
+          valueFormat=">-.0s"
+        />
+      </div>
+    </div>
+  );
+}
+
 function DeleteOrganizationDialog({
   open,
   onOpenChange,
@@ -488,9 +527,11 @@ function DeleteOrganizationDialog({
 export function AdminDashboard({
   organizations,
   totalBudget,
+  budgetBreakdown,
 }: {
   organizations: OrganizationSummary[];
   totalBudget: number;
+  budgetBreakdown: BudgetHierarchyNode;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -627,7 +668,7 @@ export function AdminDashboard({
             ) : (
               <div className="flex-1 bg-muted/10" />
             )}
-            <div className="flex-1 bg-muted/5" />
+            <BudgetBreakdownPanel data={budgetBreakdown} />
           </div>
         </div>
       )}

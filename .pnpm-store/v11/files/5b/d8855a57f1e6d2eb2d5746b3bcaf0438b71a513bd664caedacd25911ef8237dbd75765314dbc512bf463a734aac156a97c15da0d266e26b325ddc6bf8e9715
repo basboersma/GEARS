@@ -1,0 +1,27 @@
+import { ComponentProps } from 'react';
+import { animated, SpringValue, Interpolation } from '@react-spring/web';
+import { BorderRadius } from '@nivo/theming';
+type AnimatedPathProps = ComponentProps<typeof animated.path>;
+/**
+ * Helper to construct an SVG path for a rectangle with per-corner radii.
+ * Radii are first constrained to avoid drawing artifacts when large.
+ */
+export declare function buildRoundedRectPath(x: number, y: number, width: number, height: number, topLeft: number, topRight: number, bottomRight: number, bottomLeft: number): string;
+type AnimatedValue = number | SpringValue<number> | Interpolation<number, number>;
+/**
+ * Use spring values or numbers for geometry,
+ * and any animated-compatible SVG path prop (e.g., opacity).
+ */
+export interface RoundedRectProps extends Omit<AnimatedPathProps, 'd' | 'r' | 'ref'> {
+    width: AnimatedValue;
+    height: AnimatedValue;
+    x?: AnimatedValue;
+    y?: AnimatedValue;
+    r?: BorderRadius<AnimatedValue>;
+}
+/**
+ * SVGRect only supports rx and ry for corner radii, this component allows for individual corner radii.
+ */
+export declare const RoundedRect: import("react").ForwardRefExoticComponent<RoundedRectProps & import("react").RefAttributes<SVGPathElement>>;
+export {};
+//# sourceMappingURL=RoundedRect.d.ts.map

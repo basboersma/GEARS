@@ -1,0 +1,6 @@
+import { Ref, ReactElement } from 'react';
+import { NodeWithRectAndColor, RectNodeComponentProps, RectNodeHandle } from './types';
+export declare const RectNodeSvg: <Node extends NodeWithRectAndColor>(props: RectNodeComponentProps<Node> & {
+    ref?: Ref<RectNodeHandle>;
+}) => ReactElement;
+//# sourceMappingURL=RectNodeSvg.d.ts.map

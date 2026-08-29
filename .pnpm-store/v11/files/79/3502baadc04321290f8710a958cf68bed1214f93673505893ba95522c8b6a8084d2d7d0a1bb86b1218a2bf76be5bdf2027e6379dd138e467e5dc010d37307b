@@ -1,0 +1,6 @@
+import { Ref, ReactElement } from 'react';
+import { NodeWithRectAndColor, RectNodeHandle, RectNodeComponentProps } from './types';
+export declare const RectNodeHtml: <Node extends NodeWithRectAndColor>(props: RectNodeComponentProps<Node> & {
+    ref?: Ref<RectNodeHandle>;
+}) => ReactElement;
+//# sourceMappingURL=RectNodeHtml.d.ts.map

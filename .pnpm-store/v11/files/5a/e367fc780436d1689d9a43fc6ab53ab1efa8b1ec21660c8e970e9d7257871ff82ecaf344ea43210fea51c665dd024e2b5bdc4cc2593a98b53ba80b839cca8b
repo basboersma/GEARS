@@ -1,0 +1,5 @@
+import { ReactElement } from 'react';
+import { DefaultChartContext, ResponsiveProps, WithChartRef } from '@nivo/core';
+import { IcicleSvgProps } from './types';
+export declare const ResponsiveIcicle: <Datum, Context = DefaultChartContext>(props: WithChartRef<ResponsiveProps<IcicleSvgProps<Datum, Context>>, SVGSVGElement>) => ReactElement;
+//# sourceMappingURL=ResponsiveIcicle.d.ts.map
