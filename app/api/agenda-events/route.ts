@@ -144,7 +144,8 @@ export async function GET(request: Request) {
 
   for (const row of orderRows) {
     const batchWindow = new Date(row.orderedDate).toISOString().slice(0, 16);
-    const key = [row.orderName, row.department, row.userId, batchWindow].join(
+    const departmentValue = row.department ?? "";
+    const key = [row.orderName, departmentValue, row.userId, batchWindow].join(
       "::"
     );
 
@@ -159,7 +160,7 @@ export async function GET(request: Request) {
       id: key,
       orderName: row.orderName,
       organizationId: row.organizationId,
-      department: row.department,
+      department: departmentValue,
       createdByUserId: row.userId,
       orderedDate: row.orderedDate,
       items: [row],

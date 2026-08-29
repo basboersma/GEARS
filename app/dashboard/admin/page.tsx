@@ -159,7 +159,7 @@ export default async function AdminDashboardPage() {
           date: rowsForList[0]?.orderedDate ?? new Date(),
           items: rowsForList.map((row) => ({
             id: row.id,
-            department: row.department,
+            department: row.department ?? "Unassigned",
             description: row.description,
             quantity: row.amount,
             urgency: row.urgency,
