@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { saveOrganizationBudget, saveTotalBudget } from "@/server/budgets";
+import { saveOrganizationBudget } from "@/server/budgets";
 import { removeMember } from "@/server/members";
 import { deleteOrganization } from "@/server/organizations";
 
@@ -129,44 +129,20 @@ function PieChart({
 }
 
 function OrganizationSidebar({
-  collapsed,
   organizations,
   selectedOrg,
-  onToggleCollapse,
   onSelect,
 }: {
-  collapsed: boolean;
   organizations: OrganizationSummary[];
   selectedOrg: OrganizationSummary | null;
-  onToggleCollapse: () => void;
   onSelect: (organization: OrganizationSummary) => void;
 }) {
   return (
-    <aside
-      className={`border-r bg-muted/20 transition-all duration-300 ${
-        collapsed ? "w-20" : "w-72"
-      }`}
-    >
-      <div className="flex items-center justify-between border-b p-3">
-        <span
-          className={`font-medium text-xs uppercase tracking-[0.2em] ${
-            collapsed ? "hidden" : "block"
-          }`}
-        >
+    <aside className="w-72 border-r bg-muted/20 transition-all duration-300">
+      <div className="flex items-center border-b p-3">
+        <span className="font-medium text-xs uppercase tracking-[0.2em]">
           Teams
         </span>
-        <Button
-          className="h-8 w-8 rounded-full p-0"
-          onClick={onToggleCollapse}
-          type="button"
-          variant="outline"
-        >
-          {collapsed ? (
-            <ChevronRight className="size-4" />
-          ) : (
-            <ChevronLeft className="size-4" />
-          )}
-        </Button>
       </div>
 
       <div className="flex flex-col gap-2 p-2">
@@ -192,11 +168,7 @@ function OrganizationSidebar({
               {getInitials(organization.name)}
             </div>
 
-            <div
-              className={`overflow-hidden transition-all duration-200 ${
-                collapsed ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100"
-              }`}
-            >
+            <div className="max-w-[180px] overflow-hidden">
               <p className="truncate font-medium text-sm group-hover:translate-x-0">
                 {organization.name}
               </p>
@@ -213,31 +185,38 @@ function OrganizationSidebar({
 
 function OrgDetailSidebar({
   selectedOrg,
-  totalBudget,
   onClose,
   onRemove,
   onBudgetChange,
-  onTotalBudgetChange,
 }: {
   selectedOrg: OrganizationSummary;
-  totalBudget: number;
   onClose: () => void;
   onRemove: (organization: OrganizationSummary) => void;
   onBudgetChange: (organizationId: string, amount: number) => Promise<void>;
-  onTotalBudgetChange: (amount: number) => Promise<void>;
 }) {
   const [budgetValue, setBudgetValue] = useState(
     String(selectedOrg.allocatedBudget ?? 0)
   );
-  const [totalBudgetValue, setTotalBudgetValue] = useState(
-    String(totalBudget ?? 0)
-  );
+  const [expandedOrderIds, setExpandedOrderIds] = useState<string[]>([]);
   const [isSaving, startSaving] = useTransition();
 
   useEffect(() => {
     setBudgetValue(String(selectedOrg.allocatedBudget ?? 0));
-    setTotalBudgetValue(String(totalBudget ?? 0));
-  }, [selectedOrg, totalBudget]);
+    setExpandedOrderIds((current) => {
+      const validCurrent = current.filter((orderId) =>
+        selectedOrg.upcomingOrders.some((order) => order.id === orderId)
+      );
+      return validCurrent.length > 0 ? validCurrent : [];
+    });
+  }, [selectedOrg]);
+
+  const toggleOrder = (orderId: string) => {
+    setExpandedOrderIds((current) =>
+      current.includes(orderId)
+        ? current.filter((id) => id !== orderId)
+        : [...current, orderId]
+    );
+  };
 
   return (
     <aside className="w-[50%] min-w-0 shrink-0 border-r bg-background p-4">
@@ -269,39 +248,16 @@ function OrgDetailSidebar({
         </Button>
       </div>
 
-      <div className="mt-4 space-y-4 overflow-y-auto">
-        <div className="rounded-xl border p-3">
-          <h3 className="mb-2 font-semibold text-base">Budget</h3>
-          <div className="space-y-3">
-            <label className="block space-y-1">
-              <span className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
-                Total budget
-              </span>
-              <input
-                className="w-full rounded-md border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                min="0"
-                onChange={(event) => setTotalBudgetValue(event.target.value)}
-                step="0.01"
-                type="number"
-                value={totalBudgetValue}
-              />
-            </label>
-            <Button
-              className="w-full"
-              disabled={isSaving}
-              onClick={() => {
-                startSaving(async () => {
-                  await onTotalBudgetChange(Number(totalBudgetValue || 0));
-                });
-              }}
-              type="button"
-              variant="outline"
-            >
-              Save total budget
-            </Button>
-          </div>
-        </div>
+      <div className="mt-4 rounded-xl border border-[#FFD142]/60 bg-[#FFD142]/10 p-3">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+          Total budget
+        </p>
+        <p className="mt-1 font-bold text-3xl text-foreground leading-none">
+          {formatCurrency(selectedOrg.allocatedBudget)}
+        </p>
+      </div>
 
+      <div className="mt-4 space-y-4 overflow-y-auto">
         <div className="rounded-xl border p-3">
           <h3 className="mb-2 font-semibold text-base">Order value</h3>
           <PieChart
@@ -313,38 +269,56 @@ function OrgDetailSidebar({
         <div className="rounded-xl border p-3">
           <h3 className="mb-2 font-semibold text-base">Agenda</h3>
           <div className="space-y-2">
-            {selectedOrg.agendaItems.length > 0 ? (
-              selectedOrg.agendaItems.map((agendaItem) => (
-                <div
-                  className="rounded-lg border p-2 text-sm"
-                  key={agendaItem.id}
-                >
-                  <p className="font-medium">{agendaItem.title}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {new Date(agendaItem.start).toLocaleString()}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
-                No agenda items yet.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-xl border p-3">
-          <h3 className="mb-2 font-semibold text-base">Upcoming orders</h3>
-          <div className="space-y-2">
             {selectedOrg.upcomingOrders.length > 0 ? (
-              selectedOrg.upcomingOrders.slice(0, 3).map((order) => (
-                <div className="rounded-lg border p-2 text-sm" key={order.id}>
-                  <p className="font-medium">{order.orderName}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {new Date(order.date).toLocaleDateString()}
-                  </p>
-                </div>
-              ))
+              selectedOrg.upcomingOrders.map((order) => {
+                const isExpanded = expandedOrderIds.includes(order.id);
+
+                return (
+                  <div className="rounded-lg border" key={order.id}>
+                    <button
+                      className="flex w-full items-center justify-between gap-2 p-2 text-left text-sm"
+                      onClick={() => toggleOrder(order.id)}
+                      type="button"
+                    >
+                      <div>
+                        <p className="font-medium">{order.orderName}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {new Date(order.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className="font-semibold text-xs">
+                        {isExpanded ? "▾" : "▸"}
+                      </span>
+                    </button>
+
+                    {isExpanded ? (
+                      <div className="border-t bg-muted/5 p-2">
+                        <div className="space-y-2">
+                          {order.items.map((item) => (
+                            <div
+                              className="rounded-md border bg-background p-2 text-xs"
+                              key={item.id}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-medium text-sm">
+                                  {item.description || item.typeOfOrder}
+                                </span>
+                                <span className="font-medium text-[11px]">
+                                  {formatCurrency(item.totalCosts)}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-muted-foreground">
+                                {item.quantity} · {item.department} ·{" "}
+                                {item.status}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })
             ) : (
               <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
                 No upcoming orders.
@@ -415,14 +389,6 @@ function OrgDetailSidebar({
                 value={budgetValue}
               />
             </label>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Remaining</span>
-              <span className="font-medium">
-                {formatCurrency(
-                  Math.max(totalBudget - selectedOrg.allocatedBudget, 0)
-                )}
-              </span>
-            </div>
             <Button
               className="w-full"
               disabled={isSaving}
@@ -528,7 +494,6 @@ export function AdminDashboard({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [collapsed, setCollapsed] = useState(false);
   const [activeOrganizationId, setActiveOrganizationId] = useState(
     organizations[0]?.id ?? null
   );
@@ -549,6 +514,11 @@ export function AdminDashboard({
   );
 
   const openOrganization = (organization: OrganizationSummary) => {
+    if (selectedOrg && selectedOrg.id === organization.id && orgDetailOpen) {
+      setOrgDetailOpen(false);
+      return;
+    }
+
     setActiveOrganizationId(organization.id);
     setOrgDetailOpen(true);
   };
@@ -583,18 +553,6 @@ export function AdminDashboard({
     }
 
     toast.success("Organization budget saved.");
-    router.refresh();
-  };
-
-  const handleTotalBudgetChange = async (amount: number) => {
-    const result = await saveTotalBudget(amount);
-
-    if (!result.success) {
-      toast.error(result.error || "Unable to update the total budget.");
-      return;
-    }
-
-    toast.success("Total budget updated.");
     router.refresh();
   };
 
@@ -633,11 +591,11 @@ export function AdminDashboard({
         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border bg-card p-4 shadow-sm">
-        <p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+      <div className="mb-4 rounded-xl border border-[#FFD142]/60 bg-[#FFD142]/10 p-4 shadow-sm">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
           Total budget
         </p>
-        <p className="mt-1 font-semibold text-2xl">
+        <p className="mt-1 font-semibold text-3xl text-foreground">
           {formatCurrency(totalBudget)}
         </p>
       </div>
@@ -649,9 +607,7 @@ export function AdminDashboard({
       ) : (
         <div className="flex min-h-[75vh] w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
           <OrganizationSidebar
-            collapsed={collapsed}
             onSelect={openOrganization}
-            onToggleCollapse={() => setCollapsed((value) => !value)}
             organizations={organizations}
             selectedOrg={selectedOrg}
           />
@@ -666,9 +622,7 @@ export function AdminDashboard({
                   setDeleteOpen(true);
                   setOrgDetailOpen(false);
                 }}
-                onTotalBudgetChange={handleTotalBudgetChange}
                 selectedOrg={selectedOrg}
-                totalBudget={totalBudget}
               />
             ) : (
               <div className="flex-1 bg-muted/10" />
