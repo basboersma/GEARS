@@ -3,12 +3,11 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, orderRequest } from "@/db/schema";
+import { member, orderRequest, organizationDepartment } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const orderTypeEnum = ["Hardware", "Electronic", "Software", "Social"] as const;
 const urgencyEnum = ["1 day", "2 days", "3 days", "7 days"] as const;
-const departmentEnum = ["1", "2", "3", "4", "5"] as const;
 
 const rowSchema = z.object({
   description: z
@@ -28,7 +27,7 @@ const rowSchema = z.object({
 
 const bodySchema = z.object({
   organizationId: z.string().min(1),
-  department: z.enum(departmentEnum),
+  department: z.string().trim().min(1, "Department is required"),
   orderName: z.string().trim().min(1, "Order name is required").max(100),
   rows: z.array(rowSchema).min(1, "At least one row is required"),
 });
@@ -68,6 +67,26 @@ export async function POST(request: Request) {
       { error: "Only organization owners can submit order sheets" },
       { status: 403 }
     );
+  }
+
+  const allowedDepartments = await db.query.organizationDepartment.findMany({
+    where: eq(
+      organizationDepartment.organizationId,
+      parsed.data.organizationId
+    ),
+  });
+
+  if (allowedDepartments.length > 0) {
+    const isValidDepartment = allowedDepartments.some(
+      (entry) => entry.name === parsed.data.department
+    );
+
+    if (!isValidDepartment) {
+      return NextResponse.json(
+        { error: "Department is not configured for this organization." },
+        { status: 400 }
+      );
+    }
   }
 
   const now = new Date();

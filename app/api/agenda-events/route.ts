@@ -73,7 +73,7 @@ async function canManageAgenda(userId: string, organizationId: string) {
   }
 
   return {
-    canManage: membership.role === "owner" || membership.role === "admin",
+    canManage: membership.role === "admin",
     isAdmin: membership.role === "admin",
     membership,
   };
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
 
   if (!access) {
     return NextResponse.json(
-      { error: "Only organization members can view agenda" },
+      { error: "Only organization admins can view agenda" },
       { status: 403 }
     );
   }
@@ -119,8 +119,7 @@ export async function GET(request: Request) {
   );
   const viewerRole = access.membership.role;
 
-  const canViewOrderBatches =
-    viewerRole === "owner" || viewerRole === "admin" || viewerRole === "member";
+  const canViewOrderBatches = viewerRole === "admin";
 
   const orderRows = canViewOrderBatches
     ? await db.query.orderRequest.findMany({
@@ -144,8 +143,7 @@ export async function GET(request: Request) {
 
   for (const row of orderRows) {
     const batchWindow = new Date(row.orderedDate).toISOString().slice(0, 16);
-    const departmentValue = row.department ?? "";
-    const key = [row.orderName, departmentValue, row.userId, batchWindow].join(
+    const key = [row.orderName, row.department, row.userId, batchWindow].join(
       "::"
     );
 
@@ -160,7 +158,7 @@ export async function GET(request: Request) {
       id: key,
       orderName: row.orderName,
       organizationId: row.organizationId,
-      department: departmentValue,
+      department: row.department,
       createdByUserId: row.userId,
       orderedDate: row.orderedDate,
       items: [row],

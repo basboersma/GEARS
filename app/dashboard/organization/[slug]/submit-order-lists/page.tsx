@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { OrderSheet } from "@/components/forms/order-sheet";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db/drizzle";
-import { member, organization } from "@/db/schema";
+import { member, organization, organizationDepartment } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -38,6 +38,13 @@ export default async function SubmitOrderListsPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
+  const departments = await db.query.organizationDepartment.findMany({
+    where: eq(organizationDepartment.organizationId, org.id),
+    orderBy: (organizationDepartment, { asc }) => [
+      asc(organizationDepartment.name),
+    ],
+  });
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-10">
       <div className="flex items-center justify-between gap-3">
@@ -51,7 +58,7 @@ export default async function SubmitOrderListsPage({
           </Link>
         </Button>
       </div>
-      <OrderSheet organizationId={org.id} />
+      <OrderSheet departments={departments} organizationId={org.id} />
     </div>
   );
 }

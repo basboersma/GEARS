@@ -79,7 +79,6 @@ export const organization = pgTable("organization", {
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull().default("0"),
-  adminPage: boolean("admin_page").default(false).notNull(),
 });
 
 export const organizationDepartment = pgTable("organization_department", {
@@ -91,9 +90,6 @@ export const organizationDepartment = pgTable("organization_department", {
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
-  updatedAt: timestamp("updated_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
 });
 
 export const organizationRelations = relations(organization, ({ many }) => ({
@@ -103,12 +99,11 @@ export const organizationRelations = relations(organization, ({ many }) => ({
 
 export const organizationDepartmentRelations = relations(
   organizationDepartment,
-  ({ one, many }) => ({
+  ({ one }) => ({
     organization: one(organization, {
       fields: [organizationDepartment.organizationId],
       references: [organization.id],
     }),
-    orderRequests: many(orderRequest),
   })
 );
 
@@ -120,14 +115,6 @@ export const educationalInstitution = pgEnum("educational_institution", [
   "University of Groningen",
   "Hanze",
   "Guest",
-]);
-
-export const orderDepartment = pgEnum("order_department", [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
 ]);
 
 export const orderType = pgEnum("order_type", [
@@ -255,11 +242,7 @@ export const orderRequest = pgTable("order_request", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  departmentId: text("department_id").references(
-    () => organizationDepartment.id,
-    { onDelete: "set null" }
-  ),
-  department: text("department"),
+  department: text("department").notNull(),
   orderName: text("order_name").default("Untitled order").notNull(),
   description: text("description").notNull(),
   pricePerPiece: numeric("price_per_piece").notNull(),
@@ -364,30 +347,15 @@ export const agendaDiscussionPointVote = pgTable(
   }
 );
 
-export const orderRequestRelations = relations(orderRequest, ({ one }) => ({
-  organization: one(organization, {
-    fields: [orderRequest.organizationId],
-    references: [organization.id],
-  }),
-  department: one(organizationDepartment, {
-    fields: [orderRequest.departmentId],
-    references: [organizationDepartment.id],
-  }),
-  user: one(user, {
-    fields: [orderRequest.userId],
-    references: [user.id],
-  }),
-}));
-
 export const schema = {
   user,
   session,
   account,
   verification,
   organization,
+  organizationDepartment,
   member,
   invitation,
-  organizationDepartment,
   orderRequest,
   agendaEvent,
   agendaDiscussionPoint,
@@ -395,6 +363,5 @@ export const schema = {
   studentProfile,
   organizationRelations,
   organizationDepartmentRelations,
-  orderRequestRelations,
   memberRelations,
 };

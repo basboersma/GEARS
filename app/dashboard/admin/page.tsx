@@ -7,47 +7,11 @@ import { getCurrentUser } from "@/server/users";
 export default async function AdminDashboardPage() {
   const { currentUser } = await getCurrentUser();
 
-  const adminPageOrganization = await db.query.organization.findFirst({
-    where: eq(organization.adminPage, true),
-    with: {
-      members: {
-        with: {
-          user: true,
-        },
-      },
-    },
-  });
-
   const adminMemberships = await db.query.member.findMany({
     where: and(eq(member.userId, currentUser.id), eq(member.role, "admin")),
   });
 
-  const targetOrganizationIds = adminPageOrganization
-    ? [adminPageOrganization.id]
-    : adminMemberships.map((entry) => entry.organizationId);
-
-  const organizations = await db.query.organization.findMany({
-    where: inArray(organization.id, targetOrganizationIds),
-    with: {
-      members: {
-        with: {
-          user: true,
-        },
-      },
-    },
-  });
-
-  if (adminPageOrganization && !organizations.length) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
-          You do not have admin access to the selected admin page.
-        </div>
-      </div>
-    );
-  }
-
-  if (!adminPageOrganization && adminMemberships.length === 0) {
+  if (adminMemberships.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
@@ -57,7 +21,18 @@ export default async function AdminDashboardPage() {
     );
   }
 
-  const organizationIds = targetOrganizationIds;
+  const organizationIds = adminMemberships.map((entry) => entry.organizationId);
+
+  const organizations = await db.query.organization.findMany({
+    where: inArray(organization.id, organizationIds),
+    with: {
+      members: {
+        with: {
+          user: true,
+        },
+      },
+    },
+  });
 
   const allOrderRows = await db.query.orderRequest.findMany({
     where: inArray(orderRequest.organizationId, organizationIds),
@@ -67,6 +42,13 @@ export default async function AdminDashboardPage() {
     (sum, org) => sum + Number(org.budget ?? 0),
     0
   );
+
+  const typeColors: Record<string, string> = {
+    Hardware: "#8b5cf6",
+    Electronic: "#3b82f6",
+    Software: "#10b981",
+    Social: "#f59e0b",
+  };
 
   const budgetBreakdown = {
     name: "Total Budget",
@@ -78,33 +60,27 @@ export default async function AdminDashboardPage() {
       );
       const orgBudget = Number(org.budget ?? 0);
 
-      const departmentMap = orgRows.reduce<Record<string, typeof orgRows>>(
-        (groups, row) => {
-          const key = row.department || "Unknown";
+      const typeChildren = Object.entries(
+        orgRows.reduce<Record<string, typeof orgRows>>((groups, row) => {
+          const key = row.typeOfOrder || "Other";
           groups[key] ??= [];
           groups[key].push(row);
           return groups;
-        },
-        {}
-      );
-
-      const departmentChildren = Object.entries(departmentMap).map(
-        ([department, rows]) => ({
-          name: `Department ${department}`,
-          value: rows.reduce(
-            (sum, row) => sum + Number(row.totalCosts || 0),
-            0
-          ),
-          color: "#c084fc",
-        })
-      );
+        }, {})
+      ).map(([typeOfOrder, typeRows]) => ({
+        name: typeOfOrder,
+        value: typeRows.reduce(
+          (sum, row) => sum + Number(row.totalCosts || 0),
+          0
+        ),
+        color: typeColors[typeOfOrder] ?? "#94a3b8",
+      }));
 
       return {
         name: org.name,
         value: orgBudget,
         color: "#8b5cf6",
-        children:
-          departmentChildren.length > 0 ? departmentChildren : undefined,
+        children: typeChildren.length > 0 ? typeChildren : undefined,
       };
     }),
   };
@@ -159,7 +135,7 @@ export default async function AdminDashboardPage() {
           date: rowsForList[0]?.orderedDate ?? new Date(),
           items: rowsForList.map((row) => ({
             id: row.id,
-            department: row.department ?? "Unassigned",
+            department: row.department,
             description: row.description,
             quantity: row.amount,
             urgency: row.urgency,

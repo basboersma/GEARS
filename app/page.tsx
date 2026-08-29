@@ -75,8 +75,8 @@ export default function HomePage() {
         <section className="section section-alt">
           <div className="section-header">
             <h2>What We Do</h2>
-            <div>
-              <p>GEARS supports students by:</p>
+            <p>
+              GEARS supports students by:
               <ul>
                 <li>
                   Providing teams with seed-funding to enable them to enter
@@ -91,7 +91,7 @@ export default function HomePage() {
                   development
                 </li>
               </ul>
-            </div>
+            </p>
           </div>
         </section>
       </main>
