@@ -1,10 +1,18 @@
 "use client";
 
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { removeMember } from "@/server/members";
 import { deleteOrganization } from "@/server/organizations";
 
@@ -33,6 +41,15 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "EUR",
   }).format(value);
+}
+
+function getInitials(name: string) {
+  const words = name.split(" ").filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() ?? "")
+    .join("")
+    .slice(0, 2);
 }
 
 function PieChart({
@@ -84,19 +101,29 @@ export function AdminDashboard({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [collapsed, setCollapsed] = useState(false);
+  const [activeOrganizationId, setActiveOrganizationId] = useState(
+    organizations[0]?.id ?? null
+  );
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [removalKey, setRemovalKey] = useState("");
+  const [pendingDelete, setPendingDelete] =
+    useState<OrganizationSummary | null>(null);
 
-  const handleRemoveOrganization = (organizationId: string) => {
-    startTransition(async () => {
-      const result = await deleteOrganization(organizationId);
+  const activeOrganization = useMemo(
+    () =>
+      organizations.find(
+        (organization) => organization.id === activeOrganizationId
+      ) ??
+      organizations[0] ??
+      null,
+    [activeOrganizationId, organizations]
+  );
 
-      if (!result.success) {
-        toast.error(result.error || "Failed to remove organization.");
-        return;
-      }
-
-      toast.success("Organization removed.");
-      router.refresh();
-    });
+  const handleOpenInfo = (organization: OrganizationSummary) => {
+    setActiveOrganizationId(organization.id);
+    setInfoOpen(true);
   };
 
   const handleRemoveMember = (memberId: string) => {
@@ -113,9 +140,32 @@ export function AdminDashboard({
     });
   };
 
+  const handleDeleteOrganization = () => {
+    if (!pendingDelete) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await deleteOrganization(pendingDelete.id, removalKey);
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to remove organization.");
+        return;
+      }
+
+      toast.success("Organization removed.");
+      setDeleteOpen(false);
+      setPendingDelete(null);
+      setRemovalKey("");
+      router.refresh();
+    });
+  };
+
+  const selectedOrg = activeOrganization;
+
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 py-10">
-      <div className="flex items-center justify-between gap-3">
+    <div className="mx-auto max-w-7xl py-10">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <p className="text-muted-foreground text-sm">Administration</p>
           <h1 className="font-bold text-3xl">Admin Dashboard</h1>
@@ -129,128 +179,354 @@ export function AdminDashboard({
         <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
           You are not an admin for any organization.
         </div>
-      ) : null}
-
-      {organizations.map((organization) => {
-        const totalCash = organization.orderedTotal + organization.pendingTotal;
-
-        return (
-          <div
-            className="rounded-2xl border bg-card p-6 shadow-sm"
-            key={organization.id}
+      ) : (
+        <div className="flex min-h-[70vh] gap-4 overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <aside
+            className={`border-r bg-muted/20 transition-all duration-300 ${
+              collapsed ? "w-20" : "w-72"
+            }`}
           >
-            <div className="mb-4 flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="font-semibold text-2xl">{organization.name}</h2>
-                <p className="text-muted-foreground text-sm">
-                  {organization.members.length} members •{" "}
-                  {organization.agendaItems.length} agenda items
-                </p>
+            <div className="flex items-center justify-between border-b p-3">
+              <span
+                className={`font-medium text-xs uppercase tracking-[0.2em] ${
+                  collapsed ? "hidden" : "block"
+                }`}
+              >
+                Teams
+              </span>
+              <Button
+                className="h-8 w-8 rounded-full p-0"
+                onClick={() => setCollapsed((value) => !value)}
+                type="button"
+                variant="outline"
+              >
+                {collapsed ? (
+                  <ChevronRight className="size-4" />
+                ) : (
+                  <ChevronLeft className="size-4" />
+                )}
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-2 p-2">
+              {organizations.map((organization) => (
+                <button
+                  className={`group flex items-center gap-3 rounded-xl border p-2 text-left transition-all hover:border-primary/60 ${
+                    selectedOrg?.id === organization.id
+                      ? "border-primary bg-primary/5"
+                      : "border-transparent bg-transparent"
+                  }`}
+                  key={organization.id}
+                  onClick={() => handleOpenInfo(organization)}
+                  type="button"
+                >
+                  <div
+                    className="flex size-12 shrink-0 items-center justify-center rounded-xl font-bold text-sm text-white shadow-sm"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%)",
+                    }}
+                    title={organization.name}
+                  >
+                    {getInitials(organization.name)}
+                  </div>
+
+                  <div
+                    className={`overflow-hidden transition-all duration-200 ${
+                      collapsed
+                        ? "max-w-0 opacity-0"
+                        : "max-w-[180px] opacity-100"
+                    }`}
+                  >
+                    <p className="truncate font-medium text-sm group-hover:translate-x-0">
+                      {organization.name}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
+                      org
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          <main className="flex flex-1 flex-col gap-4 p-4">
+            {selectedOrg ? (
+              <>
+                <div className="flex items-center justify-between gap-3 border-b pb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #22c55e 0%, #14b8a6 50%, #3b82f6 100%)",
+                      }}
+                    >
+                      {getInitials(selectedOrg.name)}
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-2xl">
+                        {selectedOrg.name}
+                      </h2>
+                      <p className="text-muted-foreground text-sm">
+                        {selectedOrg.members.length} members •{" "}
+                        {selectedOrg.agendaItems.length} agenda items
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button asChild variant="outline">
+                      <Link
+                        href={`/dashboard/organization/${selectedOrg.slug}`}
+                      >
+                        Open organization
+                      </Link>
+                    </Button>
+                    <Button
+                      disabled={isPending}
+                      onClick={() => {
+                        setPendingDelete(selectedOrg);
+                        setDeleteOpen(true);
+                      }}
+                      variant="destructive"
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      Remove org
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                  <div className="space-y-4">
+                    <div className="rounded-xl border p-4">
+                      <h3 className="mb-3 font-semibold text-lg">Members</h3>
+                      <div className="space-y-2">
+                        {selectedOrg.members.map((member) => (
+                          <div
+                            className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                            key={member.id}
+                          >
+                            <div>
+                              <p className="font-medium">{member.user.name}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {member.user.email}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
+                                {member.role}
+                              </span>
+                              {member.role !== "owner" ? (
+                                <Button
+                                  disabled={isPending}
+                                  onClick={() => handleRemoveMember(member.id)}
+                                  size="sm"
+                                  variant="destructive"
+                                >
+                                  Remove
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border p-4">
+                      <h3 className="mb-3 font-semibold text-lg">Agenda</h3>
+                      <div className="space-y-2">
+                        {selectedOrg.agendaItems.length > 0 ? (
+                          selectedOrg.agendaItems.map((agendaItem) => (
+                            <div
+                              className="rounded-lg border p-3 text-sm"
+                              key={agendaItem.id}
+                            >
+                              <p className="font-medium">{agendaItem.title}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {new Date(agendaItem.start).toLocaleString()}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
+                            No agenda items yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border bg-muted/30 p-4">
+                    <h3 className="mb-3 font-semibold text-lg">Order value</h3>
+                    <PieChart
+                      orderedTotal={selectedOrg.orderedTotal}
+                      pendingTotal={selectedOrg.pendingTotal}
+                    />
+                    <div className="mt-4 space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span>Total</span>
+                        <span className="font-semibold">
+                          {formatCurrency(
+                            selectedOrg.orderedTotal + selectedOrg.pendingTotal
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-emerald-600">
+                        <span>Ordered</span>
+                        <span>{formatCurrency(selectedOrg.orderedTotal)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-amber-500">
+                        <span>Pending</span>
+                        <span>{formatCurrency(selectedOrg.pendingTotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </main>
+        </div>
+      )}
+
+      <Dialog onOpenChange={setInfoOpen} open={infoOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedOrg?.name ?? "Organization details"}
+            </DialogTitle>
+            <DialogDescription>
+              Full organization overview and admin actions.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrg ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%)",
+                  }}
+                >
+                  {getInitials(selectedOrg.name)}
+                </div>
+                <div>
+                  <p className="font-semibold text-xl">{selectedOrg.name}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {selectedOrg.members.length} members •{" "}
+                    {selectedOrg.agendaItems.length} agenda items
+                  </p>
+                </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border p-4">
+                  <h3 className="mb-2 font-semibold text-lg">Members</h3>
+                  <div className="space-y-2">
+                    {selectedOrg.members.map((member) => (
+                      <div
+                        className="flex items-center justify-between gap-3 rounded-lg border p-2 text-sm"
+                        key={member.id}
+                      >
+                        <span>{member.user.name}</span>
+                        <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
+                          {member.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <h3 className="mb-2 font-semibold text-lg">Order value</h3>
+                  <PieChart
+                    orderedTotal={selectedOrg.orderedTotal}
+                    pendingTotal={selectedOrg.pendingTotal}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
                 <Button asChild variant="outline">
-                  <Link href={`/dashboard/organization/${organization.slug}`}>
-                    Open organization
+                  <Link href={`/dashboard/organization/${selectedOrg.slug}`}>
+                    Go to org page
                   </Link>
                 </Button>
                 <Button
-                  disabled={isPending}
-                  onClick={() => handleRemoveOrganization(organization.id)}
+                  onClick={() => {
+                    setPendingDelete(selectedOrg);
+                    setDeleteOpen(true);
+                    setInfoOpen(false);
+                  }}
                   variant="destructive"
                 >
                   Remove organisation
                 </Button>
               </div>
             </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
-            <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="mb-2 font-semibold text-lg">Members</h3>
-                  <div className="space-y-2">
-                    {organization.members.map((member) => (
-                      <div
-                        className="flex items-center justify-between rounded-lg border p-3"
-                        key={member.id}
-                      >
-                        <div>
-                          <p className="font-medium">{member.user.name}</p>
-                          <p className="text-muted-foreground text-xs">
-                            {member.user.email}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-muted px-2 py-1 text-xs uppercase">
-                            {member.role}
-                          </span>
-                          {member.role !== "owner" ? (
-                            <Button
-                              disabled={isPending}
-                              onClick={() => handleRemoveMember(member.id)}
-                              size="sm"
-                              variant="destructive"
-                            >
-                              Remove
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+      <Dialog
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) {
+            setPendingDelete(null);
+            setRemovalKey("");
+          }
+        }}
+        open={deleteOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove organisation</DialogTitle>
+            <DialogDescription>
+              Enter the removal key to permanently delete this organisation.
+            </DialogDescription>
+          </DialogHeader>
 
-                <div>
-                  <h3 className="mb-2 font-semibold text-lg">Agenda</h3>
-                  <div className="space-y-2">
-                    {organization.agendaItems.length > 0 ? (
-                      organization.agendaItems.map((agendaItem) => (
-                        <div
-                          className="rounded-lg border p-3 text-sm"
-                          key={agendaItem.id}
-                        >
-                          <p className="font-medium">{agendaItem.title}</p>
-                          <p className="text-muted-foreground text-xs">
-                            {new Date(agendaItem.start).toLocaleString()}
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
-                        No agenda items yet.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="font-medium text-sm" htmlFor="removal-key">
+                Removal key
+              </label>
+              <input
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+                id="removal-key"
+                onChange={(event) => setRemovalKey(event.target.value)}
+                placeholder="Enter saved org removal key"
+                type="password"
+                value={removalKey}
+              />
+            </div>
 
-              <div className="rounded-xl border bg-muted/30 p-4">
-                <h3 className="mb-3 font-semibold text-lg">Order value</h3>
-                <PieChart
-                  orderedTotal={organization.orderedTotal}
-                  pendingTotal={organization.pendingTotal}
-                />
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span>Total</span>
-                    <span className="font-semibold">
-                      {formatCurrency(totalCash)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-emerald-600">
-                    <span>Ordered</span>
-                    <span>{formatCurrency(organization.orderedTotal)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-amber-500">
-                    <span>Pending</span>
-                    <span>{formatCurrency(organization.pendingTotal)}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setPendingDelete(null);
+                  setRemovalKey("");
+                }}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={isPending || !removalKey.trim()}
+                onClick={handleDeleteOrganization}
+                type="button"
+                variant="destructive"
+              >
+                Confirm removal
+              </Button>
             </div>
           </div>
-        );
-      })}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

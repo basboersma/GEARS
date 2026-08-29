@@ -1,9 +1,27 @@
 "use server";
 
+import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/drizzle";
 import { member, organization } from "@/db/schema";
 import { getCurrentUser } from "./users";
+
+function matchesOrganizationRemovalKey(input: string) {
+  const expectedKey = process.env.ORG_DELETE_KEY?.trim();
+
+  if (!expectedKey) {
+    return false;
+  }
+
+  const candidateHash = createHash("sha256").update(input).digest();
+  const expectedHash = Buffer.from(expectedKey, "hex");
+
+  if (candidateHash.length !== expectedHash.length) {
+    return false;
+  }
+
+  return timingSafeEqual(candidateHash, expectedHash);
+}
 
 export async function getOrganizations() {
   const { currentUser } = await getCurrentUser();
@@ -58,7 +76,10 @@ export async function getOrganizationBySlug(slug: string) {
   }
 }
 
-export async function deleteOrganization(organizationId: string) {
+export async function deleteOrganization(
+  organizationId: string,
+  confirmationKey?: string
+) {
   const { currentUser } = await getCurrentUser();
 
   const membership = await db.query.member.findFirst({
@@ -72,6 +93,13 @@ export async function deleteOrganization(organizationId: string) {
     return {
       success: false,
       error: "You are not authorized to remove this organization.",
+    };
+  }
+
+  if (!(confirmationKey && matchesOrganizationRemovalKey(confirmationKey))) {
+    return {
+      success: false,
+      error: "Invalid removal key.",
     };
   }
 
