@@ -2,6 +2,7 @@
 
 import { Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,12 +12,9 @@ interface Department {
   name: string;
 }
 
-export default function OrganizationDepartmentsPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const [slug, setSlug] = useState<string>("");
+export default function OrganizationDepartmentsPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = params.slug ?? "";
   const [departments, setDepartments] = useState<Department[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -24,11 +22,13 @@ export default function OrganizationDepartmentsPage({
 
   useEffect(() => {
     const load = async () => {
-      const { slug: nextSlug } = await params;
-      setSlug(nextSlug);
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
 
       const response = await fetch(
-        `/api/organization-departments?slug=${nextSlug}`
+        `/api/organization-departments?slug=${slug}`
       );
       const data = (await response.json()) as { departments?: Department[] };
       setDepartments(data.departments ?? []);
@@ -36,7 +36,7 @@ export default function OrganizationDepartmentsPage({
     };
 
     load();
-  }, [params]);
+  }, [slug]);
 
   const refreshDepartments = async () => {
     const response = await fetch(`/api/organization-departments?slug=${slug}`);
