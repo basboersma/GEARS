@@ -257,6 +257,17 @@ export const orderRequest = pgTable("order_request", {
     .notNull(),
 });
 
+export const orderRequestRelations = relations(orderRequest, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orderRequest.organizationId],
+    references: [organization.id],
+  }),
+  user: one(user, {
+    fields: [orderRequest.userId],
+    references: [user.id],
+  }),
+}));
+
 export const agendaEvent = pgTable("agenda_event", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
