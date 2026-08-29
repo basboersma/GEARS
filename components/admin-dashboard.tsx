@@ -1,10 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
+import { useMemo, useState } from "react";
 import { CreateOrganizationForm } from "@/components/forms/create-organization-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,9 +13,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { saveOrganizationBudget, saveTotalBudget } from "@/server/budgets";
-import { removeMember } from "@/server/members";
-import { deleteOrganization } from "@/server/organizations";
 
 interface Member {
   id: string;
@@ -83,48 +78,6 @@ function getInitials(name: string) {
     .map((word) => word[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2);
-}
-
-function PieChart({
-  orderedTotal,
-  pendingTotal,
-}: {
-  orderedTotal: number;
-  pendingTotal: number;
-}) {
-  const total = orderedTotal + pendingTotal;
-  const orderedShare = total > 0 ? (orderedTotal / total) * 100 : 0;
-  const pendingShare = total > 0 ? 100 - orderedShare : 0;
-
-  return (
-    <div className="flex items-center gap-4">
-      <div
-        className="relative size-24 rounded-full border border-border"
-        style={{
-          background: `conic-gradient(#22c55e 0 ${orderedShare}%, #fbbf24 ${orderedShare}% 100%)`,
-        }}
-      >
-        <div className="absolute inset-3 rounded-full bg-background" />
-        <div className="absolute inset-0 flex items-center justify-center text-center font-semibold text-[10px] leading-tight">
-          {total > 0 ? `${Math.round(orderedShare)}%` : "0%"}
-        </div>
-      </div>
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center gap-2">
-          <span className="inline-block size-2.5 rounded-full bg-emerald-500" />
-          <span>Ordered: {formatCurrency(orderedTotal)}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block size-2.5 rounded-full bg-amber-400" />
-          <span>Pending: {formatCurrency(pendingTotal)}</span>
-        </div>
-        <div className="text-muted-foreground text-xs">
-          Ordered share: {Math.round(orderedShare)}% • Pending share:{" "}
-          {Math.round(pendingShare)}%
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function OrganizationSidebar({
@@ -210,205 +163,6 @@ function OrganizationSidebar({
   );
 }
 
-function OrgDetailSidebar({
-  selectedOrg,
-  onClose,
-  onRemove,
-  totalBudget,
-  onBudgetChange,
-}: {
-  selectedOrg: OrganizationSummary;
-  onClose: () => void;
-  onRemove: (organization: OrganizationSummary) => void;
-  totalBudget: number;
-  onBudgetChange: (organizationId: string, amount: number) => Promise<void>;
-}) {
-  const [budgetValue, setBudgetValue] = useState(
-    String(selectedOrg.allocatedBudget ?? 0)
-  );
-  const [isSaving, startSaving] = useTransition();
-
-  const remainingBudget = Math.max(
-    totalBudget - selectedOrg.allocatedBudget,
-    0
-  );
-
-  return (
-    <aside className="w-full max-w-[48%] shrink-0 border-r bg-background p-4">
-      <div className="flex items-center justify-between gap-3 border-b pb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex size-12 items-center justify-center rounded-xl font-bold text-sm text-white"
-            style={{
-              background:
-                "linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%)",
-            }}
-          >
-            {getInitials(selectedOrg.name)}
-          </div>
-          <div>
-            <p className="font-semibold text-lg">{selectedOrg.name}</p>
-            <p className="text-muted-foreground text-xs">
-              {selectedOrg.members.length} members
-            </p>
-          </div>
-        </div>
-        <Button
-          className="h-8 w-8 rounded-full p-0"
-          onClick={onClose}
-          type="button"
-          variant="outline"
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-      </div>
-
-      <div className="mt-4 space-y-4">
-        <div className="rounded-xl border p-3">
-          <h3 className="mb-2 font-semibold text-base">Members</h3>
-          <div className="space-y-2">
-            {selectedOrg.members.map((member) => (
-              <div
-                className="flex items-center justify-between gap-3 rounded-lg border p-2 text-sm"
-                key={member.id}
-              >
-                <span>{member.user.name}</span>
-                <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
-                  {member.role}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-xl border p-3">
-          <h3 className="mb-2 font-semibold text-base">Order value</h3>
-          <PieChart
-            orderedTotal={selectedOrg.orderedTotal}
-            pendingTotal={selectedOrg.pendingTotal}
-          />
-        </div>
-
-        <div className="rounded-xl border p-3">
-          <h3 className="mb-2 font-semibold text-base">Budget</h3>
-          <div className="space-y-3">
-            <label className="block space-y-1">
-              <span className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
-                Allocated budget
-              </span>
-              <input
-                className="w-full rounded-md border bg-background px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                min="0"
-                onChange={(event) => setBudgetValue(event.target.value)}
-                step="0.01"
-                type="number"
-                value={budgetValue}
-              />
-            </label>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Remaining</span>
-              <span className="font-medium">
-                {formatCurrency(remainingBudget)}
-              </span>
-            </div>
-            <Button
-              className="w-full"
-              disabled={isSaving}
-              onClick={() => {
-                startSaving(async () => {
-                  await onBudgetChange(
-                    selectedOrg.id,
-                    Number(budgetValue || 0)
-                  );
-                });
-              }}
-              variant="outline"
-            >
-              Save budget
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <Button asChild className="flex-1" variant="outline">
-            <Link href={`/dashboard/organization/${selectedOrg.slug}`}>
-              Open organization
-            </Link>
-          </Button>
-          <Button
-            className="flex-1"
-            onClick={() => onRemove(selectedOrg)}
-            variant="destructive"
-          >
-            Remove org
-          </Button>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-function DeleteOrganizationDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  onCancel,
-  removalKey,
-  onKeyChange,
-  isPending,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  onCancel: () => void;
-  removalKey: string;
-  onKeyChange: (value: string) => void;
-  isPending: boolean;
-}) {
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Remove organisation</DialogTitle>
-          <DialogDescription>
-            Enter the removal key to permanently delete this organisation.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="font-medium text-sm" htmlFor="removal-key">
-              Removal key
-            </label>
-            <input
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
-              id="removal-key"
-              onChange={(event) => onKeyChange(event.target.value)}
-              placeholder="Enter saved org removal key"
-              type="password"
-              value={removalKey}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button onClick={onCancel} type="button" variant="outline">
-              Cancel
-            </Button>
-            <Button
-              disabled={isPending || !removalKey.trim()}
-              onClick={onConfirm}
-              type="button"
-              variant="destructive"
-            >
-              Confirm removal
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function AdminDashboard({
   organizations,
   totalBudget,
@@ -416,17 +170,10 @@ export function AdminDashboard({
   organizations: OrganizationSummary[];
   totalBudget: number;
 }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [collapsed, setCollapsed] = useState(false);
   const [activeOrganizationId, setActiveOrganizationId] = useState(
     organizations[0]?.id ?? null
   );
-  const [orgDetailOpen, setOrgDetailOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [removalKey, setRemovalKey] = useState("");
-  const [pendingDelete, setPendingDelete] =
-    useState<OrganizationSummary | null>(null);
 
   const activeOrganization = useMemo(
     () =>
@@ -437,72 +184,6 @@ export function AdminDashboard({
       null,
     [activeOrganizationId, organizations]
   );
-
-  const handleOpenInfo = (organization: OrganizationSummary) => {
-    const isSameOrg = activeOrganizationId === organization.id && orgDetailOpen;
-
-    setActiveOrganizationId(organization.id);
-    setOrgDetailOpen(!isSameOrg);
-  };
-
-  const handleRemoveMember = (memberId: string) => {
-    startTransition(async () => {
-      const result = await removeMember(memberId);
-
-      if (!result.success) {
-        toast.error(result.error || "Failed to remove member.");
-        return;
-      }
-
-      toast.success("Member removed.");
-      router.refresh();
-    });
-  };
-
-  const handleDeleteOrganization = () => {
-    if (!pendingDelete) {
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await deleteOrganization(pendingDelete.id, removalKey);
-
-      if (!result.success) {
-        toast.error(result.error || "Failed to remove organization.");
-        return;
-      }
-
-      toast.success("Organization removed.");
-      setDeleteOpen(false);
-      setPendingDelete(null);
-      setRemovalKey("");
-      router.refresh();
-    });
-  };
-
-  const handleBudgetChange = async (organizationId: string, amount: number) => {
-    const result = await saveOrganizationBudget(organizationId, amount);
-
-    if (!result.success) {
-      toast.error(result.error || "Unable to update the organization budget.");
-      return;
-    }
-
-    toast.success("Organization budget saved.");
-    router.refresh();
-  };
-
-  const handleTotalBudgetChange = async (amount: number) => {
-    const result = await saveTotalBudget(amount);
-
-    if (!result.success) {
-      toast.error("Unable to update the total budget.");
-      return;
-    }
-
-    toast.success("Total budget updated.");
-    router.refresh();
-  };
 
   const selectedOrg = activeOrganization;
 
@@ -531,51 +212,19 @@ export function AdminDashboard({
           <Button asChild variant="outline">
             <Link href="/dashboard">Back to dashboard</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/admin/orders">Upcoming orders</Link>
+          </Button>
         </div>
       </div>
 
       <div className="mb-4 rounded-xl border bg-card p-4 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
-              Total budget
-            </p>
-            <p className="mt-1 font-semibold text-2xl">
-              {formatCurrency(totalBudget)}
-            </p>
-          </div>
-          <div className="flex w-full max-w-xs flex-col gap-2">
-            <label
-              className="text-muted-foreground text-xs uppercase tracking-[0.12em]"
-              htmlFor="admin-total-budget"
-            >
-              Set total budget
-            </label>
-            <div className="flex gap-2">
-              <input
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                defaultValue={String(totalBudget)}
-                id="admin-total-budget"
-                min="0"
-                step="0.01"
-                type="number"
-              />
-              <Button
-                onClick={() => {
-                  const input = document.getElementById(
-                    "admin-total-budget"
-                  ) as HTMLInputElement | null;
-                  const value = Number(input?.value ?? 0);
-                  handleTotalBudgetChange(value);
-                }}
-                type="button"
-                variant="outline"
-              >
-                Save
-              </Button>
-            </div>
-          </div>
-        </div>
+        <p className="text-muted-foreground text-xs uppercase tracking-[0.12em]">
+          Total budget
+        </p>
+        <p className="mt-1 font-semibold text-2xl">
+          {formatCurrency(totalBudget)}
+        </p>
       </div>
 
       {organizations.length === 0 ? (
@@ -586,173 +235,17 @@ export function AdminDashboard({
         <div className="flex min-h-[75vh] w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
           <OrganizationSidebar
             collapsed={collapsed}
-            onSelect={handleOpenInfo}
+            onSelect={(organization) =>
+              setActiveOrganizationId(organization.id)
+            }
             onToggleCollapse={() => setCollapsed((value) => !value)}
             organizations={organizations}
             selectedOrg={selectedOrg}
           />
 
-          <div className="flex min-w-0 flex-1">
-            {selectedOrg && orgDetailOpen ? (
-              <OrgDetailSidebar
-                onBudgetChange={handleBudgetChange}
-                onClose={() => setOrgDetailOpen(false)}
-                onRemove={(organization) => {
-                  setPendingDelete(organization);
-                  setDeleteOpen(true);
-                  setOrgDetailOpen(false);
-                }}
-                selectedOrg={selectedOrg}
-                totalBudget={totalBudget}
-              />
-            ) : (
-              <div className="hidden w-[28rem] max-w-[38%] border-r bg-background/40 xl:block" />
-            )}
-
-            <main className="flex flex-1 flex-col gap-4 p-4">
-              {selectedOrg ? (
-                <>
-                  <div className="flex items-center justify-between gap-3 border-b pb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, #22c55e 0%, #14b8a6 50%, #3b82f6 100%)",
-                        }}
-                      >
-                        {getInitials(selectedOrg.name)}
-                      </div>
-                      <div>
-                        <h2 className="font-semibold text-2xl">
-                          {selectedOrg.name}
-                        </h2>
-                        <p className="text-muted-foreground text-sm">
-                          {selectedOrg.members.length} members •{" "}
-                          {selectedOrg.agendaItems.length} agenda items
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild variant="outline">
-                        <Link
-                          href={`/dashboard/organization/${selectedOrg.slug}`}
-                        >
-                          Open organization
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline">
-                        <Link href="/dashboard/admin/orders">
-                          Upcoming orders
-                        </Link>
-                      </Button>
-                      <Button
-                        disabled={isPending}
-                        onClick={() => {
-                          setPendingDelete(selectedOrg);
-                          setDeleteOpen(true);
-                        }}
-                        variant="destructive"
-                      >
-                        <Trash2 className="mr-2 size-4" />
-                        Remove org
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      <div className="rounded-xl border p-4">
-                        <h3 className="mb-3 font-semibold text-lg">Members</h3>
-                        <div className="space-y-2">
-                          {selectedOrg.members.map((member) => (
-                            <div
-                              className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                              key={member.id}
-                            >
-                              <div>
-                                <p className="font-medium">
-                                  {member.user.name}
-                                </p>
-                                <p className="text-muted-foreground text-xs">
-                                  {member.user.email}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
-                                  {member.role}
-                                </span>
-                                {member.role !== "owner" ? (
-                                  <Button
-                                    disabled={isPending}
-                                    onClick={() =>
-                                      handleRemoveMember(member.id)
-                                    }
-                                    size="sm"
-                                    variant="destructive"
-                                  >
-                                    Remove
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border p-4">
-                        <h3 className="mb-3 font-semibold text-lg">Agenda</h3>
-                        <div className="space-y-2">
-                          {selectedOrg.agendaItems.length > 0 ? (
-                            selectedOrg.agendaItems.map((agendaItem) => (
-                              <div
-                                className="rounded-lg border p-3 text-sm"
-                                key={agendaItem.id}
-                              >
-                                <p className="font-medium">
-                                  {agendaItem.title}
-                                </p>
-                                <p className="text-muted-foreground text-xs">
-                                  {new Date(agendaItem.start).toLocaleString()}
-                                </p>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
-                              No agenda items yet.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </main>
-          </div>
+          <main className="flex flex-1 bg-muted/10" />
         </div>
       )}
-
-      <DeleteOrganizationDialog
-        isPending={isPending}
-        onCancel={() => {
-          setDeleteOpen(false);
-          setPendingDelete(null);
-          setRemovalKey("");
-        }}
-        onConfirm={handleDeleteOrganization}
-        onKeyChange={setRemovalKey}
-        onOpenChange={(open) => {
-          setDeleteOpen(open);
-          if (!open) {
-            setPendingDelete(null);
-            setRemovalKey("");
-          }
-        }}
-        open={deleteOpen}
-        removalKey={removalKey}
-      />
     </div>
   );
 }

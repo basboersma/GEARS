@@ -1,13 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { db } from "@/db/drizzle";
-import {
-  agendaEvent,
-  member,
-  orderRequest,
-  organization,
-  organizationBudget,
-} from "@/db/schema";
+import { agendaEvent, member, orderRequest, organization } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 export default async function AdminDashboardPage() {
@@ -40,28 +34,10 @@ export default async function AdminDashboardPage() {
     },
   });
 
-  let totalBudget = 0;
-  let budgetMap = new Map<string, number>();
-
-  try {
-    const [totalBudgetRow, organizationBudgetRows] = await Promise.all([
-      db.query.budgetSetting.findFirst(),
-      db.query.organizationBudget.findMany({
-        where: inArray(organizationBudget.organizationId, organizationIds),
-      }),
-    ]);
-
-    totalBudget = Number(totalBudgetRow?.totalBudget ?? 0);
-    budgetMap = new Map(
-      organizationBudgetRows.map((entry) => [
-        entry.organizationId,
-        Number(entry.allocatedBudget ?? 0),
-      ])
-    );
-  } catch {
-    totalBudget = 0;
-    budgetMap = new Map();
-  }
+  const totalBudget = organizations.reduce(
+    (sum, org) => sum + Number(org.budget ?? 0),
+    0
+  );
 
   const summaries = await Promise.all(
     organizations.map(async (org) => {
@@ -149,7 +125,7 @@ export default async function AdminDashboardPage() {
         orderedTotal,
         pendingTotal,
         upcomingOrders,
-        allocatedBudget: budgetMap.get(org.id) ?? 0,
+        allocatedBudget: Number(org.budget ?? 0),
       };
     })
   );
