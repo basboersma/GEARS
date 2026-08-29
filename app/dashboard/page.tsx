@@ -1,65 +1,38 @@
-import { eq } from "drizzle-orm";
-import Link from "next/link";
-import { CreateOrganizationForm } from "@/components/forms/create-organization-form";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { eq, inArray } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { db } from "@/db/drizzle";
-import { member } from "@/db/schema";
-import { getOrganizations } from "@/server/organizations";
+import { member, organization } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 export default async function Dashboard() {
-  const organizations = await getOrganizations();
   const { currentUser } = await getCurrentUser();
 
   const memberships = await db.query.member.findMany({
     where: eq(member.userId, currentUser.id),
   });
 
-  const showAdminButton = memberships.some(
-    (membership) => membership.role === "admin"
+  if (memberships.some((membership) => membership.role === "admin")) {
+    redirect("/dashboard/admin");
+  }
+
+  const organizationIds = memberships.map(
+    (membership) => membership.organizationId
   );
 
-  return (
-    <div className="flex h-screen flex-col items-center justify-center gap-2">
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline">Create Organization</Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Organization</DialogTitle>
-            <DialogDescription>
-              Create a new organization to get started.
-            </DialogDescription>
-          </DialogHeader>
-          <CreateOrganizationForm />
-        </DialogContent>
-      </Dialog>
+  if (organizationIds.length === 0) {
+    redirect("/dashboard/admin");
+  }
 
-      {showAdminButton ? (
-        <Button asChild variant="default">
-          <Link href="/dashboard/admin">Admin Dashboard</Link>
-        </Button>
-      ) : null}
+  const organizations = await db.query.organization.findMany({
+    where: inArray(organization.id, organizationIds),
+    orderBy: (organization, { asc }) => [asc(organization.name)],
+  });
 
-      <div className="flex flex-col gap-2">
-        <h2 className="font-bold text-2xl">Organizations</h2>
-        {organizations.map((organization) => (
-          <Button asChild key={organization.id} variant="outline">
-            <Link href={`/dashboard/organization/${organization.slug}`}>
-              {organization.name}
-            </Link>
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
+  const firstOrganization = organizations[0];
+
+  if (firstOrganization?.slug) {
+    redirect(`/dashboard/organization/${firstOrganization.slug}`);
+  }
+
+  redirect("/dashboard/admin");
 }

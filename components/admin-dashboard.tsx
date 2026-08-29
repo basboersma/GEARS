@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { CreateOrganizationForm } from "@/components/forms/create-organization-form";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,6 +13,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { removeMember } from "@/server/members";
 import { deleteOrganization } from "@/server/organizations";
@@ -105,7 +107,7 @@ export function AdminDashboard({
   const [activeOrganizationId, setActiveOrganizationId] = useState(
     organizations[0]?.id ?? null
   );
-  const [infoOpen, setInfoOpen] = useState(false);
+  const [orgDetailOpen, setOrgDetailOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [removalKey, setRemovalKey] = useState("");
   const [pendingDelete, setPendingDelete] =
@@ -122,8 +124,10 @@ export function AdminDashboard({
   );
 
   const handleOpenInfo = (organization: OrganizationSummary) => {
+    const isSameOrg = activeOrganizationId === organization.id && orgDetailOpen;
+
     setActiveOrganizationId(organization.id);
-    setInfoOpen(true);
+    setOrgDetailOpen(!isSameOrg);
   };
 
   const handleRemoveMember = (memberId: string) => {
@@ -164,15 +168,31 @@ export function AdminDashboard({
   const selectedOrg = activeOrganization;
 
   return (
-    <div className="mx-auto max-w-7xl py-10">
-      <div className="mb-6 flex items-center justify-between gap-3">
+    <div className="min-h-screen w-full px-3 py-6 sm:px-4 lg:px-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-muted-foreground text-sm">Administration</p>
           <h1 className="font-bold text-3xl">Admin Dashboard</h1>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/dashboard">Back to dashboard</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">Create Organisation</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Organization</DialogTitle>
+                <DialogDescription>
+                  Create a new organization to get started.
+                </DialogDescription>
+              </DialogHeader>
+              <CreateOrganizationForm />
+            </DialogContent>
+          </Dialog>
+          <Button asChild variant="outline">
+            <Link href="/dashboard">Back to dashboard</Link>
+          </Button>
+        </div>
       </div>
 
       {organizations.length === 0 ? (
@@ -180,7 +200,7 @@ export function AdminDashboard({
           You are not an admin for any organization.
         </div>
       ) : (
-        <div className="flex min-h-[70vh] gap-4 overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="flex min-h-[75vh] w-full overflow-hidden rounded-2xl border bg-card shadow-sm">
           <aside
             className={`border-r bg-muted/20 transition-all duration-300 ${
               collapsed ? "w-20" : "w-72"
@@ -250,33 +270,69 @@ export function AdminDashboard({
             </div>
           </aside>
 
-          <main className="flex flex-1 flex-col gap-4 p-4">
-            {selectedOrg ? (
-              <>
+          <div className="flex min-w-0 flex-1">
+            {selectedOrg && orgDetailOpen ? (
+              <aside className="w-full max-w-[48%] shrink-0 border-r bg-background p-4">
                 <div className="flex items-center justify-between gap-3 border-b pb-4">
                   <div className="flex items-center gap-3">
                     <div
-                      className="flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white"
+                      className="flex size-12 items-center justify-center rounded-xl font-bold text-sm text-white"
                       style={{
                         background:
-                          "linear-gradient(135deg, #22c55e 0%, #14b8a6 50%, #3b82f6 100%)",
+                          "linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%)",
                       }}
                     >
                       {getInitials(selectedOrg.name)}
                     </div>
                     <div>
-                      <h2 className="font-semibold text-2xl">
+                      <p className="font-semibold text-lg">
                         {selectedOrg.name}
-                      </h2>
-                      <p className="text-muted-foreground text-sm">
-                        {selectedOrg.members.length} members •{" "}
-                        {selectedOrg.agendaItems.length} agenda items
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {selectedOrg.members.length} members
                       </p>
                     </div>
                   </div>
+                  <Button
+                    className="h-8 w-8 rounded-full p-0"
+                    onClick={() => setOrgDetailOpen(false)}
+                    type="button"
+                    variant="outline"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-xl border p-3">
+                    <h3 className="mb-2 font-semibold text-base">Members</h3>
+                    <div className="space-y-2">
+                      {selectedOrg.members.map((member) => (
+                        <div
+                          className="flex items-center justify-between gap-3 rounded-lg border p-2 text-sm"
+                          key={member.id}
+                        >
+                          <span>{member.user.name}</span>
+                          <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
+                            {member.role}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border p-3">
+                    <h3 className="mb-2 font-semibold text-base">
+                      Order value
+                    </h3>
+                    <PieChart
+                      orderedTotal={selectedOrg.orderedTotal}
+                      pendingTotal={selectedOrg.pendingTotal}
+                    />
+                  </div>
 
                   <div className="flex gap-2">
-                    <Button asChild variant="outline">
+                    <Button asChild className="flex-1" variant="outline">
                       <Link
                         href={`/dashboard/organization/${selectedOrg.slug}`}
                       >
@@ -284,191 +340,173 @@ export function AdminDashboard({
                       </Link>
                     </Button>
                     <Button
-                      disabled={isPending}
+                      className="flex-1"
                       onClick={() => {
                         setPendingDelete(selectedOrg);
                         setDeleteOpen(true);
+                        setOrgDetailOpen(false);
                       }}
                       variant="destructive"
                     >
-                      <Trash2 className="mr-2 size-4" />
                       Remove org
                     </Button>
                   </div>
                 </div>
-
-                <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                  <div className="space-y-4">
-                    <div className="rounded-xl border p-4">
-                      <h3 className="mb-3 font-semibold text-lg">Members</h3>
-                      <div className="space-y-2">
-                        {selectedOrg.members.map((member) => (
-                          <div
-                            className="flex items-center justify-between gap-3 rounded-lg border p-3"
-                            key={member.id}
-                          >
-                            <div>
-                              <p className="font-medium">{member.user.name}</p>
-                              <p className="text-muted-foreground text-xs">
-                                {member.user.email}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
-                                {member.role}
-                              </span>
-                              {member.role !== "owner" ? (
-                                <Button
-                                  disabled={isPending}
-                                  onClick={() => handleRemoveMember(member.id)}
-                                  size="sm"
-                                  variant="destructive"
-                                >
-                                  Remove
-                                </Button>
-                              ) : null}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl border p-4">
-                      <h3 className="mb-3 font-semibold text-lg">Agenda</h3>
-                      <div className="space-y-2">
-                        {selectedOrg.agendaItems.length > 0 ? (
-                          selectedOrg.agendaItems.map((agendaItem) => (
-                            <div
-                              className="rounded-lg border p-3 text-sm"
-                              key={agendaItem.id}
-                            >
-                              <p className="font-medium">{agendaItem.title}</p>
-                              <p className="text-muted-foreground text-xs">
-                                {new Date(agendaItem.start).toLocaleString()}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
-                            No agenda items yet.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border bg-muted/30 p-4">
-                    <h3 className="mb-3 font-semibold text-lg">Order value</h3>
-                    <PieChart
-                      orderedTotal={selectedOrg.orderedTotal}
-                      pendingTotal={selectedOrg.pendingTotal}
-                    />
-                    <div className="mt-4 space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <span>Total</span>
-                        <span className="font-semibold">
-                          {formatCurrency(
-                            selectedOrg.orderedTotal + selectedOrg.pendingTotal
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-emerald-600">
-                        <span>Ordered</span>
-                        <span>{formatCurrency(selectedOrg.orderedTotal)}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-amber-500">
-                        <span>Pending</span>
-                        <span>{formatCurrency(selectedOrg.pendingTotal)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
+              </aside>
             ) : null}
-          </main>
+
+            <main className="flex flex-1 flex-col gap-4 p-4">
+              {selectedOrg ? (
+                <>
+                  <div className="flex items-center justify-between gap-3 border-b pb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, #22c55e 0%, #14b8a6 50%, #3b82f6 100%)",
+                        }}
+                      >
+                        {getInitials(selectedOrg.name)}
+                      </div>
+                      <div>
+                        <h2 className="font-semibold text-2xl">
+                          {selectedOrg.name}
+                        </h2>
+                        <p className="text-muted-foreground text-sm">
+                          {selectedOrg.members.length} members •{" "}
+                          {selectedOrg.agendaItems.length} agenda items
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button asChild variant="outline">
+                        <Link
+                          href={`/dashboard/organization/${selectedOrg.slug}`}
+                        >
+                          Open organization
+                        </Link>
+                      </Button>
+                      <Button
+                        disabled={isPending}
+                        onClick={() => {
+                          setPendingDelete(selectedOrg);
+                          setDeleteOpen(true);
+                        }}
+                        variant="destructive"
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        Remove org
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                    <div className="space-y-4">
+                      <div className="rounded-xl border p-4">
+                        <h3 className="mb-3 font-semibold text-lg">Members</h3>
+                        <div className="space-y-2">
+                          {selectedOrg.members.map((member) => (
+                            <div
+                              className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                              key={member.id}
+                            >
+                              <div>
+                                <p className="font-medium">
+                                  {member.user.name}
+                                </p>
+                                <p className="text-muted-foreground text-xs">
+                                  {member.user.email}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
+                                  {member.role}
+                                </span>
+                                {member.role !== "owner" ? (
+                                  <Button
+                                    disabled={isPending}
+                                    onClick={() =>
+                                      handleRemoveMember(member.id)
+                                    }
+                                    size="sm"
+                                    variant="destructive"
+                                  >
+                                    Remove
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border p-4">
+                        <h3 className="mb-3 font-semibold text-lg">Agenda</h3>
+                        <div className="space-y-2">
+                          {selectedOrg.agendaItems.length > 0 ? (
+                            selectedOrg.agendaItems.map((agendaItem) => (
+                              <div
+                                className="rounded-lg border p-3 text-sm"
+                                key={agendaItem.id}
+                              >
+                                <p className="font-medium">
+                                  {agendaItem.title}
+                                </p>
+                                <p className="text-muted-foreground text-xs">
+                                  {new Date(agendaItem.start).toLocaleString()}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
+                              No agenda items yet.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border bg-muted/30 p-4">
+                      <h3 className="mb-3 font-semibold text-lg">
+                        Order value
+                      </h3>
+                      <PieChart
+                        orderedTotal={selectedOrg.orderedTotal}
+                        pendingTotal={selectedOrg.pendingTotal}
+                      />
+                      <div className="mt-4 space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span>Total</span>
+                          <span className="font-semibold">
+                            {formatCurrency(
+                              selectedOrg.orderedTotal +
+                                selectedOrg.pendingTotal
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-emerald-600">
+                          <span>Ordered</span>
+                          <span>
+                            {formatCurrency(selectedOrg.orderedTotal)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-amber-500">
+                          <span>Pending</span>
+                          <span>
+                            {formatCurrency(selectedOrg.pendingTotal)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </main>
+          </div>
         </div>
       )}
-
-      <Dialog onOpenChange={setInfoOpen} open={infoOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedOrg?.name ?? "Organization details"}
-            </DialogTitle>
-            <DialogDescription>
-              Full organization overview and admin actions.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedOrg ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex size-14 items-center justify-center rounded-2xl font-bold text-lg text-white"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%)",
-                  }}
-                >
-                  {getInitials(selectedOrg.name)}
-                </div>
-                <div>
-                  <p className="font-semibold text-xl">{selectedOrg.name}</p>
-                  <p className="text-muted-foreground text-sm">
-                    {selectedOrg.members.length} members •{" "}
-                    {selectedOrg.agendaItems.length} agenda items
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border p-4">
-                  <h3 className="mb-2 font-semibold text-lg">Members</h3>
-                  <div className="space-y-2">
-                    {selectedOrg.members.map((member) => (
-                      <div
-                        className="flex items-center justify-between gap-3 rounded-lg border p-2 text-sm"
-                        key={member.id}
-                      >
-                        <span>{member.user.name}</span>
-                        <span className="rounded-full bg-muted px-2 py-1 text-[10px] uppercase tracking-[0.15em]">
-                          {member.role}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border p-4">
-                  <h3 className="mb-2 font-semibold text-lg">Order value</h3>
-                  <PieChart
-                    orderedTotal={selectedOrg.orderedTotal}
-                    pendingTotal={selectedOrg.pendingTotal}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button asChild variant="outline">
-                  <Link href={`/dashboard/organization/${selectedOrg.slug}`}>
-                    Go to org page
-                  </Link>
-                </Button>
-                <Button
-                  onClick={() => {
-                    setPendingDelete(selectedOrg);
-                    setDeleteOpen(true);
-                    setInfoOpen(false);
-                  }}
-                  variant="destructive"
-                >
-                  Remove organisation
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         onOpenChange={(open) => {
