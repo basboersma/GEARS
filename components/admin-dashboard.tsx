@@ -246,23 +246,21 @@ function OrgDetailSidebar({
             </p>
           </div>
         </div>
-        <Button
-          className="h-8 w-8 rounded-full p-0"
-          onClick={onClose}
-          type="button"
-          variant="outline"
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-[#FFD142]/60 bg-[#FFD142]/10 p-3">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
-          Total budget
-        </p>
-        <p className="mt-1 font-bold text-3xl text-foreground leading-none">
-          {formatCurrency(selectedOrg.allocatedBudget)}
-        </p>
+        <div className="flex items-center gap-2">
+          <Button asChild type="button" variant="outline">
+            <Link href={`/dashboard/organization/${selectedOrg.slug}`}>
+              Visit organisation
+            </Link>
+          </Button>
+          <Button
+            className="h-8 w-8 rounded-full p-0"
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="mt-4 space-y-4 overflow-y-auto">
@@ -432,6 +430,20 @@ function OrgDetailSidebar({
   );
 }
 
+function BudgetTooltip(node: {
+  data: BudgetHierarchyNode;
+  formattedValue?: string;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-background px-2.5 py-1.5 text-xs shadow-sm">
+      <div className="font-medium text-foreground">{node.data.name}</div>
+      <div className="text-muted-foreground">
+        {node.formattedValue || formatCurrency(Number(node.data.value ?? 0))}
+      </div>
+    </div>
+  );
+}
+
 function BudgetBreakdownPanel({ data }: { data: BudgetHierarchyNode }) {
   return (
     <div className="flex h-full min-h-[420px] flex-1 flex-col bg-muted/5 p-4">
@@ -452,6 +464,8 @@ function BudgetBreakdownPanel({ data }: { data: BudgetHierarchyNode }) {
           colors={(node) => node.data.color ?? "#8b5cf6"}
           data={data}
           enableLabels
+          identity="name"
+          label={(node) => node.data.name}
           labelAlign="start"
           labelBaseline="center"
           labelPaddingX={6}
@@ -460,6 +474,7 @@ function BudgetBreakdownPanel({ data }: { data: BudgetHierarchyNode }) {
           labelSkipWidth={28}
           labelTextColor={{ from: "color", modifiers: [["darker", 1.5]] }}
           margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          tooltip={BudgetTooltip}
           valueFormat=">-.0s"
         />
       </div>
@@ -530,11 +545,9 @@ function DeleteOrganizationDialog({
 
 export function AdminDashboard({
   organizations,
-  totalBudget,
   budgetBreakdown,
 }: {
   organizations: OrganizationSummary[];
-  totalBudget: number;
   budgetBreakdown: BudgetHierarchyNode;
 }) {
   const router = useRouter();
@@ -634,15 +647,6 @@ export function AdminDashboard({
             <Link href="/dashboard/admin/orders">Upcoming orders</Link>
           </Button>
         </div>
-      </div>
-
-      <div className="mb-4 rounded-xl border border-[#FFD142]/60 bg-[#FFD142]/10 p-4 shadow-sm">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">
-          Total budget
-        </p>
-        <p className="mt-1 font-semibold text-3xl text-foreground">
-          {formatCurrency(totalBudget)}
-        </p>
       </div>
 
       {organizations.length === 0 ? (

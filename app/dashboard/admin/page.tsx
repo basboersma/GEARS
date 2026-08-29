@@ -51,16 +51,14 @@ export default async function AdminDashboardPage() {
   };
 
   const budgetBreakdown = {
-    name: "Total budget",
+    name: "Total Budget",
+    value: totalBudget,
     color: "#FFD142",
     children: organizations.map((org) => {
       const orgRows = allOrderRows.filter(
         (row) => row.organizationId === org.id
       );
-      const orgTotal = orgRows.reduce(
-        (sum, row) => sum + Number(row.totalCosts || 0),
-        0
-      );
+      const orgBudget = Number(org.budget ?? 0);
 
       const departmentMap = orgRows.reduce<Record<string, typeof orgRows>>(
         (groups, row) => {
@@ -106,7 +104,7 @@ export default async function AdminDashboardPage() {
 
       return {
         name: org.name,
-        value: orgTotal,
+        value: orgBudget,
         color: "#8b5cf6",
         children:
           departmentChildren.length > 0 ? departmentChildren : undefined,
@@ -209,7 +207,6 @@ export default async function AdminDashboardPage() {
     <AdminDashboard
       budgetBreakdown={budgetBreakdown}
       organizations={summaries}
-      totalBudget={totalBudget}
     />
   );
 }
