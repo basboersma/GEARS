@@ -1,16 +1,23 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
-import { lastLoginMethod, organization } from "better-auth/plugins";
+import {
+  lastLoginMethod,
+  organization as organizationPlugin,
+} from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import type { ReactNode } from "react";
 import { Resend } from "resend";
 import OrganizationInvitationEmail from "@/components/emails/organization-invitation";
 import ForgotPasswordEmail from "@/components/emails/reset-password";
 import VerifyEmail from "@/components/emails/verify-email";
 import { db } from "@/db/drizzle";
-import { schema } from "@/db/schema";
-import { getActiveOrganization } from "@/server/organizations";
-import { admin, member, owner } from "./auth/permissions";
+import {
+  member as memberTable,
+  organization as organizationTable,
+  schema,
+} from "@/db/schema";
+import { admin, owner, member as permissionMember } from "./auth/permissions";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -21,6 +28,20 @@ const senderName = process.env.EMAIL_SENDER_NAME ?? "GEARS";
 const senderEmail = senderAddress?.includes("@")
   ? `${senderName} <${senderAddress}>`
   : null;
+
+async function resolveActiveOrganizationForUser(userId: string) {
+  const membership = await db.query.member.findFirst({
+    where: eq(memberTable.userId, userId),
+  });
+
+  if (!membership) {
+    return null;
+  }
+
+  return db.query.organization.findFirst({
+    where: eq(organizationTable.id, membership.organizationId),
+  });
+}
 
 async function sendEmailSafely({
   to,
@@ -119,7 +140,7 @@ export const auth = betterAuth({
 
           // Do not block login if organization lookup fails.
           try {
-            const activeOrganization = await getActiveOrganization(
+            const activeOrganization = await resolveActiveOrganizationForUser(
               session.userId
             );
             activeOrganizationId = activeOrganization?.id;
@@ -145,7 +166,7 @@ export const auth = betterAuth({
     schema,
   }),
   plugins: [
-    organization({
+    organizationPlugin({
       //organizationOnly: false,
       sendInvitationEmail: async (data) => {
         const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/accept-invitation/${data.id}`;
@@ -165,7 +186,7 @@ export const auth = betterAuth({
       roles: {
         owner,
         admin,
-        member,
+        member: permissionMember,
       },
     }),
     lastLoginMethod(),
