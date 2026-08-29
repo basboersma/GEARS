@@ -119,8 +119,7 @@ export async function GET(request: Request) {
   );
   const viewerRole = access.membership.role;
 
-  const canViewOrderBatches =
-    viewerRole === "owner" || viewerRole === "admin" || viewerRole === "member";
+  const canViewOrderBatches = viewerRole === "admin";
 
   const orderRows = canViewOrderBatches
     ? await db.query.orderRequest.findMany({
