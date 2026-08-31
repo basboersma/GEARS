@@ -31,14 +31,28 @@ export async function createMeetingDocument({
 }) {
   const serviceAccount = parseServiceAccountJson();
 
-  if ("error" in (serviceAccount ?? {})) {
+  if (!serviceAccount) {
+    const errorMessage =
+      "Google Drive integration is not configured. Add GOOGLE_SERVICE_ACCOUNT_JSON and verify the service account email is valid.";
+
+    console.warn(errorMessage, {
+      hasFolderId: Boolean(driveFolderId),
+    });
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+
+  if ("error" in serviceAccount) {
     return {
       success: false,
       error: serviceAccount.error,
     };
   }
 
-  if (!(serviceAccount?.private_key && serviceAccount.client_email)) {
+  if (!(serviceAccount.private_key && serviceAccount.client_email)) {
     const errorMessage =
       "Google Drive integration is not configured. Add GOOGLE_SERVICE_ACCOUNT_JSON and verify the service account email is valid.";
 
