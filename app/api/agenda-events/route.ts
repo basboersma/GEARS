@@ -337,6 +337,7 @@ export async function POST(request: Request) {
   }
 
   const eventId = crypto.randomUUID();
+  let docWarning: string | null = null;
 
   let derivedCategory: (typeof categoryEnum)[number] = "task";
 
@@ -380,6 +381,10 @@ export async function POST(request: Request) {
     });
 
     if (docResult && !docResult.success) {
+      docWarning =
+        docResult.error ||
+        "Agenda item was created, but the Google Doc was not created.";
+
       console.warn(
         "Meeting created in database, but Google Doc creation failed",
         {
@@ -407,5 +412,9 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    warning: docWarning ?? undefined,
+    docCreated: !docWarning,
+  });
 }

@@ -811,14 +811,25 @@ export function OrganizationAgenda({
         }),
       });
 
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+        warning?: string;
+        docCreated?: boolean;
+      } | null;
+
       if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
         throw new Error(data?.error ?? "Failed to create item");
       }
 
-      toast.success("Agenda item created");
+      if (data?.warning) {
+        toast.warning(
+          "Agenda item created, but the Google Doc was not created. " +
+            data.warning
+        );
+      } else {
+        toast.success("Agenda item created");
+      }
+
       setCreateDialogOpen(false);
       await loadAgenda();
     } catch (error) {
