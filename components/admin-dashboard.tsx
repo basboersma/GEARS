@@ -560,6 +560,7 @@ export function AdminDashboard({
   const [removalKey, setRemovalKey] = useState("");
   const [pendingDelete, setPendingDelete] =
     useState<OrganizationSummary | null>(null);
+  const [testEmail, setTestEmail] = useState("");
 
   const activeOrganization = useMemo(
     () =>
@@ -623,7 +624,46 @@ export function AdminDashboard({
           <p className="text-muted-foreground text-sm">Administration</p>
           <h1 className="font-bold text-3xl">Admin Dashboard</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+            <input
+              className="w-52 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              onChange={(event) => setTestEmail(event.target.value)}
+              placeholder="Send test email to"
+              type="email"
+              value={testEmail}
+            />
+            <Button
+              className="h-8"
+              disabled={isPending || !testEmail.trim()}
+              onClick={() => {
+                startTransition(async () => {
+                  const response = await fetch("/api/test-email", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: testEmail.trim() }),
+                  });
+
+                  const data = (await response.json().catch(() => null)) as {
+                    error?: string;
+                    success?: boolean;
+                  } | null;
+
+                  if (!response.ok) {
+                    toast.error(data?.error || "Unable to send test email.");
+                    return;
+                  }
+
+                  toast.success("Test email sent.");
+                  setTestEmail("");
+                });
+              }}
+              type="button"
+              variant="outline"
+            >
+              Send test email
+            </Button>
+          </div>
           <Dialog>
             <DialogTrigger asChild>
               <Button type="button" variant="outline">
