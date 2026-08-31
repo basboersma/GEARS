@@ -7,6 +7,7 @@ import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const emailSchema = z.object({
+  organizationId: z.string().min(1, "Organization is required."),
   email: z.string().trim().email("Please enter a valid email address."),
 });
 
@@ -19,26 +20,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const membership = await db.query.member.findFirst({
-    where: and(eq(member.userId, session.user.id), eq(member.role, "admin")),
-  });
-
-  if (!membership) {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 }
-    );
-  }
-
   const payload = await request.json();
   const parsed = emailSchema.safeParse(payload);
 
   if (!parsed.success) {
     return NextResponse.json(
       {
-        error: "Invalid email address.",
+        error: "Invalid email address or organization.",
       },
       { status: 400 }
+    );
+  }
+
+  const membership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, session.user.id),
+      eq(member.organizationId, parsed.data.organizationId),
+      eq(member.role, "owner")
+    ),
+  });
+
+  if (!membership) {
+    return NextResponse.json(
+      { error: "Owner access required for this organization." },
+      { status: 403 }
     );
   }
 
