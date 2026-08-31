@@ -318,7 +318,7 @@ function sortOrderBatchItems(items: OrderBatchItem[]) {
   });
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This single component intentionally coordinates calendar navigation, creation flows, and minutes editing.
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: This agenda view is intentionally large but functionally scoped.
 export function OrganizationAgenda({
   canEnableVoting,
   canManageAgenda,

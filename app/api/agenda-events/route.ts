@@ -11,6 +11,7 @@ import {
   orderRequest,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { createMeetingDocument } from "@/lib/google-drive";
 
 const categoryEnum = [
   "meeting",
@@ -72,9 +73,12 @@ async function canManageAgenda(userId: string, organizationId: string) {
     return null;
   }
 
+  const canManage = membership.role === "owner" || membership.role === "admin";
+
   return {
-    canManage: membership.role === "admin",
+    canManage,
     isAdmin: membership.role === "admin",
+    isOwner: membership.role === "owner",
     membership,
   };
 }
@@ -100,7 +104,7 @@ export async function GET(request: Request) {
 
   if (!access) {
     return NextResponse.json(
-      { error: "Only organization admins can view agenda" },
+      { error: "Only organization owners and admins can view agenda" },
       { status: 403 }
     );
   }
@@ -119,7 +123,7 @@ export async function GET(request: Request) {
   );
   const viewerRole = access.membership.role;
 
-  const canViewOrderBatches = viewerRole === "admin";
+  const canViewOrderBatches = viewerRole === "admin" || viewerRole === "owner";
 
   const orderRows = canViewOrderBatches
     ? await db.query.orderRequest.findMany({
@@ -368,6 +372,13 @@ export async function POST(request: Request) {
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+
+  if (isMeetingLike && parsed.data.title.trim()) {
+    await createMeetingDocument({
+      title: parsed.data.title.trim(),
+      description: parsed.data.description.trim(),
+    });
+  }
 
   if (isMeetingLike && parsed.data.discussionPoints.length > 0) {
     await db.insert(agendaDiscussionPoint).values(
