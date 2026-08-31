@@ -6,6 +6,8 @@ import { db } from "@/db/drizzle";
 import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
+const emailAddressPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const emailSchema = z.object({
   organizationId: z.string().min(1, "Organization is required."),
   email: z.string().trim().email("Please enter a valid email address."),
@@ -52,16 +54,18 @@ export async function POST(request: Request) {
     ? (await import("resend")).Resend
     : null;
 
-  if (!(resend && process.env.EMAIL_SENDER_ADDRESS)) {
+  const senderAddress = process.env.EMAIL_SENDER_ADDRESS?.trim();
+
+  if (!(resend && senderAddress && emailAddressPattern.test(senderAddress))) {
     return NextResponse.json(
-      { error: "Email sending is not configured on this server." },
+      { error: "Email sending is not configured correctly on this server." },
       { status: 500 }
     );
   }
 
   const client = new resend(process.env.RESEND_API_KEY);
-  const senderEmail = process.env.EMAIL_SENDER_ADDRESS;
-  const senderName = process.env.EMAIL_SENDER_NAME ?? "GEARS";
+  const senderEmail = senderAddress;
+  const senderName = process.env.EMAIL_SENDER_NAME?.trim() || "GEARS";
 
   try {
     const result = await client.emails.send({

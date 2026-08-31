@@ -23,11 +23,14 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const senderAddress = process.env.EMAIL_SENDER_ADDRESS;
-const senderName = process.env.EMAIL_SENDER_NAME ?? "GEARS";
-const senderEmail = senderAddress?.includes("@")
-  ? `${senderName} <${senderAddress}>`
-  : null;
+const senderAddress = process.env.EMAIL_SENDER_ADDRESS?.trim();
+const senderName = process.env.EMAIL_SENDER_NAME?.trim() || "GEARS";
+const emailAddressPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isValidEmailAddress = (value: string) => emailAddressPattern.test(value);
+const senderEmail =
+  senderAddress && isValidEmailAddress(senderAddress)
+    ? `${senderName} <${senderAddress}>`
+    : null;
 
 async function resolveActiveOrganizationForUser(userId: string) {
   const membership = await db.query.member.findFirst({
