@@ -374,10 +374,21 @@ export async function POST(request: Request) {
   });
 
   if (isMeetingLike && parsed.data.title.trim()) {
-    await createMeetingDocument({
+    const docResult = await createMeetingDocument({
       title: parsed.data.title.trim(),
       description: parsed.data.description.trim(),
     });
+
+    if (docResult && !docResult.success) {
+      console.warn(
+        "Meeting created in database, but Google Doc creation failed",
+        {
+          organizationId: parsed.data.organizationId,
+          eventId,
+          error: docResult.error,
+        }
+      );
+    }
   }
 
   if (isMeetingLike && parsed.data.discussionPoints.length > 0) {

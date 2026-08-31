@@ -15,7 +15,10 @@ function parseServiceAccountJson() {
     };
   } catch (error) {
     console.error("Invalid GOOGLE_SERVICE_ACCOUNT_JSON config", error);
-    return null;
+    return {
+      error:
+        "GOOGLE_SERVICE_ACCOUNT_JSON is invalid JSON. Check the downloaded service account file and make sure it is pasted as a valid JSON string.",
+    };
   }
 }
 
@@ -28,12 +31,26 @@ export async function createMeetingDocument({
 }) {
   const serviceAccount = parseServiceAccountJson();
 
+  if ("error" in (serviceAccount ?? {})) {
+    return {
+      success: false,
+      error: serviceAccount.error,
+    };
+  }
+
   if (!(serviceAccount?.private_key && serviceAccount.client_email)) {
-    console.warn("Google Drive integration is not configured", {
+    const errorMessage =
+      "Google Drive integration is not configured. Add GOOGLE_SERVICE_ACCOUNT_JSON and verify the service account email is valid.";
+
+    console.warn(errorMessage, {
       hasServiceAccountJson: Boolean(serviceAccount),
       hasFolderId: Boolean(driveFolderId),
     });
-    return null;
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
   }
 
   try {
@@ -63,7 +80,11 @@ export async function createMeetingDocument({
     const docId = file.data.id;
 
     if (!docId) {
-      return null;
+      return {
+        success: false,
+        error:
+          "Google Drive created the file response without an ID. Please check the folder permissions and API access.",
+      };
     }
 
     await docs.documents.batchUpdate({
@@ -81,11 +102,26 @@ export async function createMeetingDocument({
     });
 
     return {
+      success: true,
       id: docId,
       url: file.data.webViewLink ?? undefined,
     };
   } catch (error) {
-    console.error("Failed to create Google Doc for agenda meeting", error);
-    return null;
+    const message =
+      error instanceof Error ? error.message : "Unknown Google Drive error";
+
+    const hint =
+      "Google Drive document creation failed. Check that the service account has Editor access to the shared folder and that the folder ID is valid.";
+
+    console.error("Failed to create Google Doc for agenda meeting", {
+      message,
+      folderId: driveFolderId,
+      error,
+    });
+
+    return {
+      success: false,
+      error: `${hint} Details: ${message}`,
+    };
   }
 }
