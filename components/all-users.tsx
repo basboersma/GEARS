@@ -18,31 +18,25 @@ export default function AllUsers({ users, organizationId }: AllUsersProps) {
   const router = useRouter();
 
   const handleInviteMember = async (user: User) => {
-    setIsLoading(true);
-
     try {
-      const response = await authClient.organization.inviteMember({
+      setIsLoading(true);
+      const { error } = await authClient.organization.inviteMember({
         email: user.email,
         role: "member",
         organizationId,
       });
 
-      if (response.error) {
-        console.error("Failed to invite member", response.error);
-        toast.error(
-          response.error.message ||
-            `Failed to invite member (status ${response.error.status ?? "unknown"})`
-        );
+      if (error) {
+        toast.error(error.message);
         return;
       }
 
+      setIsLoading(false);
       toast.success("Invitation sent to member");
       router.refresh();
     } catch (error) {
-      console.error("Unexpected error inviting member", error);
-      const message =
-        error instanceof Error ? error.message : "Failed to invite member";
-      toast.error(message || "Failed to invite member to organization");
+      toast.error("Failed to invite member to organization");
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
