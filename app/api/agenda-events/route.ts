@@ -9,9 +9,10 @@ import {
   agendaEvent,
   member,
   orderRequest,
+  organization,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { createMeetingDocument } from "@/lib/google-drive";
+import { createMeetingDocument, createMeetingFolder } from "@/lib/google-drive";
 
 const categoryEnum = [
   "meeting",
@@ -375,9 +376,40 @@ export async function POST(request: Request) {
   });
 
   if (isMeetingLike && parsed.data.title.trim()) {
+    const meetingTitle = parsed.data.title.trim();
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, parsed.data.organizationId),
+    });
+
+    let meetingFolderId: string | undefined;
+
+    if (org?.driveMeetingsFolderId) {
+      const folderResult = await createMeetingFolder({
+        title: meetingTitle,
+        parentFolderId: org.driveMeetingsFolderId,
+      });
+
+      if (folderResult.success) {
+        meetingFolderId = folderResult.id;
+      } else {
+        docWarning =
+          folderResult.error ||
+          "Agenda item was created, but the meeting folder was not created.";
+        console.warn(
+          "Meeting created in database, but Google Drive folder creation failed",
+          {
+            organizationId: parsed.data.organizationId,
+            eventId,
+            error: folderResult.error,
+          }
+        );
+      }
+    }
+
     const docResult = await createMeetingDocument({
-      title: parsed.data.title.trim(),
+      title: meetingTitle,
       description: parsed.data.description.trim(),
+      parentFolderId: meetingFolderId,
     });
 
     if (docResult && !docResult.success) {

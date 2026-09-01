@@ -18,6 +18,7 @@ import {
   organization as organizationTable,
   schema,
 } from "@/db/schema";
+import { createOrganizationDriveFolders } from "@/lib/google-drive";
 import { admin, owner, member as permissionMember } from "./auth/permissions";
 
 const resend = process.env.RESEND_API_KEY
@@ -186,6 +187,32 @@ export const auth = betterAuth({
   plugins: [
     organizationPlugin({
       //organizationOnly: false,
+      organizationCreation: {
+        afterCreate: async ({ organization }) => {
+          const result = await createOrganizationDriveFolders({
+            name: organization.name,
+          });
+
+          if (!result.success) {
+            console.error(
+              "Failed to create Google Drive folders for organization",
+              {
+                organizationId: organization.id,
+                error: result.error,
+              }
+            );
+            return;
+          }
+
+          await db
+            .update(organizationTable)
+            .set({
+              driveFolderId: result.folderId,
+              driveMeetingsFolderId: result.meetingsFolderId,
+            })
+            .where(eq(organizationTable.id, organization.id));
+        },
+      },
       sendInvitationEmail: async (data) => {
         const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/accept-invitation/${data.id}`;
 

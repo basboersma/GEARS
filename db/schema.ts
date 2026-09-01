@@ -79,6 +79,8 @@ export const organization = pgTable("organization", {
   createdAt: timestamp("created_at").notNull(),
   metadata: text("metadata"),
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull().default("0"),
+  driveFolderId: text("drive_folder_id"),
+  driveMeetingsFolderId: text("drive_meetings_folder_id"),
 });
 
 export const organizationDepartment = pgTable("organization_department", {
