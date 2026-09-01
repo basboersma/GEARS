@@ -11,6 +11,7 @@ import { Resend } from "resend";
 import OrganizationInvitationEmail from "@/components/emails/organization-invitation";
 import ForgotPasswordEmail from "@/components/emails/reset-password";
 import VerifyEmail from "@/components/emails/verify-email";
+import WelcomeEmail from "@/components/emails/welcome-email";
 import { db } from "@/db/drizzle";
 import {
   member as memberTable,
@@ -136,6 +137,20 @@ export const auth = betterAuth({
     requireEmailVerification: true,
   },
   databaseHooks: {
+    user: {
+      create: {
+        after: async (createdUser) => {
+          await sendEmailSafely({
+            to: createdUser.email,
+            subject: "Welcome to GEARS!",
+            react: WelcomeEmail({
+              username: createdUser.name,
+              dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+            }),
+          });
+        },
+      },
+    },
     session: {
       create: {
         before: async (session) => {
