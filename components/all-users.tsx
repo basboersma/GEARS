@@ -27,7 +27,8 @@ export default function AllUsers({ users, organizationId }: AllUsersProps) {
       });
 
       if (error) {
-        toast.error(error.message);
+        console.error("Failed to invite member", error);
+        toast.error(error.message || "Failed to invite member to organization");
         return;
       }
 
