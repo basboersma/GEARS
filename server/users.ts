@@ -87,14 +87,15 @@ export const getUsers = async (organizationId: string) => {
       where: eq(member.organizationId, organizationId),
     });
 
-    const users = await db.query.user.findMany({
-      where: not(
-        inArray(
-          user.id,
-          members.map((m) => m.userId)
-        )
-      ),
-    });
+    const memberUserIds = members.map((m) => m.userId);
+
+    // inArray/not(inArray()) with an empty list produces invalid SQL, so skip the filter entirely.
+    const users =
+      memberUserIds.length > 0
+        ? await db.query.user.findMany({
+            where: not(inArray(user.id, memberUserIds)),
+          })
+        : await db.query.user.findMany();
 
     return users;
   } catch (error) {
