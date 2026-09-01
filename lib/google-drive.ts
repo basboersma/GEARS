@@ -1,5 +1,7 @@
 const driveFolderId =
   process.env.GOOGLE_DRIVE_FOLDER_ID || "1zjSIzFlh8dEHVdGDZoRKWkC7vROWPG1A";
+const impersonatedUserEmail =
+  process.env.GOOGLE_IMPERSONATED_USER_EMAIL?.trim() || undefined;
 
 function parseServiceAccountJson() {
   const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -70,12 +72,15 @@ export async function createMeetingDocument({
   try {
     const { google } = await import("googleapis");
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: serviceAccount,
+    // Impersonate a real Workspace user so files count against their Drive storage, not the service account's.
+    const auth = new google.auth.JWT({
+      email: serviceAccount.client_email,
+      key: serviceAccount.private_key,
       scopes: [
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/docs",
       ],
+      subject: impersonatedUserEmail,
     });
 
     const drive = google.drive({ version: "v3", auth });
