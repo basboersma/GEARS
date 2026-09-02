@@ -1,11 +1,9 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { User } from "@/db/schema";
-import { authClient } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 
 interface AllUsersProps {
@@ -15,27 +13,30 @@ interface AllUsersProps {
 
 export default function AllUsers({ users, organizationId }: AllUsersProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleInviteMember = async (user: User) => {
     try {
       setIsLoading(true);
-      const { error } = await authClient.organization.inviteMember({
-        email: user.email,
-        role: "member",
-        organizationId,
+      const response = await fetch("/api/organization-invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          organizationId,
+        }),
       });
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
 
-      if (error) {
-        toast.error(error.message);
+      if (!response.ok) {
+        toast.error(data?.error || "Failed to send invitation email.");
         return;
       }
 
-      setIsLoading(false);
-      toast.success("Invitation sent to member");
-      router.refresh();
+      toast.success("Invitation email sent.");
     } catch (error) {
-      toast.error("Failed to invite member to organization");
+      toast.error("Failed to send invitation email.");
       console.error(error);
     } finally {
       setIsLoading(false);
