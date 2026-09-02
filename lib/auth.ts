@@ -20,7 +20,12 @@ import {
   schema,
 } from "@/db/schema";
 import { createOrganizationDriveFolders } from "@/lib/google-drive";
-import { admin, owner, member as permissionMember } from "./auth/permissions";
+import {
+  admin,
+  owner,
+  member as permissionMember,
+  subOwner,
+} from "./auth/permissions";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -256,6 +261,7 @@ export const auth = betterAuth({
         owner,
         admin,
         member: permissionMember,
+        sub_owner: subOwner,
       },
     }),
     lastLoginMethod(),

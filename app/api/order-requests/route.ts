@@ -54,17 +54,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const ownerMembership = await db.query.member.findFirst({
+  const submittingMembership = await db.query.member.findFirst({
     where: and(
       eq(member.organizationId, parsed.data.organizationId),
-      eq(member.userId, session.user.id),
-      eq(member.role, "owner")
+      eq(member.userId, session.user.id)
     ),
   });
 
-  if (!ownerMembership) {
+  if (
+    !(
+      submittingMembership &&
+      ["owner", "sub_owner"].includes(submittingMembership.role)
+    )
+  ) {
     return NextResponse.json(
-      { error: "Only organization owners can submit order sheets" },
+      {
+        error:
+          "Only organization owners and sub-owners can submit order sheets",
+      },
       { status: 403 }
     );
   }
@@ -90,6 +97,8 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
+  const initialStatus =
+    submittingMembership.role === "sub_owner" ? "owner_review" : "pending";
 
   const rowsToInsert = parsed.data.rows.map((row) => {
     const total = row.pricePerPiece * row.quantity;
@@ -113,7 +122,7 @@ export async function POST(request: Request) {
       delivered: false,
       ordered: false,
       finalized: false,
-      status: "pending" as const,
+      status: initialStatus,
       photoNeeded: false,
       photoUploaded: false,
       canceled: false,

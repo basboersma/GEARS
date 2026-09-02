@@ -111,7 +111,7 @@ export const organizationDepartmentRelations = relations(
 
 export type Organization = typeof organization.$inferSelect;
 
-export const role = pgEnum("role", ["member", "admin", "owner"]);
+export const role = pgEnum("role", ["member", "sub_owner", "admin", "owner"]);
 
 export const educationalInstitution = pgEnum("educational_institution", [
   "University of Groningen",
@@ -134,6 +134,7 @@ export const orderUrgency = pgEnum("order_urgency", [
 ]);
 
 export const orderRequestStatus = pgEnum("order_request_status", [
+  "owner_review",
   "accepted",
   "declined",
   "pending",

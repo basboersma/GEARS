@@ -68,3 +68,32 @@ export const removeMember = async (memberId: string) => {
     };
   }
 };
+
+export const setMemberRole = async (memberId: string, role: Role) => {
+  const { currentUser } = await getCurrentUser();
+  const targetMember = await db.query.member.findFirst({
+    where: eq(member.id, memberId),
+  });
+
+  if (!targetMember) {
+    return { success: false, error: "Member not found." };
+  }
+
+  const currentMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, currentUser.id),
+      eq(member.organizationId, targetMember.organizationId)
+    ),
+  });
+
+  if (currentMembership?.role !== "owner") {
+    return { success: false, error: "Only owners can change member roles." };
+  }
+
+  if (!(role === "member" || role === "sub_owner")) {
+    return { success: false, error: "This role cannot be assigned here." };
+  }
+
+  await db.update(member).set({ role }).where(eq(member.id, memberId));
+  return { success: true, error: null };
+};

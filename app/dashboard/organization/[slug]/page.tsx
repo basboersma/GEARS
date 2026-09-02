@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { OrganizationAgenda } from "@/components/organization-agenda";
 import { Button } from "@/components/ui/button";
 import { getOrganizationBySlug } from "@/server/organizations";
@@ -12,6 +13,11 @@ export default async function OrganizationPage({ params }: { params: Params }) {
 
   const organization = await getOrganizationBySlug(slug);
   const membership = organization?.members.find((m) => m.userId === user.id);
+
+  if (!(organization && membership)) {
+    redirect("/dashboard");
+  }
+
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
   const isMember = Boolean(membership);
@@ -34,7 +40,20 @@ export default async function OrganizationPage({ params }: { params: Params }) {
               Manage Departments
             </Link>
           </Button>
+          <Button asChild className="w-fit" variant="outline">
+            <Link href={`/dashboard/organization/${slug}/order-review`}>
+              Review Sub-owner Orders
+            </Link>
+          </Button>
         </div>
+      ) : null}
+
+      {membership?.role === "sub_owner" ? (
+        <Button asChild className="w-fit" variant="outline">
+          <Link href={`/dashboard/organization/${slug}/sub-owner-orders`}>
+            Submit Order List
+          </Link>
+        </Button>
       ) : null}
 
       {isMember && organization?.id ? (

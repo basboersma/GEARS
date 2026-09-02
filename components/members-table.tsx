@@ -12,9 +12,13 @@ import MembersTableAction from "./members-table-action";
 
 interface MembersTableProps {
   members: Member[];
+  canManageRoles: boolean;
 }
 
-export default function MembersTable({ members }: MembersTableProps) {
+export default function MembersTable({
+  members,
+  canManageRoles,
+}: MembersTableProps) {
   return (
     <Table>
       <TableCaption>A list of organization members.</TableCaption>
@@ -33,7 +37,11 @@ export default function MembersTable({ members }: MembersTableProps) {
             <TableCell>{member.user.email}</TableCell>
             <TableCell>{member.role}</TableCell>
             <TableCell className="text-right">
-              <MembersTableAction memberId={member.id} />
+              <MembersTableAction
+                canManageRoles={canManageRoles}
+                memberId={member.id}
+                role={member.role}
+              />
             </TableCell>
           </TableRow>
         ))}

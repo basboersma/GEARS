@@ -57,7 +57,10 @@ export default async function AdminOrdersPage({
 
   const rows = orderRows
     .filter(
-      (row) => !(row.canceled || row.ordered) && row.status !== "accepted"
+      (row) =>
+        !(row.canceled || row.ordered) &&
+        row.status !== "accepted" &&
+        row.status !== "owner_review"
     )
     .map((row) => ({
       ...row,

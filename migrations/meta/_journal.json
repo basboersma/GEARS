@@ -36,6 +36,13 @@
       "when": 1788275850567,
       "tag": "0004_short_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788371652638,
+      "tag": "0005_fast_stranger",
+      "breakpoints": true
     }
   ]
 }

@@ -105,14 +105,20 @@ export default async function AdminDashboardPage() {
 
       const pendingTotal = orderRows
         .filter(
-          (row) => !(row.ordered || row.canceled) && row.status !== "accepted"
+          (row) =>
+            !(row.ordered || row.canceled) &&
+            row.status !== "accepted" &&
+            row.status !== "owner_review"
         )
         .reduce((sum, row) => sum + Number(row.totalCosts || 0), 0);
 
       const upcomingOrders = Object.values(
         orderRows
           .filter(
-            (row) => !(row.canceled || row.ordered) && row.status !== "accepted"
+            (row) =>
+              !(row.canceled || row.ordered) &&
+              row.status !== "accepted" &&
+              row.status !== "owner_review"
           )
           .reduce<Record<string, (typeof orderRows)[number][]>>(
             (groups, row) => {

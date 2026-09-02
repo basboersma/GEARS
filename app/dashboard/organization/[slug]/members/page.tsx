@@ -43,7 +43,10 @@ export default async function OrganizationMembersPage({
         </Button>
       </div>
 
-      <MembersTable members={organization.members} />
+      <MembersTable
+        canManageRoles={membership.role === "owner"}
+        members={organization.members}
+      />
     </div>
   );
 }
