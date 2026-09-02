@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, organization } from "@/db/schema";
+import { invitation, member, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const trailingSlashPattern = /\/$/;
@@ -72,7 +72,19 @@ export async function POST(request: Request) {
     "https://gearsnl.org"
   ).replace(trailingSlashPattern, "");
   const recipient = parsed.data.email;
-  const loginUrl = `${appUrl}/login`;
+  const invitationId = crypto.randomUUID();
+  const invitationUrl = `${appUrl}/api/accept-invitation/${invitationId}`;
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+  await db.insert(invitation).values({
+    id: invitationId,
+    organizationId: selectedOrganization.id,
+    email: recipient.toLowerCase(),
+    role: "member",
+    status: "pending",
+    expiresAt,
+    inviterId: session.user.id,
+  });
 
   try {
     const { Resend } = await import("resend");
@@ -80,8 +92,8 @@ export async function POST(request: Request) {
       from: `${senderName} <${senderAddress}>`,
       to: [recipient],
       subject: `You're invited to join ${selectedOrganization.name} on GEARS`,
-      html: `<p>Hello,</p><p>${session.user.name} has invited you to join <strong>${selectedOrganization.name}</strong> on GEARS.</p><p>You can sign in at <a href="${loginUrl}">${loginUrl}</a>.</p>`,
-      text: `Hello,\n\n${session.user.name} has invited you to join ${selectedOrganization.name} on GEARS.\n\nYou can sign in at ${loginUrl}.`,
+      html: `<p>Hello,</p><p>${session.user.name} has invited you to join <strong>${selectedOrganization.name}</strong> on GEARS.</p><p><a href="${invitationUrl}">Accept invitation</a></p><p>This invitation expires in 48 hours.</p>`,
+      text: `Hello,\n\n${session.user.name} has invited you to join ${selectedOrganization.name} on GEARS.\n\nAccept your invitation: ${invitationUrl}\n\nThis invitation expires in 48 hours.`,
     });
 
     if (result.error) {
@@ -89,6 +101,7 @@ export async function POST(request: Request) {
         "Resend reported an invitation delivery error",
         result.error
       );
+      await db.delete(invitation).where(eq(invitation.id, invitationId));
       return NextResponse.json(
         { error: result.error.message || "Unable to send invitation email." },
         { status: 500 }
@@ -98,6 +111,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Invitation email send failed", error);
+    await db.delete(invitation).where(eq(invitation.id, invitationId));
     return NextResponse.json(
       { error: "Failed to send invitation email." },
       { status: 500 }
