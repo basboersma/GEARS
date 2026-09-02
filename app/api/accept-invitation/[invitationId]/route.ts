@@ -29,6 +29,7 @@ export async function GET(
   }
 
   const dashboardUrl = new URL("/dashboard", request.url);
+  let inviteStatus: "accepted" | "error" = "accepted";
 
   try {
     await auth.api.acceptInvitation({
@@ -37,12 +38,18 @@ export async function GET(
       },
       headers: await headers(),
     });
-
-    dashboardUrl.searchParams.set("invite", "accepted");
   } catch (error) {
     console.error("Failed to accept invitation", error);
-    dashboardUrl.searchParams.set("invite", "error");
+    inviteStatus = "error";
   }
 
-  return NextResponse.redirect(dashboardUrl);
+  // Dashboard redirects further before any query string would be seen, so use a
+  // short-lived cookie the client can read to show a toast regardless of where it lands.
+  const response = NextResponse.redirect(dashboardUrl);
+  response.cookies.set("invite_status", inviteStatus, {
+    maxAge: 30,
+    path: "/",
+  });
+
+  return response;
 }

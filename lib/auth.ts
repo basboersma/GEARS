@@ -33,6 +33,11 @@ const senderEmail =
   senderAddress && isValidEmailAddress(senderAddress)
     ? `${senderName} <${senderAddress}>`
     : null;
+const appUrl = (
+  process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+  process.env.BETTER_AUTH_URL?.trim() ||
+  "https://gearsnl.org"
+).replace(/\/$/, "");
 
 async function resolveActiveOrganizationForUser(userId: string) {
   const membership = await db.query.member.findFirst({
@@ -214,7 +219,7 @@ export const auth = betterAuth({
         },
       },
       sendInvitationEmail: async (data) => {
-        const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/accept-invitation/${data.id}`;
+        const inviteLink = `${appUrl}/api/accept-invitation/${data.id}`;
 
         await sendEmailSafely({
           to: data.email,
