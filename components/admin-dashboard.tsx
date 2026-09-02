@@ -22,7 +22,7 @@ import { deleteOrganization } from "@/server/organizations";
 
 interface Member {
   id: string;
-  role: "member" | "admin" | "owner";
+  role: "member" | "sub_owner" | "admin" | "owner";
   user: {
     id: string;
     name: string;

@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  const initialStatus =
+  const initialStatus: "owner_review" | "pending" =
     submittingMembership.role === "sub_owner" ? "owner_review" : "pending";
 
   const rowsToInsert = parsed.data.rows.map((row) => {
