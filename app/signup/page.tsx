@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { SignupForm } from "@/components/forms/signup-form";
 
 export default function SignupPage() {
@@ -21,7 +22,9 @@ export default function SignupPage() {
           </div>
           Better Auth Starter
         </Link>
-        <SignupForm />
+        <Suspense>
+          <SignupForm />
+        </Suspense>
       </div>
     </div>
   );

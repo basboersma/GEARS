@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { LoginForm } from "@/components/forms/login-form";
 
 export default function LoginPage() {
@@ -21,7 +22,9 @@ export default function LoginPage() {
           </div>
           Better Auth Starter
         </Link>
-        <LoginForm />
+        <Suspense>
+          <LoginForm />
+        </Suspense>
       </div>
     </div>
   );

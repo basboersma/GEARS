@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -42,11 +42,17 @@ export function SignupForm({
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationId = searchParams.get("invitationId");
+  const loginHref = invitationId
+    ? `/login?invitationId=${invitationId}`
+    : "/login";
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
-      email: "",
+      email: searchParams.get("email") ?? "",
       password: "",
     },
   });
@@ -54,7 +60,9 @@ export function SignupForm({
   const signInWithGoogle = async () => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/dashboard",
+      callbackURL: invitationId
+        ? `/api/accept-invitation/${invitationId}`
+        : "/dashboard",
     });
   };
 
@@ -69,7 +77,9 @@ export function SignupForm({
 
     if (success) {
       toast.success(
-        `${message as string} Please check your email for verification.`
+        invitationId
+          ? `${message as string} Please check your email for verification, then use the invitation link again to join.`
+          : `${message as string} Please check your email for verification.`
       );
       router.push("/dashboard");
     } else {
@@ -179,7 +189,10 @@ export function SignupForm({
                 </div>
                 <div className="text-center text-sm">
                   Already have an account?{" "}
-                  <Link className="underline underline-offset-4" href="/login">
+                  <Link
+                    className="underline underline-offset-4"
+                    href={loginHref}
+                  >
                     Login
                   </Link>
                 </div>

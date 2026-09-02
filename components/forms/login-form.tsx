@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -44,10 +44,16 @@ export function LoginForm({
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationId = searchParams.get("invitationId");
+  const postLoginUrl = invitationId
+    ? `/api/accept-invitation/${invitationId}`
+    : "/dashboard";
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      email: searchParams.get("email") ?? "",
       password: "",
     },
   });
@@ -55,7 +61,7 @@ export function LoginForm({
   const signInWithGoogle = async () => {
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/dashboard",
+      callbackURL: postLoginUrl,
     });
 
     if (error) {
@@ -70,7 +76,7 @@ export function LoginForm({
 
     if (success) {
       toast.success(message as string);
-      router.push("/dashboard");
+      router.push(postLoginUrl);
     } else {
       toast.error(message as string);
     }
@@ -175,7 +181,14 @@ export function LoginForm({
                 </div>
                 <div className="text-center text-sm">
                   Don&apos;t have an account?{" "}
-                  <Link className="underline underline-offset-4" href="/signup">
+                  <Link
+                    className="underline underline-offset-4"
+                    href={
+                      invitationId
+                        ? `/signup?invitationId=${invitationId}`
+                        : "/signup"
+                    }
+                  >
                     Sign up
                   </Link>
                 </div>
