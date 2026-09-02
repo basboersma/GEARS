@@ -1,3 +1,4 @@
+import { render } from "@react-email/render";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
@@ -6,7 +7,7 @@ import {
   organization as organizationPlugin,
 } from "better-auth/plugins";
 import { eq } from "drizzle-orm";
-import type { ReactNode } from "react";
+import type { ReactElement } from "react";
 import { Resend } from "resend";
 import OrganizationInvitationEmail from "@/components/emails/organization-invitation";
 import ForgotPasswordEmail from "@/components/emails/reset-password";
@@ -60,7 +61,7 @@ async function sendEmailSafely({
 }: {
   to: string;
   subject: string;
-  react: ReactNode;
+  react: ReactElement;
 }) {
   if (!resend) {
     console.warn("Skipping email send due to missing/invalid email config", {
@@ -82,12 +83,30 @@ async function sendEmailSafely({
     return;
   }
 
+  let html: string;
+  let text: string;
+
+  try {
+    // Render ourselves instead of passing `react` to Resend, so rendering failures
+    // are caught and logged separately from delivery failures.
+    html = await render(react);
+    text = await render(react, { plainText: true });
+  } catch (error) {
+    console.error("Failed to render email template", {
+      to,
+      subject,
+      error,
+    });
+    return;
+  }
+
   try {
     const { error } = await resend.emails.send({
       from: senderEmail,
       to,
       subject,
-      react,
+      html,
+      text,
     });
 
     if (error) {
