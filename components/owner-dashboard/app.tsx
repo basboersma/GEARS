@@ -16,6 +16,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { OrganizationSwitcher } from "@/components/organization-switcher";
+import type { Organization } from "@/db/schema";
 // GearsNL dashboard
 import { CalendarBlock } from "./CalendarBlock";
 import {
@@ -98,8 +100,6 @@ function NotificationsBlock() {
   );
 }
 
-const ORGS = ["GearsNL", "GearsNL B-team", "GearsNL Alumni"];
-
 function SubteamsNav() {
   const [open, setOpen] = useState(false);
   const [openDept, setOpenDept] = useState<string | null>(null);
@@ -160,58 +160,26 @@ function SubteamsNav() {
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({
-  organizationName,
   organizationSlug,
+  organizations,
   userName,
   userEmail,
   onManageMembers,
 }: {
-  organizationName: string;
   organizationSlug: string;
+  organizations: Organization[];
   userName: string;
   userEmail: string;
   onManageMembers: () => void;
 }) {
-  const [org, setOrg] = useState(organizationName);
-  const [orgOpen, setOrgOpen] = useState(false);
-
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
       {/* Org dropdown */}
       <div className="relative border-white/8 border-b p-3">
-        <button
-          className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5"
-          onClick={() => setOrgOpen((o) => !o)}
-        >
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#F0684D]">
-            <span className="font-bold text-[10px] text-white">{org[0]}</span>
-          </div>
-          <span className="flex-1 truncate text-left font-semibold text-[#FFEDD1] text-xs tracking-wide">
-            {org}
-          </span>
-          <span className="shrink-0 text-[#7A6555] text-[9px]">
-            {orgOpen ? "▲" : "▼"}
-          </span>
-        </button>
-        {orgOpen && (
-          <div className="absolute top-full right-3 left-3 z-50 mt-1 overflow-hidden rounded-xl border border-[#3D3330] bg-[#232120] shadow-xl">
-            {[
-              organizationName,
-              ...ORGS.filter((name) => name !== organizationName),
-            ].map((o) => (
-              <button
-                className={`w-full px-3 py-2 text-left text-xs transition-colors ${o === org ? "bg-[#F0684D]/10 text-[#F0684D]" : "text-[#C4A882] hover:bg-white/5 hover:text-[#FFEDD1]"}`}
-                key={o}
-                onClick={() => {
-                  setOrg(o);
-                  setOrgOpen(false);
-                }}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
-        )}
+        <OrganizationSwitcher
+          className="w-full border-0 bg-transparent px-2 py-1.5 text-left font-semibold text-[#FFEDD1] text-xs shadow-none hover:bg-white/5"
+          organizations={organizations}
+        />
       </div>
 
       {/* Nav */}
@@ -262,37 +230,16 @@ function Sidebar({
   );
 }
 
-// ─── Header ────────────────────────────────────────────────────────────────────
-function Header() {
-  return (
-    <header className="flex shrink-0 items-center justify-between border-white/8 border-b bg-[#141212] px-5 py-2.5">
-      <h1 className="font-semibold text-[#FFEDD1] text-base tracking-wide">
-        Member Dashboard
-      </h1>
-      <div className="flex items-center gap-1.5">
-        {(["Settings", "Logout"] as const).map((label) => (
-          <button
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[#9C8272] text-xs transition-all hover:border-white/20 hover:text-[#FFEDD1]"
-            key={label}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </header>
-  );
-}
-
 // ─── App ───────────────────────────────────────────────────────────────────────
 export default function App({
-  organizationName,
   organizationSlug,
+  organizations,
   userName,
   userEmail,
   budget = BUDGET,
 }: {
-  organizationName: string;
   organizationSlug: string;
+  organizations: Organization[];
   userName: string;
   userEmail: string;
   budget?: BudgetData;
@@ -301,20 +248,21 @@ export default function App({
 
   return (
     <div
-      className="flex h-full overflow-hidden bg-[#1A1919]"
+      className="flex h-full min-h-0 overflow-hidden bg-[#1A1919]"
       style={{ fontFamily: "'Inter',sans-serif" }}
     >
       <Sidebar
         onManageMembers={() => setShowMembers(true)}
-        organizationName={organizationName}
         organizationSlug={organizationSlug}
+        organizations={organizations}
         userEmail={userEmail}
         userName={userName}
       />
       <div className="flex h-full min-w-0 flex-1 flex-col">
-        <Header />
-        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
-          <IcicleChart data={budget} />
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 pt-20">
+          <div className="min-h-0 shrink-0">
+            <IcicleChart data={budget} />
+          </div>
           <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
             <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
               <CalendarBlock />

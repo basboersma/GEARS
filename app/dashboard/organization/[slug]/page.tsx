@@ -7,7 +7,10 @@ import type { BudgetData } from "@/components/owner-dashboard/types";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db/drizzle";
 import { orderRequest } from "@/db/schema";
-import { getOrganizationBySlug } from "@/server/organizations";
+import {
+  getOrganizationBySlug,
+  getOrganizations,
+} from "@/server/organizations";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -27,6 +30,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const isAdmin = membership?.role === "admin";
 
   if (isOwner && organization) {
+    const organizations = await getOrganizations();
     const orderRows = await db.query.orderRequest.findMany({
       where: eq(orderRequest.organizationId, organization.id),
     });
@@ -76,8 +80,8 @@ export default async function OrganizationPage({ params }: { params: Params }) {
       <div className="h-screen overflow-hidden">
         <OwnerDashboard
           budget={budget}
-          organizationName={organization.name}
           organizationSlug={organization.slug ?? slug}
+          organizations={organizations}
           userEmail={user.email}
           userName={user.name}
         />

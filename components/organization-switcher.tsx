@@ -14,10 +14,12 @@ import { authClient } from "@/lib/auth-client";
 
 interface OrganizationSwitcherProps {
   organizations: Organization[];
+  className?: string;
 }
 
 export function OrganizationSwitcher({
   organizations,
+  className,
 }: OrganizationSwitcherProps) {
   const router = useRouter();
   const { data: activeOrganization } = authClient.useActiveOrganization();
@@ -57,7 +59,7 @@ export function OrganizationSwitcher({
       onValueChange={handleChangeOrganization}
       value={activeOrganization?.id}
     >
-      <SelectTrigger className="w-[180px]">
+      <SelectTrigger className={className ?? "w-[180px]"}>
         <SelectValue placeholder="Organization" />
       </SelectTrigger>
       <SelectContent>
