@@ -31,9 +31,14 @@ export default function HomePage() {
             <Link href="/about">About</Link>
             <Link href="/contact">Contact</Link>
             <Link href="/login">Login</Link>
-            <Link className="nav-cta" href="/login">
+            <a
+              className="nav-cta"
+              href="https://docs.google.com/forms/d/e/1FAIpQLSfWqyAj0pHO3R68yfyFYpkpuL4kdzWFg-wHfs8_0LBnxyFTpw/viewform?usp=dialog"
+              rel="noreferrer"
+              target="_blank"
+            >
               JOIN GEARS
-            </Link>
+            </a>
           </nav>
         </div>
       </header>
@@ -65,9 +70,14 @@ export default function HomePage() {
             </p>
 
             <div className="hero-actions">
-              <Link className="btn btn-primary" href="/login">
+              <a
+                className="btn btn-primary"
+                href="https://docs.google.com/forms/d/e/1FAIpQLSfWqyAj0pHO3R68yfyFYpkpuL4kdzWFg-wHfs8_0LBnxyFTpw/viewform?usp=dialog"
+                rel="noreferrer"
+                target="_blank"
+              >
                 JOIN GEARS
-              </Link>
+              </a>
             </div>
           </div>
         </section>

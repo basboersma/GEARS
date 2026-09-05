@@ -14,6 +14,7 @@
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 // GearsNL dashboard
 import { CalendarBlock } from "./CalendarBlock";
@@ -160,11 +161,13 @@ function SubteamsNav() {
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({
   organizationName,
+  organizationSlug,
   userName,
   userEmail,
   onManageMembers,
 }: {
   organizationName: string;
+  organizationSlug: string;
   userName: string;
   userEmail: string;
   onManageMembers: () => void;
@@ -229,10 +232,13 @@ function Sidebar({
             <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
             <span>Manage members</span>
           </button>
-          <button className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]">
+          <Link
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
+            href={`/dashboard/organization/${organizationSlug}/orders`}
+          >
             <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
             <span>Manage orders</span>
-          </button>
+          </Link>
         </div>
       </nav>
 
@@ -280,11 +286,13 @@ function Header() {
 // ─── App ───────────────────────────────────────────────────────────────────────
 export default function App({
   organizationName,
+  organizationSlug,
   userName,
   userEmail,
   budget = BUDGET,
 }: {
   organizationName: string;
+  organizationSlug: string;
   userName: string;
   userEmail: string;
   budget?: BudgetData;
@@ -299,6 +307,7 @@ export default function App({
       <Sidebar
         onManageMembers={() => setShowMembers(true)}
         organizationName={organizationName}
+        organizationSlug={organizationSlug}
         userEmail={userEmail}
         userName={userName}
       />
