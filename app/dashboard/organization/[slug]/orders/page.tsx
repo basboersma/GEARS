@@ -1,11 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/owner-dashboard/app";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
 import type { BudgetData } from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
-import { getOrganizations } from "@/server/organizations";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -42,7 +41,15 @@ export default async function OrganizationOrdersPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const organizations = await getOrganizations();
+  const memberships = await db.query.member.findMany({
+    where: eq(member.userId, user.id),
+  });
+  const organizations = await db.query.organization.findMany({
+    where: inArray(
+      organization.id,
+      memberships.map((entry) => entry.organizationId)
+    ),
+  });
 
   const rows = await db.query.orderRequest.findMany({
     where: eq(orderRequest.organizationId, org.id),
