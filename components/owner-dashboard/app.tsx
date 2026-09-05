@@ -31,6 +31,7 @@ import { FilesBlock } from "./FilesBlock";
 import { IcicleChart } from "./IcicleChart";
 import { MembersModal } from "./MembersModal";
 import { TodoBlock } from "./TodoBlock";
+import { DashboardTopBar } from "./top-bar";
 import type { AppNotification, BudgetData } from "./types";
 
 // ─── Notifications block ──────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ function SubteamsNav() {
 }
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({
+export function Sidebar({
   organizationSlug,
   organizations,
   userName,
@@ -259,7 +260,8 @@ export default function App({
         userName={userName}
       />
       <div className="flex h-full min-w-0 flex-1 flex-col">
-        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 pt-20">
+        <DashboardTopBar title="Member Dashboard" />
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4 pt-4">
           <div className="min-h-0 shrink-0">
             <IcicleChart data={budget} />
           </div>

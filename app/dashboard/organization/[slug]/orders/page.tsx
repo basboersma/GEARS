@@ -1,9 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { Sidebar } from "@/components/owner-dashboard/app";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
+import { DashboardTopBar } from "@/components/owner-dashboard/top-bar";
 import type { BudgetData } from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
+import { getOrganizations } from "@/server/organizations";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -39,6 +42,8 @@ export default async function OrganizationOrdersPage({
   if (membership?.role !== "owner") {
     redirect(`/dashboard/organization/${slug}`);
   }
+
+  const organizations = await getOrganizations();
 
   const rows = await db.query.orderRequest.findMany({
     where: eq(orderRequest.organizationId, org.id),
@@ -76,10 +81,20 @@ export default async function OrganizationOrdersPage({
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#1A1919]">
-      <main className="flex h-full min-h-0 flex-col p-4">
-        <OrdersPanel data={budget} />
-      </main>
+    <div className="flex h-screen min-h-0 overflow-hidden bg-[#1A1919]">
+      <Sidebar
+        onManageMembers={() => undefined}
+        organizationSlug={org.slug ?? slug}
+        organizations={organizations}
+        userEmail={user.email}
+        userName={user.name}
+      />
+      <div className="flex h-full min-w-0 flex-1 flex-col">
+        <DashboardTopBar title="Manage Orders" />
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 pt-4">
+          <OrdersPanel data={budget} />
+        </main>
+      </div>
     </div>
   );
 }
