@@ -2,7 +2,6 @@ import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/owner-dashboard/app";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
-import { DashboardTopBar } from "@/components/owner-dashboard/top-bar";
 import type { BudgetData } from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
@@ -89,12 +88,9 @@ export default async function OrganizationOrdersPage({
         userEmail={user.email}
         userName={user.name}
       />
-      <div className="flex h-full min-w-0 flex-1 flex-col">
-        <DashboardTopBar title="Manage Orders" />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 pt-4">
-          <OrdersPanel data={budget} />
-        </main>
-      </div>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 pt-20">
+        <OrdersPanel data={budget} />
+      </main>
     </div>
   );
 }
