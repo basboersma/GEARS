@@ -16,8 +16,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { OrganizationSwitcher } from "@/components/organization-switcher";
-import type { Organization } from "@/db/schema";
+import {
+  type OrganizationOption,
+  OrganizationSwitcher,
+} from "@/components/organization-switcher";
 // GearsNL dashboard
 import { CalendarBlock } from "./CalendarBlock";
 import {
@@ -167,7 +169,7 @@ export function Sidebar({
   onManageMembers,
 }: {
   organizationSlug: string;
-  organizations: Organization[];
+  organizations: OrganizationOption[];
   userName: string;
   userEmail: string;
   onManageMembers: () => void;
@@ -239,7 +241,7 @@ export default function App({
   budget = BUDGET,
 }: {
   organizationSlug: string;
-  organizations: Organization[];
+  organizations: OrganizationOption[];
   userName: string;
   userEmail: string;
   budget?: BudgetData;

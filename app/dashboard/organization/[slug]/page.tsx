@@ -30,7 +30,11 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const isAdmin = membership?.role === "admin";
 
   if (isOwner && organization) {
-    const organizations = await getOrganizations();
+    const organizations = (await getOrganizations()).map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      slug: entry.slug,
+    }));
     const orderRows = await db.query.orderRequest.findMany({
       where: eq(orderRequest.organizationId, organization.id),
     });

@@ -45,6 +45,11 @@ export default async function OrganizationOrdersPage({
     where: eq(member.userId, user.id),
   });
   const organizations = await db.query.organization.findMany({
+    columns: {
+      id: true,
+      name: true,
+      slug: true,
+    },
     where: inArray(
       organization.id,
       memberships.map((entry) => entry.organizationId)

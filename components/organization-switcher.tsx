@@ -9,11 +9,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Organization } from "@/db/schema";
 import { authClient } from "@/lib/auth-client";
 
+export interface OrganizationOption {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
 interface OrganizationSwitcherProps {
-  organizations: Organization[];
+  organizations: OrganizationOption[];
   className?: string;
 }
 
