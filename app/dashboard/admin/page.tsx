@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { AdminDashboard } from "@/components/admin-dashboard";
 import { db } from "@/db/drizzle";
-import { agendaEvent, member, orderRequest, organization } from "@/db/schema";
+import { member, orderRequest, organization } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 export default async function AdminDashboardPage() {
@@ -87,17 +87,10 @@ export default async function AdminDashboardPage() {
 
   const summaries = await Promise.all(
     organizations.map(async (org) => {
-      const [agendaItems, orderRows] = await Promise.all([
-        db.query.agendaEvent.findMany({
-          where: eq(agendaEvent.organizationId, org.id),
-          orderBy: (agendaEvent, { asc }) => [asc(agendaEvent.start)],
-          limit: 10,
-        }),
-        db.query.orderRequest.findMany({
-          where: eq(orderRequest.organizationId, org.id),
-          orderBy: [asc(orderRequest.orderName), asc(orderRequest.orderedDate)],
-        }),
-      ]);
+      const orderRows = await db.query.orderRequest.findMany({
+        where: eq(orderRequest.organizationId, org.id),
+        orderBy: [asc(orderRequest.orderName), asc(orderRequest.orderedDate)],
+      });
 
       const orderedTotal = orderRows
         .filter((row) => row.ordered && !row.canceled)
@@ -169,11 +162,6 @@ export default async function AdminDashboardPage() {
         name: org.name,
         slug: org.slug ?? "",
         members: org.members,
-        agendaItems: agendaItems.map((item) => ({
-          id: item.id,
-          title: item.title,
-          start: item.start,
-        })),
         orderedTotal,
         pendingTotal,
         upcomingOrders,

@@ -63,7 +63,6 @@ interface OrganizationSummary {
   name: string;
   slug: string;
   members: Member[];
-  agendaItems: Array<{ id: string; title: string; start: string }>;
   orderedTotal: number;
   pendingTotal: number;
   upcomingOrders: UpcomingOrderList[];
@@ -273,7 +272,7 @@ function OrgDetailSidebar({
         </div>
 
         <div className="rounded-xl border p-3">
-          <h3 className="mb-2 font-semibold text-base">Agenda</h3>
+          <h3 className="mb-2 font-semibold text-base">Upcoming orders</h3>
           <div className="space-y-2">
             {selectedOrg.upcomingOrders.length > 0 ? (
               selectedOrg.upcomingOrders.map((order) => {
