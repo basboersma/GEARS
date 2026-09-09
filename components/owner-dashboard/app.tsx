@@ -15,7 +15,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 // GearsNL dashboard
 import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
@@ -41,15 +41,33 @@ const NOTIF_TYPE_COLOR: Record<AppNotification["type"], string> = {
 };
 
 function NotificationsBlock() {
-  const { notifications } = useDashboardData();
-  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(
-    new Set()
-  );
-  const markRead = (id: string) =>
-    setReadNotificationIds((current) => new Set(current).add(id));
+  const { dismissNotification, notifications } = useDashboardData();
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!dismissingId) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      dismissNotification(dismissingId);
+      setDismissingId(null);
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [dismissingId, dismissNotification]);
+  const markRead = async (id: string) => {
+    if (dismissingId) {
+      return;
+    }
+    const response = await fetch("/api/owner-dashboard/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (response.ok) {
+      setDismissingId(id);
+    }
+  };
   const unread = notifications.filter(
-    (notification) =>
-      !(notification.read || readNotificationIds.has(notification.id))
+    (notification) => !notification.read
   ).length;
   return (
     <div className="flex h-full flex-col">
@@ -62,40 +80,41 @@ function NotificationsBlock() {
         )}
       </div>
       <div className="min-h-0 flex-1 space-y-1.5 overflow-auto">
-        {notifications.map((n) => {
-          const isRead = n.read || readNotificationIds.has(n.id);
-          return (
-            <button
-              className={`flex w-full items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all ${
-                isRead
-                  ? "border-[#3D3330] bg-[#232120] opacity-60"
-                  : "border-[#3D3330] bg-[#2A2724] hover:border-[#4A3F38]"
-              }`}
-              key={n.id}
-              onClick={() => markRead(n.id)}
-            >
-              <span
-                className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{
-                  background: isRead ? "#3D3330" : NOTIF_TYPE_COLOR[n.type],
-                }}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium text-[#FFEDD1] text-xs">
-                    {n.title}
-                  </span>
-                  <span className="shrink-0 text-[#7A6555] text-[9px]">
-                    {n.time}
-                  </span>
+        {notifications
+          .filter((notification) => !notification.read)
+          .map((n) => {
+            const isDismissing = n.id === dismissingId;
+            return (
+              <button
+                className="relative flex w-full items-start gap-2.5 overflow-hidden rounded-xl border border-[#3D3330] bg-[#2A2724] p-2.5 text-left transition-all hover:border-[#4A3F38]"
+                key={n.id}
+                onClick={() => markRead(n.id)}
+              >
+                <span
+                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{
+                    background: NOTIF_TYPE_COLOR[n.type],
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium text-[#FFEDD1] text-xs">
+                      {n.title}
+                    </span>
+                    <span className="shrink-0 text-[#7A6555] text-[9px]">
+                      {n.time}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[#9C8272] text-[10px] leading-snug">
+                    {n.body}
+                  </p>
                 </div>
-                <p className="mt-0.5 text-[#9C8272] text-[10px] leading-snug">
-                  {n.body}
-                </p>
-              </div>
-            </button>
-          );
-        })}
+                {isDismissing && (
+                  <span className="absolute right-0 bottom-0 left-0 h-0.5 origin-left animate-[notification-dismiss_900ms_linear_forwards] bg-[#F0684D]" />
+                )}
+              </button>
+            );
+          })}
         {notifications.length === 0 && (
           <div className="flex h-32 flex-col items-center justify-center gap-2 text-[#7A6555] text-sm">
             <span className="font-thin text-3xl text-[#4A3F38]">—</span>

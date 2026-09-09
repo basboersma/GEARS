@@ -33,6 +33,7 @@ export interface DashboardData {
 
 interface DashboardDataContextValue extends DashboardData {
   addNotification: (notification: AppNotification) => void;
+  dismissNotification: (id: string) => void;
 }
 
 const DashboardDataContext = createContext<DashboardDataContextValue | null>(
@@ -55,6 +56,10 @@ export function DashboardDataProvider({
         notifications,
         addNotification: (notification) =>
           setNotifications((current) => [notification, ...current]),
+        dismissNotification: (id) =>
+          setNotifications((current) =>
+            current.filter((notification) => notification.id !== id)
+          ),
       }}
     >
       {children}

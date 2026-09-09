@@ -60,6 +60,7 @@ async function getDriveClients() {
     scopes: [
       "https://www.googleapis.com/auth/drive",
       "https://www.googleapis.com/auth/docs",
+      "https://www.googleapis.com/auth/calendar",
     ],
     subject: impersonatedUserEmail,
   });
@@ -68,6 +69,62 @@ async function getDriveClients() {
     drive: google.drive({ version: "v3", auth }),
     docs: google.docs({ version: "v1", auth }),
   } as const;
+}
+
+export async function syncGoogleCalendar({
+  calendarId,
+  events,
+}: {
+  calendarId: string;
+  events: {
+    id: string;
+    title: string;
+    description: string;
+    location: string;
+    start: string;
+    end: string;
+  }[];
+}) {
+  const serviceAccount = parseServiceAccountJson();
+  if (
+    !serviceAccount ||
+    "error" in serviceAccount ||
+    !(serviceAccount.client_email && serviceAccount.private_key)
+  ) {
+    return { success: false as const, error: UNCONFIGURED_MESSAGE };
+  }
+  try {
+    const { google } = await import("googleapis");
+    const auth = new google.auth.JWT({
+      email: serviceAccount.client_email,
+      key: serviceAccount.private_key,
+      scopes: ["https://www.googleapis.com/auth/calendar"],
+      subject: impersonatedUserEmail,
+    });
+    const calendar = google.calendar({ version: "v3", auth });
+    await Promise.all(
+      events.map((event) =>
+        calendar.events.insert({
+          calendarId,
+          requestBody: {
+            summary: event.title,
+            description: event.description,
+            location: event.location || undefined,
+            start: { dateTime: event.start },
+            end: { dateTime: event.end },
+            extendedProperties: { private: { gearsAgendaId: event.id } },
+          },
+        })
+      )
+    );
+    return { success: true as const };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Google Calendar sync failed: ${message}`,
+    };
+  }
 }
 
 type DriveClient = Exclude<
