@@ -437,6 +437,7 @@ export function FilesBlock() {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [preview, setPreview] = useState<Extract<
     FileTreeNode,
     { kind: "file" }
@@ -465,8 +466,12 @@ export function FilesBlock() {
     async (folderId: string | null, files: FileList) => {
       const targetFolderId = folderId ?? driveFolderId;
       if (!targetFolderId) {
+        setUploadError(
+          "This organization has no configured Google Drive folder."
+        );
         return;
       }
+      setUploadError(null);
       const uploaded = await Promise.all(
         Array.from(files).map(async (file) => {
           const formData = new FormData();
@@ -478,6 +483,13 @@ export function FilesBlock() {
             body: formData,
           });
           if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            setUploadError(
+              payload?.error ??
+                "The file could not be uploaded to Google Drive."
+            );
             return null;
           }
           return (await response.json()) as {
@@ -602,6 +614,11 @@ export function FilesBlock() {
       >
         Drop file here to add to root
       </div>
+      {uploadError && (
+        <p className="mt-1 text-[#F0684D] text-[10px]" role="alert">
+          {uploadError}
+        </p>
+      )}
 
       {/* Context menu */}
       {menu && menuNodeId && (

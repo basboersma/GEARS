@@ -13,7 +13,8 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useState } from "react";
-import { avatarBg, INIT_TODOS, MEMBERS, memberIdx } from "./data";
+import { useDashboardData } from "./dashboard-data-context";
+import { avatarBg } from "./data";
 import { TodoModal } from "./TodoModal";
 import type { TodoItem } from "./types";
 
@@ -133,15 +134,28 @@ function DueBadge({ dueDate, done }: { dueDate: string; done: boolean }) {
 }
 
 export function TodoBlock() {
-  const [todos, setTodos] = useState<TodoItem[]>(INIT_TODOS);
+  const { members, organizationId, todos: initialTodos } = useDashboardData();
+  const memberIdx = (id: string) =>
+    members.findIndex((member) => member.id === id);
+  const [todos, setTodos] = useState<TodoItem[]>(initialTodos);
   const [modal, setModal] = useState<"new" | TodoItem | null>(null);
   const [tab, setTab] = useState<"active" | "previous">("active");
 
-  const save = (item: TodoItem) => {
+  const save = async (item: TodoItem) => {
+    const response = await fetch("/api/owner-dashboard/todos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...item, organizationId }),
+    });
+    if (!response.ok) {
+      return;
+    }
+    const { id } = (await response.json()) as { id: string };
+    const persistedItem = { ...item, id };
     setTodos((p) =>
       p.some((t) => t.id === item.id)
-        ? p.map((t) => (t.id === item.id ? item : t))
-        : [...p, item]
+        ? p.map((t) => (t.id === item.id ? persistedItem : t))
+        : [...p, persistedItem]
     );
     setModal(null);
   };
@@ -229,7 +243,7 @@ export function TodoBlock() {
               {t.assignedMembers.length > 0 && (
                 <div className="flex shrink-0 -space-x-1">
                   {t.assignedMembers.slice(0, 3).map((id) => {
-                    const m = MEMBERS.find((x) => x.id === id);
+                    const m = members.find((x) => x.id === id);
                     if (!m) {
                       return null;
                     }

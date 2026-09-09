@@ -373,6 +373,15 @@ export const dashboardTodo = pgTable("dashboard_todo", {
     .notNull(),
 });
 
+export const dashboardTodoAssignee = pgTable("dashboard_todo_assignee", {
+  todoId: text("todo_id")
+    .notNull()
+    .references(() => dashboardTodo.id, { onDelete: "cascade" }),
+  memberId: text("member_id")
+    .notNull()
+    .references(() => member.id, { onDelete: "cascade" }),
+});
+
 export const dashboardRoadmapItem = pgTable("dashboard_roadmap_item", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
@@ -439,6 +448,7 @@ export const schema = {
   agendaDiscussionPoint,
   agendaDiscussionPointVote,
   dashboardTodo,
+  dashboardTodoAssignee,
   dashboardRoadmapItem,
   dashboardFile,
   dashboardNotification,

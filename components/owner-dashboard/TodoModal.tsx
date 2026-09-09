@@ -13,7 +13,8 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useState } from "react";
-import { avatarBg, FILES, MEMBERS, memberIdx } from "./data";
+import { useDashboardData } from "./dashboard-data-context";
+import { avatarBg } from "./data";
 import { MiniCalPicker } from "./MiniCalPicker";
 import { ModalHeader, ModalShell } from "./shared";
 import type { Subtask, TodoItem } from "./types";
@@ -45,6 +46,9 @@ interface Props {
 }
 
 export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
+  const { files, members } = useDashboardData();
+  const memberIdx = (id: string) =>
+    members.findIndex((member) => member.id === id);
   const blank: TodoItem = {
     id: Date.now().toString(),
     text: "",
@@ -83,12 +87,12 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
         : [...item.linkedFiles, fid],
     });
 
-  const filteredM = MEMBERS.filter(
+  const filteredM = members.filter(
     (m) =>
       !item.assignedMembers.includes(m.id) &&
       m.name.toLowerCase().includes(mSearch.toLowerCase())
   );
-  const filteredFiles = FILES.filter((f) =>
+  const filteredFiles = files.filter((f) =>
     f.name.toLowerCase().includes(fileSearch.toLowerCase())
   );
 
@@ -226,7 +230,7 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
           </label>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {item.assignedMembers.map((id) => {
-              const m = MEMBERS.find((x) => x.id === id);
+              const m = members.find((x) => x.id === id);
               if (!m) {
                 return null;
               }
