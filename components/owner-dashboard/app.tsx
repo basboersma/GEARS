@@ -14,8 +14,12 @@
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 // GearsNL dashboard
+import { Logout } from "@/components/logout";
+import { OrganizationSwitcher } from "@/components/organization-switcher";
+import type { Organization } from "@/db/schema";
 import { CalendarBlock } from "./CalendarBlock";
 import {
   DashboardDataProvider,
@@ -95,8 +99,6 @@ function NotificationsBlock() {
   );
 }
 
-const ORGS = ["GearsNL", "GearsNL B-team", "GearsNL Alumni"];
-
 function SubteamsNav() {
   const { departments, subteams } = useDashboardData();
   const [open, setOpen] = useState(false);
@@ -173,52 +175,26 @@ function Sidebar({
   userName,
   userEmail,
   onManageMembers,
+  organizations,
 }: {
   organizationName: string;
   userName: string;
   userEmail: string;
   onManageMembers: () => void;
+  organizations: Organization[];
 }) {
-  const [org, setOrg] = useState(organizationName);
-  const [orgOpen, setOrgOpen] = useState(false);
-
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
       {/* Org dropdown */}
       <div className="relative border-white/8 border-b p-3">
-        <button
-          className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5"
-          onClick={() => setOrgOpen((o) => !o)}
-        >
+        <div className="flex items-center gap-2.5 px-2 py-1.5">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#F0684D]">
-            <span className="font-bold text-[10px] text-white">{org[0]}</span>
+            <span className="font-bold text-[10px] text-white">
+              {organizationName[0]}
+            </span>
           </div>
-          <span className="flex-1 truncate text-left font-semibold text-[#FFEDD1] text-xs tracking-wide">
-            {org}
-          </span>
-          <span className="shrink-0 text-[#7A6555] text-[9px]">
-            {orgOpen ? "▲" : "▼"}
-          </span>
-        </button>
-        {orgOpen && (
-          <div className="absolute top-full right-3 left-3 z-50 mt-1 overflow-hidden rounded-xl border border-[#3D3330] bg-[#232120] shadow-xl">
-            {[
-              organizationName,
-              ...ORGS.filter((name) => name !== organizationName),
-            ].map((o) => (
-              <button
-                className={`w-full px-3 py-2 text-left text-xs transition-colors ${o === org ? "bg-[#F0684D]/10 text-[#F0684D]" : "text-[#C4A882] hover:bg-white/5 hover:text-[#FFEDD1]"}`}
-                key={o}
-                onClick={() => {
-                  setOrg(o);
-                  setOrgOpen(false);
-                }}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
-        )}
+          <OrganizationSwitcher organizations={organizations} />
+        </div>
       </div>
 
       {/* Nav */}
@@ -274,14 +250,13 @@ function Header() {
         Member Dashboard
       </h1>
       <div className="flex items-center gap-1.5">
-        {(["Settings", "Logout"] as const).map((label) => (
-          <button
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[#9C8272] text-xs transition-all hover:border-white/20 hover:text-[#FFEDD1]"
-            key={label}
-          >
-            {label}
-          </button>
-        ))}
+        <Link
+          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[#9C8272] text-xs transition-all hover:border-white/20 hover:text-[#FFEDD1]"
+          href="/dashboard/personal-information"
+        >
+          Settings
+        </Link>
+        <Logout />
       </div>
     </header>
   );
@@ -294,12 +269,14 @@ export default function App({
   userEmail,
   budget,
   dashboardData,
+  organizations,
 }: {
   organizationName: string;
   userName: string;
   userEmail: string;
   budget: BudgetData;
   dashboardData: import("./dashboard-data-context").DashboardData;
+  organizations: Organization[];
 }) {
   const [showMembers, setShowMembers] = useState(false);
 
@@ -312,6 +289,7 @@ export default function App({
         <Sidebar
           onManageMembers={() => setShowMembers(true)}
           organizationName={organizationName}
+          organizations={organizations}
           userEmail={userEmail}
           userName={userName}
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import type {
   AppNotification,
   CalEvent,
@@ -31,7 +31,13 @@ export interface DashboardData {
   >;
 }
 
-const DashboardDataContext = createContext<DashboardData | null>(null);
+interface DashboardDataContextValue extends DashboardData {
+  addNotification: (notification: AppNotification) => void;
+}
+
+const DashboardDataContext = createContext<DashboardDataContextValue | null>(
+  null
+);
 
 export function DashboardDataProvider({
   children,
@@ -40,14 +46,23 @@ export function DashboardDataProvider({
   children: React.ReactNode;
   value: DashboardData;
 }) {
+  const [notifications, setNotifications] = useState(value.notifications);
+
   return (
-    <DashboardDataContext.Provider value={value}>
+    <DashboardDataContext.Provider
+      value={{
+        ...value,
+        notifications,
+        addNotification: (notification) =>
+          setNotifications((current) => [notification, ...current]),
+      }}
+    >
       {children}
     </DashboardDataContext.Provider>
   );
 }
 
-export function useDashboardData(): DashboardData {
+export function useDashboardData(): DashboardDataContextValue {
   const data = useContext(DashboardDataContext);
   if (!data) {
     throw new Error(

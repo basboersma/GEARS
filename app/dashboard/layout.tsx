@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { MemberProfileGate } from "@/components/forms/member-profile-gate";
-import { Header } from "@/components/header";
 import { db } from "@/db/drizzle";
 import { member, studentProfile } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
@@ -36,8 +35,6 @@ export default async function DashboardLayout({
 
   return (
     <div>
-      <Header />
-
       {shouldCompleteProfile ? (
         <MemberProfileGate
           defaults={

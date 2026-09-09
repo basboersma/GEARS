@@ -134,7 +134,12 @@ function DueBadge({ dueDate, done }: { dueDate: string; done: boolean }) {
 }
 
 export function TodoBlock() {
-  const { members, organizationId, todos: initialTodos } = useDashboardData();
+  const {
+    addNotification,
+    members,
+    organizationId,
+    todos: initialTodos,
+  } = useDashboardData();
   const memberIdx = (id: string) =>
     members.findIndex((member) => member.id === id);
   const [todos, setTodos] = useState<TodoItem[]>(initialTodos);
@@ -218,7 +223,7 @@ export function TodoBlock() {
     if (error || subtask.done) {
       return;
     }
-    await fetch("/api/owner-dashboard/notifications", {
+    const response = await fetch("/api/owner-dashboard/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -227,6 +232,18 @@ export function TodoBlock() {
         title: "Subtask completed",
         body: `${subtask.text} was completed in ${todo.text}.`,
       }),
+    });
+    if (!response.ok) {
+      return;
+    }
+    const { id } = (await response.json()) as { id: string };
+    addNotification({
+      id,
+      type: "todo",
+      title: "Subtask completed",
+      body: `${subtask.text} was completed in ${todo.text}.`,
+      time: "Just now",
+      read: false,
     });
   };
 
