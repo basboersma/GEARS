@@ -77,7 +77,6 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         <OwnerDashboard
           budget={budget}
           organizationName={organization.name}
-          organizationSlug={organization.slug ?? slug}
           userEmail={user.email}
           userName={user.name}
         />
