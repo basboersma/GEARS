@@ -1,13 +1,10 @@
-import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { OrganizationAgenda } from "@/components/organization-agenda";
 import OwnerDashboard from "@/components/owner-dashboard/app";
-import type { BudgetData } from "@/components/owner-dashboard/types";
 import { Button } from "@/components/ui/button";
-import { db } from "@/db/drizzle";
-import { orderRequest } from "@/db/schema";
 import { getOrganizationBySlug } from "@/server/organizations";
+import { getOwnerDashboardData } from "@/server/owner-dashboard";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -27,55 +24,41 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const isAdmin = membership?.role === "admin";
 
   if (isOwner && organization) {
-    const orderRows = await db.query.orderRequest.findMany({
-      where: eq(orderRequest.organizationId, organization.id),
-    });
-    const departments = new Map<string, { budget: number; spent: number }>();
-
-    for (const row of orderRows) {
-      const current = departments.get(row.department) ?? {
-        budget: 0,
-        spent: 0,
-      };
-      if (row.ordered && !row.canceled) {
-        current.spent += Number(row.totalCosts || 0);
-      }
-      departments.set(row.department, current);
-    }
-
-    const spentTotal = Array.from(departments.values()).reduce(
-      (sum, values) => sum + values.spent,
+    const dashboardData = await getOwnerDashboardData(organization.id);
+    const spent = dashboardData.monthlySpend.Total.reduce(
+      (sum, month) => sum + month.spent,
       0
     );
-    const budgetTotal = Math.max(Number(organization.budget || 0), spentTotal);
-    const departmentBudget =
-      departments.size > 0 ? budgetTotal / departments.size : 0;
-
-    const budget: BudgetData = {
-      total: budgetTotal,
-      spent: spentTotal,
-      departments: Array.from(departments.entries()).map(
-        ([name, values], index) => ({
-          name,
-          budget: Math.max(values.budget, departmentBudget),
-          spent: values.spent,
-          color: [
-            "#4f6ef7",
-            "#10b981",
-            "#8b5cf6",
-            "#f59e0b",
-            "#f43f5e",
-            "#ec4899",
-          ][index % 6],
-          subs: [],
-        })
-      ),
+    const budget = {
+      total: Math.max(Number(organization.budget), spent),
+      spent,
+      departments: dashboardData.departments.map((name, index) => ({
+        name,
+        budget: dashboardData.departments.length
+          ? Number(organization.budget) / dashboardData.departments.length
+          : 0,
+        spent:
+          dashboardData.monthlySpend[name]?.reduce(
+            (sum, month) => sum + month.spent,
+            0
+          ) ?? 0,
+        color: [
+          "#4f6ef7",
+          "#10b981",
+          "#8b5cf6",
+          "#f59e0b",
+          "#f43f5e",
+          "#ec4899",
+        ][index % 6],
+        subs: [],
+      })),
     };
 
     return (
       <div className="h-screen overflow-hidden">
         <OwnerDashboard
           budget={budget}
+          dashboardData={dashboardData}
           organizationName={organization.name}
           userEmail={user.email}
           userName={user.name}

@@ -18,12 +18,9 @@ import { useState } from "react";
 // GearsNL dashboard
 import { CalendarBlock } from "./CalendarBlock";
 import {
-  BUDGET,
-  DEPARTMENTS,
-  DEPT_COLORS,
-  NOTIFICATIONS,
-  SUBTEAMS,
-} from "./data";
+  DashboardDataProvider,
+  useDashboardData,
+} from "./dashboard-data-context";
 import { FilesBlock } from "./FilesBlock";
 import { IcicleChart } from "./IcicleChart";
 import { MembersModal } from "./MembersModal";
@@ -40,7 +37,8 @@ const NOTIF_TYPE_COLOR: Record<AppNotification["type"], string> = {
 };
 
 function NotificationsBlock() {
-  const [notifs, setNotifs] = useState<AppNotification[]>(NOTIFICATIONS);
+  const { notifications } = useDashboardData();
+  const [notifs, setNotifs] = useState<AppNotification[]>(notifications);
   const markRead = (id: string) =>
     setNotifs((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
   const unread = notifs.filter((n) => !n.read).length;
@@ -100,6 +98,7 @@ function NotificationsBlock() {
 const ORGS = ["GearsNL", "GearsNL B-team", "GearsNL Alumni"];
 
 function SubteamsNav() {
+  const { departments, subteams } = useDashboardData();
   const [open, setOpen] = useState(false);
   const [openDept, setOpenDept] = useState<string | null>(null);
   return (
@@ -118,7 +117,7 @@ function SubteamsNav() {
       </button>
       {open && (
         <div className="space-y-0.5 pl-3">
-          {DEPARTMENTS.map((dept) => (
+          {departments.map((dept, index) => (
             <div key={dept}>
               <button
                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[#9C8272] text-[11px] transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
@@ -126,7 +125,16 @@ function SubteamsNav() {
               >
                 <span
                   className="h-1.5 w-1.5 shrink-0 rounded-sm"
-                  style={{ background: DEPT_COLORS[dept] }}
+                  style={{
+                    background: [
+                      "#4f6ef7",
+                      "#10b981",
+                      "#8b5cf6",
+                      "#f59e0b",
+                      "#f43f5e",
+                      "#ec4899",
+                    ][index % 6],
+                  }}
                 />
                 <span className="flex-1">{dept}</span>
                 <span className="text-[8px] opacity-50">
@@ -135,14 +143,16 @@ function SubteamsNav() {
               </button>
               {openDept === dept && (
                 <div className="space-y-0.5 pl-4">
-                  {(SUBTEAMS[dept] ?? []).map((sub) => (
+                  {(subteams[dept] ?? []).map((sub) => (
                     <button
                       className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1 text-left text-[#7A6555] text-[10px] transition-colors hover:bg-white/5 hover:text-[#C4A882]"
                       key={sub}
                     >
                       <span
                         className="h-3 w-px shrink-0"
-                        style={{ background: `${DEPT_COLORS[dept]}60` }}
+                        style={{
+                          background: `${["#4f6ef7", "#10b981", "#8b5cf6", "#f59e0b", "#f43f5e", "#ec4899"][index % 6]}60`,
+                        }}
                       />
                       {sub}
                     </button>
@@ -282,55 +292,59 @@ export default function App({
   organizationName,
   userName,
   userEmail,
-  budget = BUDGET,
+  budget,
+  dashboardData,
 }: {
   organizationName: string;
   userName: string;
   userEmail: string;
-  budget?: BudgetData;
+  budget: BudgetData;
+  dashboardData: import("./dashboard-data-context").DashboardData;
 }) {
   const [showMembers, setShowMembers] = useState(false);
 
   return (
-    <div
-      className="flex h-full overflow-hidden bg-[#1A1919]"
-      style={{ fontFamily: "'Inter',sans-serif" }}
-    >
-      <Sidebar
-        onManageMembers={() => setShowMembers(true)}
-        organizationName={organizationName}
-        userEmail={userEmail}
-        userName={userName}
-      />
-      <div className="flex h-full min-w-0 flex-1 flex-col">
-        <Header />
-        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
-          <IcicleChart data={budget} />
-          <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
-            <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
-              <CalendarBlock />
-            </div>
-            <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
-              <NotificationsBlock />
-            </div>
-            <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
-              <h2 className="mb-2 shrink-0 font-semibold text-[#FFEDD1] text-sm">
-                Todo
-              </h2>
-              <TodoBlock />
-            </div>
-            <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
-              <FilesBlock />
-            </div>
-          </div>
-        </main>
-      </div>
-      {showMembers && (
-        <MembersModal
-          currentTeam="Board"
-          onClose={() => setShowMembers(false)}
+    <DashboardDataProvider value={dashboardData}>
+      <div
+        className="flex h-full overflow-hidden bg-[#1A1919]"
+        style={{ fontFamily: "'Inter',sans-serif" }}
+      >
+        <Sidebar
+          onManageMembers={() => setShowMembers(true)}
+          organizationName={organizationName}
+          userEmail={userEmail}
+          userName={userName}
         />
-      )}
-    </div>
+        <div className="flex h-full min-w-0 flex-1 flex-col">
+          <Header />
+          <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4">
+            <IcicleChart data={budget} />
+            <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-3">
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
+                <CalendarBlock />
+              </div>
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
+                <NotificationsBlock />
+              </div>
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
+                <h2 className="mb-2 shrink-0 font-semibold text-[#FFEDD1] text-sm">
+                  Todo
+                </h2>
+                <TodoBlock />
+              </div>
+              <div className="flex flex-col overflow-hidden rounded-2xl border border-[#3D3330] bg-[#232120] p-3">
+                <FilesBlock />
+              </div>
+            </div>
+          </main>
+        </div>
+        {showMembers && (
+          <MembersModal
+            currentTeam="Board"
+            onClose={() => setShowMembers(false)}
+          />
+        )}
+      </div>
+    </DashboardDataProvider>
   );
 }

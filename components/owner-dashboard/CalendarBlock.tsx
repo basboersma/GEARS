@@ -13,6 +13,7 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDashboardData } from "./dashboard-data-context";
 import {
   addDays,
   avatarBg,
@@ -22,11 +23,8 @@ import {
   HEADER_H,
   HOUR_H,
   HOURS,
-  INIT_EVENTS,
   isSameDay,
-  MEMBERS,
   MONTH_NAMES,
-  ORDERS,
   TIME_COL_W,
 } from "./data";
 import { EventDetailModal } from "./EventDetailModal";
@@ -219,10 +217,16 @@ function SyncModal({ onClose }: { onClose: () => void }) {
 }
 
 export function CalendarBlock() {
+  const {
+    events: initialEvents,
+    members,
+    orders,
+    organizationId,
+  } = useDashboardData();
   const [mode, setMode] = useState<"agenda" | "roadmap">("agenda");
   const [view, setView] = useState<CalView>("week");
   const [viewDate, setViewDate] = useState<Date>(() => getMonday(new Date()));
-  const [events, setEvents] = useState<CalEvent[]>(INIT_EVENTS);
+  const [events, setEvents] = useState<CalEvent[]>(initialEvents);
   const [search, setSearch] = useState("");
   const [personFilter, setPersonFilter] = useState<string | null>(null);
   const [showSync, setShowSync] = useState(false);
@@ -328,7 +332,7 @@ export function CalendarBlock() {
   const eventsForDate = (d: Date) =>
     filteredEvents.filter((ev) => ev.date === formatDate(d));
   const ordersForDate = (d: Date) =>
-    ORDERS.filter((o) => o.date === formatDate(d));
+    orders.filter((o) => o.date === formatDate(d));
 
   const startDrag = useCallback((e: React.MouseEvent, ev: CalEvent) => {
     e.preventDefault();
@@ -427,19 +431,16 @@ export function CalendarBlock() {
     };
     const onUp = () => {
       if (ghost) {
-        setEvents((prev) =>
-          prev.map((ev) =>
-            ev.id === dragState.eventId
-              ? {
-                  ...ev,
-                  date: ghost.date,
-                  startTime: ghost.startTime,
-                  endTime: ghost.endTime,
-                  endDate: ghost.date,
-                }
-              : ev
-          )
-        );
+        const event = events.find((item) => item.id === dragState.eventId);
+        if (event) {
+          saveEvent({
+            ...event,
+            date: ghost.date,
+            startTime: ghost.startTime,
+            endTime: ghost.endTime,
+            endDate: ghost.date,
+          }).catch(() => undefined);
+        }
       }
       setDragState(null);
       setGhost(null);
@@ -451,7 +452,7 @@ export function CalendarBlock() {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
-  }, [dragState, ghost, numCols, viewDates]);
+  }, [dragState, ghost, numCols, viewDates, events]);
 
   const startMonthDrag = useCallback((e: React.MouseEvent, ev: CalEvent) => {
     e.preventDefault();
@@ -465,39 +466,67 @@ export function CalendarBlock() {
     }
     const onUp = () => {
       if (monthDrag.targetDate) {
-        setEvents((prev) =>
-          prev.map((ev) =>
-            ev.id === monthDrag.eventId
-              ? {
-                  ...ev,
-                  date: monthDrag.targetDate,
-                  endDate: monthDrag.targetDate,
-                }
-              : ev
-          )
-        );
+        const event = events.find((item) => item.id === monthDrag.eventId);
+        if (event) {
+          saveEvent({
+            ...event,
+            date: monthDrag.targetDate,
+            endDate: monthDrag.targetDate,
+          }).catch(() => undefined);
+        }
       }
       setMonthDrag(null);
     };
     document.addEventListener("mouseup", onUp);
     return () => document.removeEventListener("mouseup", onUp);
-  }, [monthDrag]);
+  }, [monthDrag, events]);
 
-  const saveEvent = (ev: CalEvent) => {
+  const saveEvent = async (ev: CalEvent) => {
+    const isExisting = events.some((event) => event.id === ev.id);
+    const payload = {
+      ...(isExisting ? {} : { organizationId }),
+      start: `${ev.date}T${ev.startTime}:00.000Z`,
+      end: `${ev.endDate}T${ev.endTime}:00.000Z`,
+      title: ev.title,
+      itemType: ev.type,
+      description: ev.description || "No description provided.",
+      location: ev.location,
+      attendees: JSON.stringify(ev.invitees.map((invitee) => invitee.memberId)),
+      discussionPoints: ev.discussionPoints.map((point) => ({
+        id: point.id,
+        topic: point.title,
+        notes: point.notes,
+        votingEnabled: point.votingEnabled,
+      })),
+    };
+    const response = await fetch(
+      isExisting ? `/api/agenda-events/${ev.id}` : "/api/agenda-events",
+      {
+        method: isExisting ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!response.ok) {
+      return;
+    }
+    const result = (await response.json()) as { eventId?: string };
+    const persistedEvent =
+      !isExisting && result.eventId ? { ...ev, id: result.eventId } : ev;
     setEvents((prev) =>
       prev.some((e) => e.id === ev.id)
-        ? prev.map((e) => (e.id === ev.id ? ev : e))
-        : [...prev, ev]
+        ? prev.map((e) => (e.id === ev.id ? persistedEvent : e))
+        : [...prev, persistedEvent]
     );
     setEditing(null);
     setCreating(false);
     if (detail?.id === ev.id) {
-      setDetail(ev);
+      setDetail(persistedEvent);
     }
   };
 
   const suggestions = search
-    ? MEMBERS.filter(
+    ? members.filter(
         (m) =>
           m.name.toLowerCase().includes(search.toLowerCase()) && !personFilter
       )
@@ -901,7 +930,7 @@ export function CalendarBlock() {
             </div>
             {personFilter &&
               (() => {
-                const m = MEMBERS.find((x) => x.id === personFilter);
+                const m = members.find((x) => x.id === personFilter);
                 return m ? (
                   <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#F0684D]/25 bg-[#F0684D]/10 px-2 py-1 text-[#F0684D] text-xs">
                     <span>{m.name.split(" ")[0]}</span>

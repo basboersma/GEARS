@@ -446,6 +446,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
+    eventId,
     warning: docWarning ?? undefined,
     docCreated: !docWarning,
   });

@@ -350,6 +350,81 @@ export const agendaDiscussionPointVote = pgTable(
   }
 );
 
+export const dashboardTodo = pgTable("dashboard_todo", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  text: text("text").notNull(),
+  description: text("description").notNull().default(""),
+  done: boolean("done").notNull().default(false),
+  color: text("color").notNull().default("#4f6ef7"),
+  assignedMemberIds: text("assigned_member_ids").notNull().default("[]"),
+  linkedFileIds: text("linked_file_ids").notNull().default("[]"),
+  addToCalendar: boolean("add_to_calendar").notNull().default(false),
+  calendarDate: text("calendar_date").notNull().default(""),
+  dueDate: text("due_date"),
+  subtasks: text("subtasks").notNull().default("[]"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const dashboardRoadmapItem = pgTable("dashboard_roadmap_item", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  department: text("department").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  color: text("color").notNull(),
+  progress: integer("progress").notNull().default(0),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const dashboardFile = pgTable("dashboard_file", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  parentId: text("parent_id"),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(),
+  fileType: text("file_type"),
+  size: text("size"),
+  url: text("url"),
+  modifiedAt: timestamp("modified_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const dashboardNotification = pgTable("dashboard_notification", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
 export const schema = {
   user,
   session,
@@ -363,6 +438,10 @@ export const schema = {
   agendaEvent,
   agendaDiscussionPoint,
   agendaDiscussionPointVote,
+  dashboardTodo,
+  dashboardRoadmapItem,
+  dashboardFile,
+  dashboardNotification,
   studentProfile,
   organizationRelations,
   organizationDepartmentRelations,
