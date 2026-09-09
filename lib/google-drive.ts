@@ -73,6 +73,128 @@ type DriveClient = Exclude<
   { error: string }
 >["drive"];
 
+export interface GoogleDriveTreeNode {
+  id: string;
+  name: string;
+  kind: "folder" | "file";
+  mimeType?: string;
+  size?: string;
+  modifiedTime?: string;
+  webViewLink?: string;
+  children?: GoogleDriveTreeNode[];
+}
+
+const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+
+export async function listGoogleDriveTree(folderId: string) {
+  const clients = await getDriveClients();
+
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+
+  const listFolder = async (
+    parentId: string
+  ): Promise<GoogleDriveTreeNode[]> => {
+    const response = await clients.drive.files.list({
+      q: `'${parentId}' in parents and trashed = false`,
+      fields: "files(id,name,mimeType,size,modifiedTime,webViewLink)",
+      orderBy: "folder,name",
+      pageSize: 1000,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+
+    const nodes = await Promise.all(
+      (response.data.files ?? []).map(async (file) => {
+        if (!(file.id && file.name && file.mimeType)) {
+          return null;
+        }
+        if (file.mimeType === FOLDER_MIME_TYPE) {
+          return {
+            id: file.id,
+            name: file.name,
+            kind: "folder" as const,
+            children: await listFolder(file.id),
+          };
+        }
+        return {
+          id: file.id,
+          name: file.name,
+          kind: "file" as const,
+          mimeType: file.mimeType,
+          size: file.size ?? undefined,
+          modifiedTime: file.modifiedTime ?? undefined,
+          webViewLink: file.webViewLink ?? undefined,
+        };
+      })
+    );
+    return nodes.filter((node): node is GoogleDriveTreeNode => node !== null);
+  };
+
+  try {
+    return { success: true as const, files: await listFolder(folderId) };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Failed to list Google Drive files: ${message}`,
+    };
+  }
+}
+
+export async function uploadGoogleDriveFile({
+  folderId,
+  file,
+}: {
+  folderId: string;
+  file: File;
+}) {
+  const clients = await getDriveClients();
+
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+
+  try {
+    const uploaded = await clients.drive.files.create({
+      requestBody: { name: file.name, parents: [folderId] },
+      media: {
+        mimeType: file.type || "application/octet-stream",
+        body: Buffer.from(await file.arrayBuffer()),
+      },
+      fields: "id,name,mimeType,size,modifiedTime,webViewLink",
+      supportsAllDrives: true,
+    });
+
+    if (!(uploaded.data.id && uploaded.data.name && uploaded.data.mimeType)) {
+      return {
+        success: false as const,
+        error: "Google Drive did not return the uploaded file.",
+      };
+    }
+
+    return {
+      success: true as const,
+      file: {
+        id: uploaded.data.id,
+        name: uploaded.data.name,
+        kind: "file" as const,
+        mimeType: uploaded.data.mimeType,
+        size: uploaded.data.size ?? undefined,
+        modifiedTime: uploaded.data.modifiedTime ?? undefined,
+        webViewLink: uploaded.data.webViewLink ?? undefined,
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Google Drive upload failed: ${message}`,
+    };
+  }
+}
+
 async function createFolder({
   name,
   parentFolderId,

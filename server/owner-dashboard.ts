@@ -12,9 +12,11 @@ import {
   dashboardTodo,
   member,
   orderRequest,
+  organization,
   organizationDepartment,
   user,
 } from "@/db/schema";
+import { listGoogleDriveTree } from "@/lib/google-drive";
 
 const FILE_TYPES = new Set(["pdf", "doc", "sheet", "slide", "other"]);
 
@@ -81,6 +83,34 @@ function buildFileTree(
   return mapRows(null);
 }
 
+function driveFileType(
+  mimeType?: string
+): "pdf" | "doc" | "sheet" | "slide" | "other" {
+  if (mimeType === "application/pdf") {
+    return "pdf";
+  }
+  if (mimeType?.includes("document") || mimeType?.includes("word")) {
+    return "doc";
+  }
+  if (mimeType?.includes("spreadsheet") || mimeType?.includes("excel")) {
+    return "sheet";
+  }
+  if (mimeType?.includes("presentation") || mimeType?.includes("powerpoint")) {
+    return "slide";
+  }
+  return "other";
+}
+
+function formatFileSize(value?: string): string {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes)) {
+    return "";
+  }
+  return bytes >= 1_048_576
+    ? `${(bytes / 1_048_576).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 export async function getOwnerDashboardData(
   organizationId: string
 ): Promise<DashboardData> {
@@ -134,6 +164,12 @@ export async function getOwnerDashboardData(
       orderBy: [asc(orderRequest.orderedDate)],
     }),
   ]);
+  const organizationRow = await db.query.organization.findFirst({
+    where: eq(organization.id, organizationId),
+  });
+  const driveTree = organizationRow?.driveFolderId
+    ? await listGoogleDriveTree(organizationRow.driveFolderId)
+    : null;
 
   const eventIds = eventRows.map((event) => event.id);
   const discussionPoints = eventIds.length
@@ -163,22 +199,43 @@ export async function getOwnerDashboardData(
     ]);
   }
 
-  const files = fileRows
-    .filter((row) => row.kind === "file")
-    .map((row) => ({
-      id: row.id,
-      name: row.name,
-      type: FILE_TYPES.has(row.fileType ?? "")
-        ? (row.fileType as "pdf" | "doc" | "sheet" | "slide" | "other")
-        : "other",
-      size: row.size ?? "",
-      modified: row.modifiedAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      url: row.url ?? "#",
-    }));
+  const googleDriveTree = driveTree?.success
+    ? driveTree.files.map(function mapNode(node): FileTreeNode {
+        if (node.kind === "folder") {
+          return {
+            kind: "folder",
+            id: node.id,
+            name: node.name,
+            children: (node.children ?? []).map(mapNode),
+          };
+        }
+        return {
+          kind: "file",
+          id: node.id,
+          name: node.name,
+          type: driveFileType(node.mimeType),
+          size: formatFileSize(node.size),
+          modified: node.modifiedTime
+            ? new Date(node.modifiedTime).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : "",
+          url:
+            node.webViewLink ??
+            `https://drive.google.com/file/d/${node.id}/view`,
+        };
+      })
+    : buildFileTree(fileRows);
+  const files = googleDriveTree.flatMap(
+    function flatten(node): DashboardData["files"] {
+      if (node.kind === "folder") {
+        return node.children.flatMap(flatten);
+      }
+      return [{ ...node }];
+    }
+  );
 
   return {
     organizationId,
@@ -197,7 +254,7 @@ export async function getOwnerDashboardData(
       strikes: 0,
     })),
     files,
-    fileTree: buildFileTree(fileRows),
+    fileTree: googleDriveTree,
     events: eventRows.map((event) => {
       const start = dateParts(event.start);
       const end = dateParts(event.end);

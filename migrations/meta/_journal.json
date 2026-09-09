@@ -43,6 +43,13 @@
       "when": 1788371652638,
       "tag": "0005_fast_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788989394994,
+      "tag": "0006_melodic_shaman",
+      "breakpoints": true
     }
   ]
 }

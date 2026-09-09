@@ -14,7 +14,7 @@
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 // biome-ignore-all lint/a11y/noAutofocus: Preserves the reference dashboard rename workflow.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FILE_TREE } from "./data";
+import { useDashboardData } from "./dashboard-data-context";
 import type { FileTreeNode } from "./types";
 
 // ─── Tree utilities ───────────────────────────────────────────────────────────
@@ -116,10 +116,6 @@ const FILE_COLOR: Record<string, string> = {
   slide: "text-amber-400",
   other: "text-[#C4A882]",
 };
-
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
 
 // ─── Context menu ─────────────────────────────────────────────────────────────
 
@@ -238,6 +234,7 @@ function TreeNode({
   renamingId,
   onRenameCommit,
   onMenuOpen,
+  onPreview,
 }: {
   node: FileTreeNode;
   depth: number;
@@ -251,6 +248,7 @@ function TreeNode({
   renamingId: string | null;
   onRenameCommit: (id: string, name: string) => void;
   onMenuOpen: (nodeId: string, x: number, y: number) => void;
+  onPreview: (file: Extract<FileTreeNode, { kind: "file" }>) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const indent = depth * 14;
@@ -264,6 +262,7 @@ function TreeNode({
       <div
         className={`group flex cursor-grab select-none items-center gap-2 rounded-lg py-1 transition-colors hover:bg-[#2A2724] ${draggingId === node.id ? "opacity-40" : ""}`}
         draggable
+        onClick={() => onPreview(node)}
         onDragStart={(e) => {
           e.stopPropagation();
           onDragStart(node.id);
@@ -406,6 +405,7 @@ function TreeNode({
               onDrop={onDrop}
               onLocalDrop={onLocalDrop}
               onMenuOpen={onMenuOpen}
+              onPreview={onPreview}
               onRenameCommit={onRenameCommit}
               q={q}
               renamingId={renamingId}
@@ -430,12 +430,17 @@ function ConnectedTreeNode(
 // ─── FilesBlock ───────────────────────────────────────────────────────────────
 
 export function FilesBlock() {
-  const [tree, setTree] = useState<FileTreeNode[]>(FILE_TREE);
+  const { fileTree, organizationId } = useDashboardData();
+  const [tree, setTree] = useState<FileTreeNode[]>(fileTree);
   const [q, setQ] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
+  const [preview, setPreview] = useState<Extract<
+    FileTreeNode,
+    { kind: "file" }
+  > | null>(null);
 
   const handleDrop = useCallback(
     (targetFolderId: string) => {
@@ -457,38 +462,62 @@ export function FilesBlock() {
   );
 
   const handleLocalDrop = useCallback(
-    (folderId: string | null, files: FileList) => {
-      const newNodes: FileTreeNode[] = Array.from(files).map((f) => {
-        const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
-        const type =
-          ext === "pdf"
-            ? "pdf"
-            : ext === "doc" || ext === "docx"
-              ? "doc"
-              : ext === "xls" || ext === "xlsx"
-                ? "sheet"
-                : ext === "ppt" || ext === "pptx"
-                  ? "slide"
-                  : "other";
-        const size =
-          f.size > 1_048_576
-            ? `${(f.size / 1_048_576).toFixed(1)} MB`
-            : `${Math.round(f.size / 1024)} KB`;
-        return {
-          kind: "file" as const,
-          id: uid(),
-          name: f.name,
-          type,
-          size,
-          modified: "Just now",
-          url: "#",
-        };
+    async (folderId: string | null, files: FileList) => {
+      if (!folderId) {
+        return;
+      }
+      const uploaded = await Promise.all(
+        Array.from(files).map(async (file) => {
+          const formData = new FormData();
+          formData.set("organizationId", organizationId);
+          formData.set("folderId", folderId);
+          formData.set("file", file);
+          const response = await fetch("/api/owner-dashboard/files", {
+            method: "POST",
+            body: formData,
+          });
+          if (!response.ok) {
+            return null;
+          }
+          return (await response.json()) as {
+            file: {
+              id: string;
+              name: string;
+              mimeType?: string;
+              size?: string;
+              modifiedTime?: string;
+              webViewLink?: string;
+            };
+          };
+        })
+      );
+      const newNodes = uploaded.flatMap((result): FileTreeNode[] => {
+        if (!result) {
+          return [];
+        }
+        const type = result.file.mimeType?.includes("pdf") ? "pdf" : "other";
+        return [
+          {
+            kind: "file",
+            id: result.file.id,
+            name: result.file.name,
+            type,
+            size: result.file.size ?? "",
+            modified: "Just now",
+            url:
+              result.file.webViewLink ??
+              `https://drive.google.com/file/d/${result.file.id}/view`,
+          },
+        ];
       });
-      setTree((t) =>
-        newNodes.reduce((acc, node) => addToFolder(acc, folderId, node), t)
+      setTree((current) =>
+        newNodes.reduce(
+          (nodes, node) => addToFolder(nodes, folderId, node),
+          current
+        )
       );
     },
-    []
+    [organizationId]
   );
 
   const handleMove = useCallback(
@@ -544,6 +573,7 @@ export function FilesBlock() {
             onMenuOpen={(nodeId, x, y) => {
               setMenu({ nodeId, x, y });
             }}
+            onPreview={setPreview}
             onRenameCommit={handleRenameCommit}
             q={q}
             renamingId={renamingId}
@@ -585,6 +615,34 @@ export function FilesBlock() {
           }}
           tree={tree}
         />
+      )}
+      {preview && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPreview(null)}
+        >
+          <div
+            className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-[#3D3330] bg-[#141212]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-[#3D3330] border-b px-4 py-3">
+              <span className="truncate font-medium text-[#FFEDD1] text-sm">
+                {preview.name}
+              </span>
+              <button
+                className="text-[#C4A882] hover:text-[#FFEDD1]"
+                onClick={() => setPreview(null)}
+              >
+                Close
+              </button>
+            </div>
+            <iframe
+              className="min-h-0 flex-1 bg-white"
+              src={`https://drive.google.com/file/d/${preview.id}/preview`}
+              title={preview.name}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
