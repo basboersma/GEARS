@@ -42,10 +42,15 @@ const NOTIF_TYPE_COLOR: Record<AppNotification["type"], string> = {
 
 function NotificationsBlock() {
   const { notifications } = useDashboardData();
-  const [notifs, setNotifs] = useState<AppNotification[]>(notifications);
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<string>>(
+    new Set()
+  );
   const markRead = (id: string) =>
-    setNotifs((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
-  const unread = notifs.filter((n) => !n.read).length;
+    setReadNotificationIds((current) => new Set(current).add(id));
+  const unread = notifications.filter(
+    (notification) =>
+      !(notification.read || readNotificationIds.has(notification.id))
+  ).length;
   return (
     <div className="flex h-full flex-col">
       <div className="mb-2 flex shrink-0 items-center justify-between">
@@ -57,38 +62,41 @@ function NotificationsBlock() {
         )}
       </div>
       <div className="min-h-0 flex-1 space-y-1.5 overflow-auto">
-        {notifs.map((n) => (
-          <button
-            className={`flex w-full items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all ${
-              n.read
-                ? "border-[#3D3330] bg-[#232120] opacity-60"
-                : "border-[#3D3330] bg-[#2A2724] hover:border-[#4A3F38]"
-            }`}
-            key={n.id}
-            onClick={() => markRead(n.id)}
-          >
-            <span
-              className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{
-                background: n.read ? "#3D3330" : NOTIF_TYPE_COLOR[n.type],
-              }}
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-medium text-[#FFEDD1] text-xs">
-                  {n.title}
-                </span>
-                <span className="shrink-0 text-[#7A6555] text-[9px]">
-                  {n.time}
-                </span>
+        {notifications.map((n) => {
+          const isRead = n.read || readNotificationIds.has(n.id);
+          return (
+            <button
+              className={`flex w-full items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all ${
+                isRead
+                  ? "border-[#3D3330] bg-[#232120] opacity-60"
+                  : "border-[#3D3330] bg-[#2A2724] hover:border-[#4A3F38]"
+              }`}
+              key={n.id}
+              onClick={() => markRead(n.id)}
+            >
+              <span
+                className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{
+                  background: isRead ? "#3D3330" : NOTIF_TYPE_COLOR[n.type],
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium text-[#FFEDD1] text-xs">
+                    {n.title}
+                  </span>
+                  <span className="shrink-0 text-[#7A6555] text-[9px]">
+                    {n.time}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[#9C8272] text-[10px] leading-snug">
+                  {n.body}
+                </p>
               </div>
-              <p className="mt-0.5 text-[#9C8272] text-[10px] leading-snug">
-                {n.body}
-              </p>
-            </div>
-          </button>
-        ))}
-        {notifs.length === 0 && (
+            </button>
+          );
+        })}
+        {notifications.length === 0 && (
           <div className="flex h-32 flex-col items-center justify-center gap-2 text-[#7A6555] text-sm">
             <span className="font-thin text-3xl text-[#4A3F38]">—</span>
             <span>All clear</span>
@@ -281,7 +289,10 @@ export default function App({
   const [showMembers, setShowMembers] = useState(false);
 
   return (
-    <DashboardDataProvider value={dashboardData}>
+    <DashboardDataProvider
+      key={dashboardData.organizationId}
+      value={dashboardData}
+    >
       <div
         className="flex h-full overflow-hidden bg-[#1A1919]"
         style={{ fontFamily: "'Inter',sans-serif" }}

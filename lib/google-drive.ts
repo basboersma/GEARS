@@ -199,6 +199,44 @@ export async function uploadGoogleDriveFile({
   }
 }
 
+export async function isGoogleDriveDescendant({
+  folderId,
+  ancestorFolderId,
+}: {
+  folderId: string;
+  ancestorFolderId: string;
+}) {
+  const clients = await getDriveClients();
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+
+  try {
+    let currentId: string | undefined = folderId;
+    const visited = new Set<string>();
+    while (currentId && !visited.has(currentId)) {
+      if (currentId === ancestorFolderId) {
+        return { success: true as const, isDescendant: true };
+      }
+      visited.add(currentId);
+      const response: { data: { parents?: string[] | null } } =
+        await clients.drive.files.get({
+          fileId: currentId,
+          fields: "parents",
+          supportsAllDrives: true,
+        });
+      currentId = response.data.parents?.[0];
+    }
+    return { success: true as const, isDescendant: false };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Failed to verify Google Drive folder access: ${message}`,
+    };
+  }
+}
+
 async function createFolder({
   name,
   parentFolderId,

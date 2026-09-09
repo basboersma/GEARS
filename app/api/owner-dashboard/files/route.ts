@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/db/drizzle";
 import { member, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { uploadGoogleDriveFile } from "@/lib/google-drive";
+import {
+  isGoogleDriveDescendant,
+  uploadGoogleDriveFile,
+} from "@/lib/google-drive";
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -45,6 +48,21 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "This organization has no configured Google Drive folder." },
       { status: 400 }
+    );
+  }
+  const folderAccess = await isGoogleDriveDescendant({
+    folderId,
+    ancestorFolderId: organizationRow.driveFolderId,
+  });
+  if (!folderAccess.success) {
+    return NextResponse.json({ error: folderAccess.error }, { status: 502 });
+  }
+  if (!folderAccess.isDescendant) {
+    return NextResponse.json(
+      {
+        error: "The selected Google Drive folder is outside this organization.",
+      },
+      { status: 403 }
     );
   }
 
