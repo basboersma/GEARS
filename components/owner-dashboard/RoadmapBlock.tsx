@@ -13,13 +13,12 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDashboardData } from "./dashboard-data-context";
 import {
   addDays,
-  DEPARTMENTS,
   DEPT_COLORS,
   diffDays,
   formatDate,
-  INIT_ROADMAP,
   MONTH_NAMES,
   parseDate,
 } from "./data";
@@ -58,11 +57,18 @@ function assignRows(items: RoadmapItem[]): (RoadmapItem & { row: number })[] {
 
 interface FormProps {
   initial?: RoadmapItem;
-  onSave: (item: RoadmapItem) => void;
+  departments: string[];
+  onSave: (item: RoadmapItem) => Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
 }
-function RoadmapForm({ initial, onSave, onDelete, onClose }: FormProps) {
+function RoadmapForm({
+  initial,
+  departments,
+  onSave,
+  onDelete,
+  onClose,
+}: FormProps) {
   const today = formatDate(new Date());
   const blank: RoadmapItem = {
     id: Date.now().toString(),
@@ -109,7 +115,7 @@ function RoadmapForm({ initial, onSave, onDelete, onClose }: FormProps) {
             }
             value={item.department}
           >
-            {DEPARTMENTS.map((d) => (
+            {departments.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>
@@ -199,9 +205,9 @@ function RoadmapForm({ initial, onSave, onDelete, onClose }: FormProps) {
         </button>
         <button
           className="flex-1 rounded-xl bg-[#F0684D] py-2 font-medium text-sm text-white transition-colors hover:bg-[#E05538]"
-          onClick={() => {
+          onClick={async () => {
             if (item.title.trim()) {
-              onSave(item);
+              await onSave(item);
             }
           }}
         >
@@ -221,7 +227,8 @@ interface DragState {
 }
 
 export function RoadmapBlock() {
-  const [items, setItems] = useState<RoadmapItem[]>(INIT_ROADMAP);
+  const { departments, organizationId, roadmap } = useDashboardData();
+  const [items, setItems] = useState<RoadmapItem[]>(roadmap);
   const [viewStart, setViewStart] = useState<Date>(() => {
     const d = new Date();
     d.setDate(1);
@@ -232,12 +239,17 @@ export function RoadmapBlock() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<RoadmapItem | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
-  const [deptOrder, setDeptOrder] = useState<string[]>(DEPARTMENTS);
+  const [deptOrder, setDeptOrder] = useState<string[]>(departments);
   const [rowDragging, setRowDragging] = useState<string | null>(null);
   const [rowDragOver, setRowDragOver] = useState<string | null>(null);
   const [dayWidth, setDayWidth] = useState(36);
+  const itemsRef = useRef(items);
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const spanMonths = SPAN_MONTHS[span];
   const viewEnd = (() => {
@@ -298,11 +310,26 @@ export function RoadmapBlock() {
   const shiftDate = (dateStr: string, days: number): string =>
     formatDate(addDays(parseDate(dateStr), days));
 
-  const saveItem = (item: RoadmapItem) => {
+  const saveItem = async (item: RoadmapItem) => {
+    const isExisting = items.some((existing) => existing.id === item.id);
+    const { id: temporaryId, ...newItem } = item;
+    const response = await fetch("/api/owner-dashboard/roadmap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(isExisting ? { ...newItem, id: temporaryId } : newItem),
+        organizationId,
+      }),
+    });
+    if (!response.ok) {
+      return;
+    }
+    const { id } = (await response.json()) as { id: string };
+    const persistedItem = { ...item, id };
     setItems((prev) =>
       prev.some((x) => x.id === item.id)
-        ? prev.map((x) => (x.id === item.id ? item : x))
-        : [...prev, item]
+        ? prev.map((x) => (x.id === item.id ? persistedItem : x))
+        : [...prev, persistedItem]
     );
     setCreating(false);
     setEditing(null);
@@ -352,7 +379,13 @@ export function RoadmapBlock() {
         }
       }
     };
-    const onUp = () => setDrag(null);
+    const onUp = () => {
+      const updated = itemsRef.current.find((item) => item.id === drag.id);
+      if (updated) {
+        saveItem(updated).catch(() => undefined);
+      }
+      setDrag(null);
+    };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
     return () => {
@@ -503,7 +536,7 @@ export function RoadmapBlock() {
         </div>
         <div className="flex-1" />
         <div className="flex flex-wrap gap-2">
-          {DEPARTMENTS.map((d) => (
+          {departments.map((d) => (
             <div
               className="flex items-center gap-1 text-[#C4A882] text-[10px]"
               key={d}
@@ -752,10 +785,15 @@ export function RoadmapBlock() {
       </div>
 
       {creating && (
-        <RoadmapForm onClose={() => setCreating(false)} onSave={saveItem} />
+        <RoadmapForm
+          departments={departments}
+          onClose={() => setCreating(false)}
+          onSave={saveItem}
+        />
       )}
       {editing && (
         <RoadmapForm
+          departments={departments}
           initial={editing}
           onClose={() => setEditing(null)}
           onDelete={() => deleteItem(editing.id)}

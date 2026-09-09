@@ -142,13 +142,21 @@ export function TodoBlock() {
   const [tab, setTab] = useState<"active" | "previous">("active");
 
   const save = async (item: TodoItem, attachments: File[]) => {
+    const isExisting = todos.some((todo) => todo.id === item.id);
+    const { id: temporaryId, ...newTodo } = item;
     const response = await fetch("/api/owner-dashboard/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...item, organizationId }),
+      body: JSON.stringify({
+        ...(isExisting ? { ...newTodo, id: temporaryId } : newTodo),
+        organizationId,
+      }),
     });
     if (!response.ok) {
-      return;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      return payload?.error ?? "The todo could not be saved.";
     }
     const { id } = (await response.json()) as { id: string };
     const persistedItem = { ...item, id };
@@ -170,6 +178,14 @@ export function TodoBlock() {
           ...item.linkedFiles.filter((fileId) => !fileId.startsWith("local:")),
           ...files.map((file) => file.id),
         ];
+      } else {
+        const payload = (await attachmentResponse.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        return (
+          payload?.error ??
+          "The todo was saved, but its attachments could not be uploaded."
+        );
       }
     }
     setTodos((p) =>
@@ -178,6 +194,7 @@ export function TodoBlock() {
         : [...p, persistedItem]
     );
     setModal(null);
+    return null;
   };
   const remove = (id: string) => {
     setTodos((p) => p.filter((t) => t.id !== id));

@@ -40,7 +40,7 @@ const fileIcon = (name: string) =>
 
 interface Props {
   initial?: TodoItem;
-  onSave: (item: TodoItem, attachments: File[]) => Promise<void>;
+  onSave: (item: TodoItem, attachments: File[]) => Promise<string | null>;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -70,6 +70,8 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
   const [dragActive, setDragActive] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [newSubtask, setNewSubtask] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const set = (patch: Partial<TodoItem>) =>
     setItem((p) => ({ ...p, ...patch }));
@@ -387,6 +389,11 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
       </div>
 
       <div className="flex shrink-0 gap-2 border-[#3D3330] border-t px-5 py-4">
+        {saveError && (
+          <p className="absolute mb-10 text-[#F0684D] text-xs" role="alert">
+            {saveError}
+          </p>
+        )}
         {onDelete && (
           <button
             className="rounded-xl border border-rose-500/30 bg-rose-500/20 px-4 py-2 font-medium text-rose-400 text-sm transition-colors hover:bg-rose-500/30"
@@ -403,13 +410,20 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
         </button>
         <button
           className="flex-1 rounded-xl bg-[#F0684D] py-2 font-medium text-sm text-white transition-colors hover:bg-[#E05538]"
+          disabled={saving}
           onClick={async () => {
             if (item.text.trim()) {
-              await onSave(item, attachments);
+              setSaving(true);
+              setSaveError(null);
+              const error = await onSave(item, attachments);
+              setSaving(false);
+              if (error) {
+                setSaveError(error);
+              }
             }
           }}
         >
-          {initial ? "Save" : "Create"}
+          {saving ? "Saving..." : initial ? "Save" : "Create"}
         </button>
       </div>
     </ModalShell>
