@@ -106,28 +106,30 @@ export async function listGoogleDriveTree(folderId: string) {
     });
 
     const nodes = await Promise.all(
-      (response.data.files ?? []).map(async (file) => {
-        if (!(file.id && file.name && file.mimeType)) {
-          return null;
-        }
-        if (file.mimeType === FOLDER_MIME_TYPE) {
+      (response.data.files ?? []).map(
+        async (file): Promise<GoogleDriveTreeNode | null> => {
+          if (!(file.id && file.name && file.mimeType)) {
+            return null;
+          }
+          if (file.mimeType === FOLDER_MIME_TYPE) {
+            return {
+              id: file.id,
+              name: file.name,
+              kind: "folder" as const,
+              children: await listFolder(file.id),
+            };
+          }
           return {
             id: file.id,
             name: file.name,
-            kind: "folder" as const,
-            children: await listFolder(file.id),
+            kind: "file" as const,
+            mimeType: file.mimeType,
+            size: file.size ?? undefined,
+            modifiedTime: file.modifiedTime ?? undefined,
+            webViewLink: file.webViewLink ?? undefined,
           };
         }
-        return {
-          id: file.id,
-          name: file.name,
-          kind: "file" as const,
-          mimeType: file.mimeType,
-          size: file.size ?? undefined,
-          modifiedTime: file.modifiedTime ?? undefined,
-          webViewLink: file.webViewLink ?? undefined,
-        };
-      })
+      )
     );
     return nodes.filter((node): node is GoogleDriveTreeNode => node !== null);
   };
