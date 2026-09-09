@@ -239,6 +239,7 @@ export async function getOwnerDashboardData(
 
   return {
     organizationId,
+    driveFolderId: organizationRow?.driveFolderId ?? null,
     departments,
     subteams: Object.fromEntries(departments.map((name) => [name, []])),
     members: memberRows.map((row) => ({

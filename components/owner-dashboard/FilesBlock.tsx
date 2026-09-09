@@ -430,7 +430,7 @@ function ConnectedTreeNode(
 // ─── FilesBlock ───────────────────────────────────────────────────────────────
 
 export function FilesBlock() {
-  const { fileTree, organizationId } = useDashboardData();
+  const { driveFolderId, fileTree, organizationId } = useDashboardData();
   const [tree, setTree] = useState<FileTreeNode[]>(fileTree);
   const [q, setQ] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -463,14 +463,15 @@ export function FilesBlock() {
 
   const handleLocalDrop = useCallback(
     async (folderId: string | null, files: FileList) => {
-      if (!folderId) {
+      const targetFolderId = folderId ?? driveFolderId;
+      if (!targetFolderId) {
         return;
       }
       const uploaded = await Promise.all(
         Array.from(files).map(async (file) => {
           const formData = new FormData();
           formData.set("organizationId", organizationId);
-          formData.set("folderId", folderId);
+          formData.set("folderId", targetFolderId);
           formData.set("file", file);
           const response = await fetch("/api/owner-dashboard/files", {
             method: "POST",
@@ -517,7 +518,7 @@ export function FilesBlock() {
         )
       );
     },
-    [organizationId]
+    [driveFolderId, organizationId]
   );
 
   const handleMove = useCallback(
