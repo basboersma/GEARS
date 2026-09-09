@@ -24,44 +24,45 @@ const todoSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const parsed = todoSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid todo" }, { status: 400 });
-  }
-  const todo = parsed.data;
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(member.organizationId, todo.organizationId),
-      eq(member.userId, session.user.id)
-    ),
-  });
-  if (!(membership?.role === "owner" || membership?.role === "admin")) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+    const parsed = todoSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      console.error("Invalid dashboard todo payload", parsed.error.flatten());
+      return NextResponse.json({ error: "Invalid todo" }, { status: 400 });
+    }
+    const todo = parsed.data;
+    const membership = await db.query.member.findFirst({
+      where: and(
+        eq(member.organizationId, todo.organizationId),
+        eq(member.userId, session.user.id)
+      ),
+    });
+    if (!(membership?.role === "owner" || membership?.role === "admin")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  const validMembers = todo.assignedMembers.length
-    ? await db.query.member.findMany({
-        where: and(
-          eq(member.organizationId, todo.organizationId),
-          inArray(member.id, todo.assignedMembers)
-        ),
-      })
-    : [];
-  if (validMembers.length !== todo.assignedMembers.length) {
-    return NextResponse.json(
-      { error: "An assigned member is not in this organization." },
-      { status: 400 }
-    );
-  }
+    const validMembers = todo.assignedMembers.length
+      ? await db.query.member.findMany({
+          where: and(
+            eq(member.organizationId, todo.organizationId),
+            inArray(member.id, todo.assignedMembers)
+          ),
+        })
+      : [];
+    if (validMembers.length !== todo.assignedMembers.length) {
+      return NextResponse.json(
+        { error: "An assigned member is not in this organization." },
+        { status: 400 }
+      );
+    }
 
-  const id = todo.id ?? crypto.randomUUID();
-  await db.transaction(async (transaction) => {
-    await transaction
+    const id = todo.id ?? crypto.randomUUID();
+    await db
       .insert(dashboardTodo)
       .values({
         id,
@@ -95,17 +96,26 @@ export async function POST(request: Request) {
           updatedAt: new Date(),
         },
       });
-    await transaction
+    await db
       .delete(dashboardTodoAssignee)
       .where(eq(dashboardTodoAssignee.todoId, id));
     if (todo.assignedMembers.length) {
-      await transaction
+      await db
         .insert(dashboardTodoAssignee)
         .values(
           todo.assignedMembers.map((memberId) => ({ todoId: id, memberId }))
         );
     }
-  });
 
-  return NextResponse.json({ id });
+    return NextResponse.json({ id });
+  } catch (error) {
+    console.error("Failed to save dashboard todo", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Database write failed.",
+      },
+      { status: 500 }
+    );
+  }
 }

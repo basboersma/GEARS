@@ -202,19 +202,33 @@ export function TodoBlock() {
   };
   const toggle = (id: string) =>
     setTodos((p) => p.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const toggleSubtask = (todoId: string, stId: string) =>
-    setTodos((p) =>
-      p.map((t) =>
-        t.id === todoId
-          ? {
-              ...t,
-              subtasks: (t.subtasks ?? []).map((s) =>
-                s.id === stId ? { ...s, done: !s.done } : s
-              ),
-            }
-          : t
-      )
-    );
+  const toggleSubtask = async (todoId: string, stId: string) => {
+    const todo = todos.find((item) => item.id === todoId);
+    const subtask = todo?.subtasks.find((item) => item.id === stId);
+    if (!(todo && subtask)) {
+      return;
+    }
+    const updatedTodo = {
+      ...todo,
+      subtasks: todo.subtasks.map((item) =>
+        item.id === stId ? { ...item, done: !item.done } : item
+      ),
+    };
+    const error = await save(updatedTodo, []);
+    if (error || subtask.done) {
+      return;
+    }
+    await fetch("/api/owner-dashboard/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId,
+        type: "todo",
+        title: "Subtask completed",
+        body: `${subtask.text} was completed in ${todo.text}.`,
+      }),
+    });
+  };
 
   const active = todos.filter((t) => !t.done);
   const previous = todos.filter((t) => t.done);

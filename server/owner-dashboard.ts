@@ -189,6 +189,7 @@ export async function getOwnerDashboardData(
     new Set([
       ...departmentRows.map((row) => row.name),
       ...orderRows.map((row) => row.department),
+      ...roadmapRows.map((row) => row.department),
     ])
   ).sort();
   const pointsByEvent = new Map<string, typeof discussionPoints>();
