@@ -40,7 +40,7 @@ const fileIcon = (name: string) =>
 
 interface Props {
   initial?: TodoItem;
-  onSave: (item: TodoItem) => void;
+  onSave: (item: TodoItem, attachments: File[]) => Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -68,6 +68,7 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
   const [fileSearch, setFileSearch] = useState("");
   const [showCal, setShowCal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [newSubtask, setNewSubtask] = useState("");
 
   const set = (patch: Partial<TodoItem>) =>
@@ -99,7 +100,9 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
-    Array.from(e.dataTransfer.files).forEach((f) => {
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    setAttachments((current) => [...current, ...droppedFiles]);
+    droppedFiles.forEach((f) => {
       const key = `local:${f.name}`;
       if (!item.linkedFiles.includes(key)) {
         set({ linkedFiles: [...item.linkedFiles, key] });
@@ -400,9 +403,9 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
         </button>
         <button
           className="flex-1 rounded-xl bg-[#F0684D] py-2 font-medium text-sm text-white transition-colors hover:bg-[#E05538]"
-          onClick={() => {
+          onClick={async () => {
             if (item.text.trim()) {
-              onSave(item);
+              await onSave(item, attachments);
             }
           }}
         >

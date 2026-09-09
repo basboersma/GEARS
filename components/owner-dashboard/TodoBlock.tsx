@@ -141,7 +141,7 @@ export function TodoBlock() {
   const [modal, setModal] = useState<"new" | TodoItem | null>(null);
   const [tab, setTab] = useState<"active" | "previous">("active");
 
-  const save = async (item: TodoItem) => {
+  const save = async (item: TodoItem, attachments: File[]) => {
     const response = await fetch("/api/owner-dashboard/todos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -152,6 +152,26 @@ export function TodoBlock() {
     }
     const { id } = (await response.json()) as { id: string };
     const persistedItem = { ...item, id };
+    if (attachments.length > 0) {
+      const formData = new FormData();
+      formData.set("todoId", id);
+      for (const file of attachments) {
+        formData.append("files", file);
+      }
+      const attachmentResponse = await fetch(
+        "/api/owner-dashboard/todos/attachments",
+        { method: "POST", body: formData }
+      );
+      if (attachmentResponse.ok) {
+        const { files } = (await attachmentResponse.json()) as {
+          files: { id: string }[];
+        };
+        persistedItem.linkedFiles = [
+          ...item.linkedFiles.filter((fileId) => !fileId.startsWith("local:")),
+          ...files.map((file) => file.id),
+        ];
+      }
+    }
     setTodos((p) =>
       p.some((t) => t.id === item.id)
         ? p.map((t) => (t.id === item.id ? persistedItem : t))

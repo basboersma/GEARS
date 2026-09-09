@@ -1,3 +1,5 @@
+import { Readable } from "node:stream";
+
 const rootDriveFolderId =
   process.env.GOOGLE_DRIVE_FOLDER_ID || "1zjSIzFlh8dEHVdGDZoRKWkC7vROWPG1A";
 const impersonatedUserEmail =
@@ -163,7 +165,7 @@ export async function uploadGoogleDriveFile({
       requestBody: { name: file.name, parents: [folderId] },
       media: {
         mimeType: file.type || "application/octet-stream",
-        body: Buffer.from(await file.arrayBuffer()),
+        body: Readable.from(Buffer.from(await file.arrayBuffer())),
       },
       fields: "id,name,mimeType,size,modifiedTime,webViewLink",
       supportsAllDrives: true,
@@ -217,6 +219,85 @@ async function createFolder({
   });
 
   return folder.data;
+}
+
+async function findOrCreateFolder({
+  name,
+  parentFolderId,
+  drive,
+}: {
+  name: string;
+  parentFolderId: string;
+  drive: DriveClient;
+}) {
+  const existing = await drive.files.list({
+    q: `'${parentFolderId}' in parents and name = '${name.replace(/'/g, "\\'")}' and mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`,
+    fields: "files(id)",
+    pageSize: 1,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+  const id = existing.data.files?.[0]?.id;
+  if (id) {
+    return id;
+  }
+  const created = await createFolder({ name, parentFolderId, drive });
+  if (!created.id) {
+    throw new Error("Google Drive did not return the new folder ID.");
+  }
+  return created.id;
+}
+
+export async function uploadTodoAttachments({
+  organizationFolderId,
+  todoTitle,
+  createdAt,
+  files,
+}: {
+  organizationFolderId: string;
+  todoTitle: string;
+  createdAt: Date;
+  files: File[];
+}) {
+  const clients = await getDriveClients();
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+
+  try {
+    const todoRootId = await findOrCreateFolder({
+      name: "Todo",
+      parentFolderId: organizationFolderId,
+      drive: clients.drive,
+    });
+    const safeTitle = todoTitle.trim().replace(/[\\/:*?"<>|]/g, "-");
+    const todoFolderId = await findOrCreateFolder({
+      name: `${safeTitle} ${createdAt.toISOString().slice(0, 10)}`,
+      parentFolderId: todoRootId,
+      drive: clients.drive,
+    });
+    const uploaded = await Promise.all(
+      files.map((file) =>
+        uploadGoogleDriveFile({ folderId: todoFolderId, file })
+      )
+    );
+    const failed = uploaded.find((result) => !result.success);
+    if (failed && !failed.success) {
+      return failed;
+    }
+    return {
+      success: true as const,
+      files: uploaded.flatMap((result) =>
+        result.success ? [result.file] : []
+      ),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Todo attachment upload failed: ${message}`,
+    };
+  }
 }
 
 const ORGANIZATION_SUBFOLDER_NAMES = [
