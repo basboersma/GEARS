@@ -14,7 +14,6 @@ import type {
 
 export interface DashboardData {
   organizationId: string;
-  calendarFeedUrl: string;
   driveFolderId: string | null;
   departments: string[];
   subteams: Record<string, string[]>;

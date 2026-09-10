@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { OrganizationAgenda } from "@/components/organization-agenda";
 import OwnerDashboard from "@/components/owner-dashboard/app";
 import { Button } from "@/components/ui/button";
-import { getCalendarFeedUrl } from "@/server/calendar-feed";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -30,7 +29,6 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   if (isOwner && organization) {
     const dashboardData = await getOwnerDashboardData(organization.id);
     const organizations = await getOrganizations();
-    dashboardData.calendarFeedUrl = await getCalendarFeedUrl(organization.id);
     const spent = dashboardData.monthlySpend.Total.reduce(
       (sum, month) => sum + month.spent,
       0

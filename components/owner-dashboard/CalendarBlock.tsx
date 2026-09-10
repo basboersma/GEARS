@@ -175,13 +175,45 @@ function HoverTooltip({
 }
 
 function SyncModal({
-  calendarFeedUrl,
+  events,
   onClose,
+  organizationId,
 }: {
-  calendarFeedUrl: string;
+  events: CalEvent[];
   onClose: () => void;
+  organizationId: string;
 }) {
-  const copyFeedUrl = () => navigator.clipboard.writeText(calendarFeedUrl);
+  const [id, setId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const downloadAppleCalendar = () => {
+    const formatIcsDate = (date: string, time: string) =>
+      `${date.replaceAll("-", "")}T${time.replaceAll(":", "")}00`;
+    const content = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//GearsNL//Agenda//EN",
+      ...events.flatMap((event) => [
+        "BEGIN:VEVENT",
+        `UID:${event.id}@gearsnl.org`,
+        `DTSTART:${formatIcsDate(event.date, event.startTime)}`,
+        `DTEND:${formatIcsDate(event.endDate, event.endTime)}`,
+        `SUMMARY:${event.title.replaceAll("\n", " ")}`,
+        `DESCRIPTION:${event.description.replaceAll("\n", "\\n")}`,
+        `LOCATION:${event.location.replaceAll("\n", " ")}`,
+        "END:VEVENT",
+      ]),
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const url = URL.createObjectURL(
+      new Blob([content], { type: "text/calendar" })
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "gearsnl-agenda.ics";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
@@ -192,9 +224,7 @@ function SyncModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold text-[#FFEDD1]">
-            Calendar subscription
-          </h2>
+          <h2 className="font-semibold text-[#FFEDD1]">Sync calendar</h2>
           <button
             className="text-[#7A6555] text-sm hover:text-[#FFEDD1]"
             onClick={onClose}
@@ -203,9 +233,10 @@ function SyncModal({
           </button>
         </div>
         <input
-          className="mb-3 w-full rounded-lg border border-[#3D3330] bg-[#232120] px-3 py-2 text-[#FFEDD1] text-xs"
-          readOnly
-          value={calendarFeedUrl}
+          className="mb-3 w-full rounded-lg border border-[#3D3330] bg-[#232120] px-3 py-2 text-[#FFEDD1] text-sm placeholder:text-[#7A6555] focus:border-[#F0684D] focus:outline-none"
+          onChange={(e) => setId(e.target.value)}
+          placeholder="calendar@group.calendar.google.com"
+          value={id}
         />
         <div className="flex gap-2">
           <button
@@ -216,11 +247,42 @@ function SyncModal({
           </button>
           <button
             className="flex-1 rounded-xl border border-[#3D3330] bg-[#232120] py-2 text-[#C4A882] text-sm hover:bg-[#2E2B2A]"
-            onClick={copyFeedUrl}
+            onClick={downloadAppleCalendar}
           >
-            Copy URL
+            Apple (.ics)
+          </button>
+          <button
+            className="flex-1 rounded-xl bg-[#F0684D] py-2 text-sm text-white hover:bg-[#E05538] disabled:opacity-50"
+            disabled={syncing || !id.trim()}
+            onClick={async () => {
+              setSyncing(true);
+              setError(null);
+              const response = await fetch(
+                "/api/owner-dashboard/calendar-sync",
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    organizationId,
+                    calendarId: id.trim(),
+                  }),
+                }
+              );
+              setSyncing(false);
+              if (response.ok) {
+                onClose();
+                return;
+              }
+              const payload = (await response.json().catch(() => null)) as {
+                error?: string;
+              } | null;
+              setError(payload?.error ?? "Calendar sync failed.");
+            }}
+          >
+            {syncing ? "Syncing..." : "Google"}
           </button>
         </div>
+        {error && <p className="mt-3 text-[#F0684D] text-xs">{error}</p>}
       </div>
     </div>
   );
@@ -228,7 +290,6 @@ function SyncModal({
 
 export function CalendarBlock() {
   const {
-    calendarFeedUrl,
     events: initialEvents,
     members,
     orders,
@@ -1024,8 +1085,9 @@ export function CalendarBlock() {
 
       {showSync && (
         <SyncModal
-          calendarFeedUrl={calendarFeedUrl}
+          events={events}
           onClose={() => setShowSync(false)}
+          organizationId={organizationId}
         />
       )}
       {creating && (

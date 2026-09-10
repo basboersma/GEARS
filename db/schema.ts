@@ -81,7 +81,6 @@ export const organization = pgTable("organization", {
   budget: numeric("budget", { precision: 12, scale: 2 }).notNull().default("0"),
   driveFolderId: text("drive_folder_id"),
   driveMeetingsFolderId: text("drive_meetings_folder_id"),
-  calendarFeedToken: text("calendar_feed_token").unique(),
 });
 
 export const organizationDepartment = pgTable("organization_department", {
