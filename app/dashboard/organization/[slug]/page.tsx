@@ -64,6 +64,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
           budget={budget}
           dashboardData={dashboardData}
           organizationName={organization.name}
+          organizationSlug={slug}
           organizations={organizations}
           userEmail={user.email}
           userName={user.name}

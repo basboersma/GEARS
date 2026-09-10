@@ -1,9 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { X } from "lucide-react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { OwnerOrderReview } from "@/components/owner-order-review";
-import { Button } from "@/components/ui/button";
+import { OwnerOrdersWorkspace } from "@/components/owner-orders-workspace";
 import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
@@ -35,10 +32,7 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
   }
 
   const items = await db.query.orderRequest.findMany({
-    where: and(
-      eq(orderRequest.organizationId, selectedOrganization.id),
-      eq(orderRequest.status, "owner_review")
-    ),
+    where: and(eq(orderRequest.organizationId, selectedOrganization.id)),
     orderBy: (orderRequest, { asc }) => [asc(orderRequest.createdAt)],
     columns: {
       id: true,
@@ -48,24 +42,25 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
       amount: true,
       pricePerPiece: true,
       totalCosts: true,
+      typeOfOrder: true,
+      urgency: true,
       comments: true,
+      status: true,
+      ordered: true,
+      photoNeeded: true,
+      photoUploaded: true,
+      delivered: true,
+      createdAt: true,
     },
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-10">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="font-bold text-2xl">Review Sub-owner Orders</h1>
-        <Button asChild size="icon" type="button" variant="outline">
-          <Link
-            aria-label="Back to organization menu"
-            href={`/dashboard/organization/${slug}`}
-          >
-            <X className="size-4" />
-          </Link>
-        </Button>
-      </div>
-      <OwnerOrderReview items={items} />
-    </div>
+    <OwnerOrdersWorkspace
+      items={items.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+      }))}
+      slug={slug}
+    />
   );
 }
