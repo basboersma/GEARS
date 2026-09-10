@@ -1,8 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
+import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
 import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
+import { getOrganizations } from "@/server/organizations";
+import { getOwnerDashboardData } from "@/server/owner-dashboard";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -30,6 +34,11 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
   if (!membership) {
     redirect(`/dashboard/organization/${slug}`);
   }
+
+  const [dashboardData, organizations] = await Promise.all([
+    getOwnerDashboardData(selectedOrganization.id),
+    getOrganizations(),
+  ]);
 
   const items = await db.query.orderRequest.findMany({
     where: and(eq(orderRequest.organizationId, selectedOrganization.id)),
@@ -84,8 +93,19 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#1A1919] p-4">
-      <OrdersPanel data={budget} />
-    </div>
+    <DashboardDataProvider value={dashboardData}>
+      <OwnerDashboardFrame
+        activePage="orders"
+        organizationName={selectedOrganization.name}
+        organizationSlug={slug}
+        organizations={organizations}
+        userEmail={user.email}
+        userName={user.name}
+      >
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
+          <OrdersPanel data={budget} />
+        </main>
+      </OwnerDashboardFrame>
+    </DashboardDataProvider>
   );
 }
