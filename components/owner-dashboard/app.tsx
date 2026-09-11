@@ -27,7 +27,6 @@ import {
 } from "./dashboard-data-context";
 import { FilesBlock } from "./FilesBlock";
 import { IcicleChart } from "./IcicleChart";
-import { MembersModal } from "./MembersModal";
 import { TodoBlock } from "./TodoBlock";
 import type { AppNotification, BudgetData } from "./types";
 
@@ -202,14 +201,12 @@ function Sidebar({
   organizationSlug,
   userName,
   userEmail,
-  onManageMembers,
   organizations,
 }: {
   organizationName: string;
   organizationSlug: string;
   userName: string;
   userEmail: string;
-  onManageMembers: () => void;
   organizations: Organization[];
 }) {
   return (
@@ -237,13 +234,13 @@ function Sidebar({
         </button>
         <div className="space-y-0.5 pt-1">
           <SubteamsNav />
-          <button
+          <Link
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-            onClick={onManageMembers}
+            href={`/dashboard/organization/${organizationSlug}/members`}
           >
             <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
             <span>Manage members</span>
-          </button>
+          </Link>
           <Link
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
             href={`/dashboard/organization/${organizationSlug}/order-review`}
@@ -312,8 +309,6 @@ export default function App({
   dashboardData: import("./dashboard-data-context").DashboardData;
   organizations: Organization[];
 }) {
-  const [showMembers, setShowMembers] = useState(false);
-
   return (
     <DashboardDataProvider
       key={dashboardData.organizationId}
@@ -324,7 +319,6 @@ export default function App({
         style={{ fontFamily: "'Inter',sans-serif" }}
       >
         <Sidebar
-          onManageMembers={() => setShowMembers(true)}
           organizationName={organizationName}
           organizationSlug={organizationSlug}
           organizations={organizations}
@@ -354,12 +348,6 @@ export default function App({
             </div>
           </main>
         </div>
-        {showMembers && (
-          <MembersModal
-            currentTeam="Board"
-            onClose={() => setShowMembers(false)}
-          />
-        )}
       </div>
     </DashboardDataProvider>
   );

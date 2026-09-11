@@ -6,7 +6,6 @@ import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import type { Organization } from "@/db/schema";
 import { useDashboardData } from "./dashboard-data-context";
-import { MembersModal } from "./MembersModal";
 
 function SubteamsNav() {
   const { departments, subteams } = useDashboardData();
@@ -95,7 +94,7 @@ export function OwnerDashboardFrame({
   userEmail,
   userName,
 }: {
-  activePage: "dashboard" | "orders";
+  activePage: "dashboard" | "members" | "orders";
   children: React.ReactNode;
   organizationName: string;
   organizationSlug: string;
@@ -103,8 +102,8 @@ export function OwnerDashboardFrame({
   userEmail: string;
   userName: string;
 }) {
-  const [showMembers, setShowMembers] = useState(false);
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
+  const membersHref = `${dashboardHref}/members`;
   const ordersHref = `${dashboardHref}/order-review`;
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
@@ -141,14 +140,15 @@ export function OwnerDashboardFrame({
           </Link>
           <div className="space-y-0.5 pt-1">
             <SubteamsNav />
-            <button
-              className={navClass(false)}
-              onClick={() => setShowMembers(true)}
-              type="button"
+            <Link
+              className={navClass(activePage === "members")}
+              href={membersHref}
             >
-              <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
+              <span
+                className={`h-1 w-1 shrink-0 rounded-full ${activePage === "members" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
+              />
               <span>Manage members</span>
-            </button>
+            </Link>
             <Link
               className={navClass(activePage === "orders")}
               href={ordersHref}
@@ -195,12 +195,6 @@ export function OwnerDashboardFrame({
         </header>
         {children}
       </div>
-      {showMembers && (
-        <MembersModal
-          currentTeam="Board"
-          onClose={() => setShowMembers(false)}
-        />
-      )}
     </div>
   );
 }
