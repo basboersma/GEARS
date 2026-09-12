@@ -2,7 +2,9 @@
 // biome-ignore-all lint: Preserves the imported GMA dashboard interaction and formatting conventions.
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { BitJsonQrCode } from "./BitJsonQrCode";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Motion {
@@ -235,52 +237,6 @@ const VOTE_COLOR: Record<VoteStatus, string> = {
   abstain: "#FFD142",
   notvoted: "#3D3330",
 };
-
-// ── Random QR code ─────────────────────────────────────────────────────────────
-function QRCode({
-  size = 80,
-  color = "#10b981",
-}: {
-  size?: number;
-  color?: string;
-}) {
-  const cells = 21;
-  const cell = size / cells;
-  const bits: boolean[] = Array.from({ length: cells * cells }, (_, i) => {
-    const x = i % cells,
-      y = Math.floor(i / cells);
-    if (
-      (x < 7 && y < 7) ||
-      (x >= cells - 7 && y < 7) ||
-      (x < 7 && y >= cells - 7)
-    )
-      return true;
-    const h = Math.imul(i ^ 0xdeadbeef, 0x9e3779b9) >>> 0;
-    return (h & 1) === 1;
-  });
-  return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      width={size}
-      height={size}
-      style={{ imageRendering: "pixelated" }}
-    >
-      <rect width={size} height={size} fill="#1A1919" />
-      {bits.map((on, i) =>
-        on ? (
-          <rect
-            key={i}
-            x={(i % cells) * cell}
-            y={Math.floor(i / cells) * cell}
-            width={cell}
-            height={cell}
-            fill={color}
-          />
-        ) : null
-      )}
-    </svg>
-  );
-}
 
 // ── Senate hemicycle chart ────────────────────────────────────────────────────
 function SenateChart({ seats }: { seats: SeatMember[] }) {
@@ -997,7 +953,11 @@ function AddVotePopup({
 }
 
 // ── GMA Page ───────────────────────────────────────────────────────────────────
-export function GMAPage() {
+export function GMAPage({
+  organizationSlug,
+}: {
+  organizationSlug?: string;
+} = {}) {
   // ── GMA creation gate ──
   const [gmaCreated, setGmaCreated] = useState(false);
   const [startDate, setStartDate] = useState("");
@@ -1006,6 +966,17 @@ export function GMAPage() {
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
   const [pwdError, setPwdError] = useState(false);
+
+  const votePath = organizationSlug
+    ? `/dashboard/organization/${organizationSlug}/gma/vote`
+    : "/dashboard/organization/gearsnl/gma/vote";
+  const [fullVoteUrl, setFullVoteUrl] = useState(votePath);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setFullVoteUrl(`${window.location.origin}${votePath}`);
+    }
+  }, [votePath]);
 
   const [active, setActive] = useState<Motion>(MOCK_ACTIVE);
   const [pending, setPending] = useState<PendingMotion[]>(MOCK_PENDING);
@@ -1256,12 +1227,29 @@ export function GMAPage() {
           <p className="font-mono text-[8px] text-[#7A6555] uppercase tracking-widest">
             Scan to sign
           </p>
-          <div className="rounded-xl overflow-hidden border border-[#3D3330] p-2 bg-[#1A1919]">
-            <QRCode size={84} />
-          </div>
-          <p className="text-[9px] text-[#4A3F38] text-center max-w-[5.5rem] leading-snug uppercase tracking-widest font-mono">
+          <Link
+            href={votePath}
+            target="_blank"
+            className="rounded-xl overflow-hidden border border-[#3D3330] p-2 bg-[#1A1919] hover:border-[#F0684D]/40 transition-colors block"
+            title="Open Mobile Vote Page"
+          >
+            <BitJsonQrCode
+              contents={fullVoteUrl}
+              iconSrc="/gears_branding/asset-17.png"
+              size={96}
+              moduleColor="#FFFFFF"
+              positionRingColor="#FFFFFF"
+              positionCenterColor="#FFFFFF"
+              backgroundColor="#1A1919"
+            />
+          </Link>
+          <Link
+            href={votePath}
+            target="_blank"
+            className="text-[9px] text-[#7A6555] hover:text-[#FFEDD1] text-center max-w-[5.5rem] leading-snug uppercase tracking-widest font-mono transition-colors"
+          >
             SCAN TO SIGN
-          </p>
+          </Link>
         </div>
       </div>
 
