@@ -50,6 +50,13 @@
       "when": 1788989394994,
       "tag": "0006_melodic_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789232642045,
+      "tag": "0007_careless_doomsday",
+      "breakpoints": true
     }
   ]
 }

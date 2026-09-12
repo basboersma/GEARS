@@ -612,7 +612,7 @@ function ItemDetail({
 }
 
 // ── Inventory page ─────────────────────────────────────────────────────────────
-export function InventoryPage({ onBack }: { onBack: () => void }) {
+export function InventoryPage({ onBack }: { onBack?: () => void }) {
   const [items, setItems] = useState<InventoryItem[]>(MOCK_INVENTORY);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<

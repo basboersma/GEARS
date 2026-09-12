@@ -50,7 +50,7 @@ export default async function InventoryRoute({ params }: { params: Params }) {
         userName={user.name}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <InventoryPage onBack={() => undefined} />
+          <InventoryPage />
         </main>
       </OwnerDashboardFrame>
     </DashboardDataProvider>
