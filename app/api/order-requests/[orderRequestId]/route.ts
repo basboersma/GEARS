@@ -8,6 +8,9 @@ import { auth } from "@/lib/auth";
 
 const patchSchema = z.object({
   status: z.enum(["pending", "accepted", "declined"]).optional(),
+  reimbursementStatus: z
+    .enum(["not_requested", "pending", "successful", "failed"])
+    .optional(),
   ordered: z.boolean().optional(),
   photoNeeded: z.boolean().optional(),
   orderName: z.string().trim().min(1).max(100).optional(),
@@ -67,6 +70,7 @@ export async function PATCH(
 
   if (
     parsed.data.status === undefined &&
+    parsed.data.reimbursementStatus === undefined &&
     parsed.data.ordered === undefined &&
     parsed.data.photoNeeded === undefined &&
     parsed.data.orderName === undefined &&
@@ -104,7 +108,8 @@ export async function PATCH(
     (parsed.data.status === "accepted" ||
       parsed.data.status === "declined" ||
       parsed.data.ordered !== undefined ||
-      parsed.data.photoNeeded !== undefined);
+      parsed.data.photoNeeded !== undefined ||
+      parsed.data.reimbursementStatus !== undefined);
 
   if (!(ownerCanReview || adminCanProcess)) {
     return NextResponse.json(
@@ -125,6 +130,8 @@ export async function PATCH(
     .set({
       status: nextStatus,
       accepted: nextStatus === "accepted",
+      reimbursementStatus:
+        parsed.data.reimbursementStatus ?? item.reimbursementStatus,
       ordered: nextOrdered,
       photoNeeded: nextPhotoNeeded,
       orderName: parsed.data.orderName ?? item.orderName,

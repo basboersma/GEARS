@@ -94,7 +94,7 @@ export function OwnerDashboardFrame({
   userEmail,
   userName,
 }: {
-  activePage: "dashboard" | "members" | "orders";
+  activePage: "dashboard" | "members" | "orders" | "inventory";
   children: React.ReactNode;
   organizationName: string;
   organizationSlug: string;
@@ -105,6 +105,7 @@ export function OwnerDashboardFrame({
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
   const membersHref = `${dashboardHref}/members`;
   const ordersHref = `${dashboardHref}/order-review`;
+  const inventoryHref = `${dashboardHref}/inventory`;
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
 
@@ -157,6 +158,15 @@ export function OwnerDashboardFrame({
                 className={`h-1 w-1 shrink-0 rounded-full ${activePage === "orders" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
               />
               <span>Manage orders</span>
+            </Link>
+            <Link
+              className={navClass(activePage === "inventory")}
+              href={inventoryHref}
+            >
+              <span
+                className={`h-1 w-1 shrink-0 rounded-full ${activePage === "inventory" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
+              />
+              <span>Inventory</span>
             </Link>
           </div>
         </nav>

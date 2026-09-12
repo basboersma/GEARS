@@ -140,6 +140,13 @@ export const orderRequestStatus = pgEnum("order_request_status", [
   "pending",
 ]);
 
+export const reimbursementStatus = pgEnum("reimbursement_status", [
+  "not_requested",
+  "pending",
+  "successful",
+  "failed",
+]);
+
 export const agendaCategory = pgEnum("agenda_category", [
   "meeting",
   "review",
@@ -267,6 +274,9 @@ export const orderRequest = pgTable("order_request", {
   photoUploaded: boolean("photo_uploaded").default(false).notNull(),
   canceled: boolean("canceled").default(false).notNull(),
   accepted: boolean("accepted").default(false).notNull(),
+  reimbursementStatus: reimbursementStatus("reimbursement_status")
+    .default("not_requested")
+    .notNull(),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),

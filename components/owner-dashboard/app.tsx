@@ -248,6 +248,13 @@ function Sidebar({
             <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
             <span>Manage orders</span>
           </Link>
+          <Link
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
+            href={`/dashboard/organization/${organizationSlug}/inventory`}
+          >
+            <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
+            <span>Inventory</span>
+          </Link>
         </div>
       </nav>
 

@@ -7,7 +7,7 @@ import { DEPT_COLORS, MONTHLY_SPEND } from "./data";
 import type { BudgetData } from "./types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Tab = "submit" | "overview" | "incoming" | "past";
+type Tab = "submit" | "overview" | "incoming" | "past" | "reimburse";
 type OrderStatus =
   | "pending"
   | "ordered"
@@ -16,6 +16,24 @@ type OrderStatus =
   | "denied";
 type ItemStatus = "pending" | "ordered" | "arrived" | "denied";
 type Period = "1M" | "6M" | "1Y";
+
+interface Reimbursement {
+  id: string;
+  name: string;
+  department: string;
+  submittedBy: string;
+  submittedAt: string;
+  monthLabel: string;
+  link: string;
+  pricePerPiece: number;
+  quantity: number;
+  orderType: string;
+  urgency: string;
+  comments: string;
+  invoiceFile: File | null;
+  invoiceDataUrl: string | null;
+  isPast: boolean;
+}
 
 interface OrderItem {
   id: string;
@@ -1581,6 +1599,164 @@ function IncomingPanel({
 }
 
 // ── Upload buttons ─────────────────────────────────────────────────────────────
+function QRPopup({ onClose }: { onClose: () => void }) {
+  // Random-looking QR pattern using a seeded grid
+  const cells = Array.from({ length: 21 * 21 }, (_, i) => {
+    const x = i % 21;
+    const y = Math.floor(i / 21);
+    // finder patterns
+    if ((x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13)) return true;
+    return (x * 3 + y * 7 + i * 11) % 13 < 6;
+  });
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#232120] rounded-2xl border border-[#3D3330] p-5 shadow-2xl animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-[#FFEDD1]">
+              Photo Needed
+            </h3>
+            <p className="text-[10px] text-[#7A6555] mt-0.5">
+              Scan QR code with your phone to upload a photo
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[#7A6555] hover:text-[#FFEDD1] transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="bg-white p-3 rounded-xl inline-block mx-auto">
+          <svg
+            width="140"
+            height="140"
+            viewBox="0 0 21 21"
+            shapeRendering="crispEdges"
+          >
+            {cells.map((on, i) =>
+              on ? (
+                <rect
+                  key={i}
+                  x={i % 21}
+                  y={Math.floor(i / 21)}
+                  width="1"
+                  height="1"
+                  fill="#1A1919"
+                />
+              ) : null
+            )}
+          </svg>
+        </div>
+        <p className="text-center text-[10px] text-[#7A6555] mt-3">
+          Scan to open upload link
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function InvoiceUploadPopup({
+  onClose,
+  onUploaded,
+}: {
+  onClose: () => void;
+  onUploaded: () => void;
+}) {
+  const [drag, setDrag] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  function handleFile(f: File) {
+    setFile(f);
+  }
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#232120] rounded-2xl border border-[#3D3330] p-5 w-80 shadow-2xl animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-[#FFEDD1]">
+              Invoice Needed
+            </h3>
+            <p className="text-[10px] text-[#7A6555] mt-0.5">
+              Upload or drag the invoice file here
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[#7A6555] hover:text-[#FFEDD1] transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div
+          className={`rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${drag ? "border-[#FFD142]/60 bg-[#FFD142]/8" : "border-[#3D3330] hover:border-[#4A3F38]"}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrag(true);
+          }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDrag(false);
+            const f = e.dataTransfer.files[0];
+            if (f) handleFile(f);
+          }}
+          onClick={() => {
+            const inp = document.createElement("input");
+            inp.type = "file";
+            inp.accept = ".pdf,image/*";
+            inp.onchange = () => {
+              if (inp.files?.[0]) handleFile(inp.files[0]);
+            };
+            inp.click();
+          }}
+        >
+          {file ? (
+            <div>
+              <p className="text-xs text-[#10b981] font-medium truncate">
+                {file.name}
+              </p>
+              <p className="text-[10px] text-[#7A6555] mt-1">
+                {(file.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-2xl text-[#4A3F38] mb-2">↑</p>
+              <p className="text-xs text-[#9C8272]">Drop PDF or image here</p>
+              <p className="text-[10px] text-[#7A6555] mt-1">
+                or click to browse
+              </p>
+            </div>
+          )}
+        </div>
+        {file && (
+          <button
+            onClick={() => {
+              onUploaded();
+              onClose();
+            }}
+            className="mt-3 w-full py-2 rounded-xl text-sm font-medium border border-[#10b981]/40 text-[#10b981] hover:bg-[#10b981]/10 transition-colors"
+          >
+            Confirm Upload
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UploadButtons({
   item,
   onPhotoUploaded,
@@ -1590,14 +1766,16 @@ function UploadButtons({
   onPhotoUploaded: () => void;
   onInvoiceUploaded: () => void;
 }) {
+  const [showQR, setShowQR] = useState(false);
+  const [showInvoice, setShowInvoice] = useState(false);
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       {item.requiresPhoto && !item.photoUploaded && (
         <button
-          onClick={onPhotoUploaded}
+          onClick={() => setShowQR(true)}
           className="px-2 py-1 rounded border border-[#3D3330] text-[9px] text-[#9C8272] hover:border-[#FFD142]/50 hover:text-[#FFD142] transition-colors whitespace-nowrap"
         >
-          ↑ Photo
+          📷 Photo Needed
         </button>
       )}
       {item.requiresPhoto && item.photoUploaded && (
@@ -1605,14 +1783,21 @@ function UploadButtons({
       )}
       {item.requiresInvoice && !item.invoiceUploaded && (
         <button
-          onClick={onInvoiceUploaded}
+          onClick={() => setShowInvoice(true)}
           className="px-2 py-1 rounded border border-[#3D3330] text-[9px] text-[#9C8272] hover:border-[#FFD142]/50 hover:text-[#FFD142] transition-colors whitespace-nowrap"
         >
-          ↑ Invoice
+          🧾 Invoice Needed
         </button>
       )}
       {item.requiresInvoice && item.invoiceUploaded && (
         <span className="text-[9px] text-[#10b981]">✓ Invoice</span>
+      )}
+      {showQR && <QRPopup onClose={() => setShowQR(false)} />}
+      {showInvoice && (
+        <InvoiceUploadPopup
+          onClose={() => setShowInvoice(false)}
+          onUploaded={onInvoiceUploaded}
+        />
       )}
     </div>
   );
@@ -2253,6 +2438,425 @@ function DraftsList({
   );
 }
 
+// ── Reimbursement form ─────────────────────────────────────────────────────────
+// columns: #(1.75rem) | name(1.5fr) | link(1fr) | price(4.5rem) | qty(3.5rem) | type(6.5rem) | urgency(5.5rem) | comments(1fr)
+const REIMB_GRID =
+  "grid grid-cols-[1.75rem_minmax(9rem,1.5fr)_minmax(7rem,1fr)_4.5rem_3.5rem_6.5rem_5.5rem_minmax(7rem,1fr)] gap-1.5";
+
+interface ReimbRow {
+  id: string;
+  name: string;
+  link: string;
+  pricePerPiece: string;
+  quantity: string;
+  orderType: string;
+  urgency: string;
+  comments: string;
+}
+const mkReimbRow = (): ReimbRow => ({
+  id: crypto.randomUUID(),
+  name: "",
+  link: "",
+  pricePerPiece: "",
+  quantity: "",
+  orderType: "",
+  urgency: "",
+  comments: "",
+});
+const reimbRowHasContent = (r: ReimbRow) =>
+  !!(
+    r.name ||
+    r.link ||
+    r.pricePerPiece ||
+    r.quantity ||
+    r.orderType ||
+    r.urgency ||
+    r.comments
+  );
+const reimbRowsTotal = (rows: ReimbRow[]) =>
+  rows.reduce(
+    (s, r) =>
+      s + (parseFloat(r.pricePerPiece) || 0) * (parseInt(r.quantity) || 1),
+    0
+  );
+
+function ReimbursementForm({
+  onSubmit,
+  onSaveDraft,
+}: {
+  onSubmit: (r: Reimbursement) => void;
+  onSaveDraft?: (draft: Draft) => void;
+}) {
+  const [drag, setDrag] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [department, setDepartment] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [rows, setRows] = useState<ReimbRow[]>([
+    mkReimbRow(),
+    mkReimbRow(),
+    mkReimbRow(),
+  ]);
+
+  function handleFile(f: File) {
+    setFile(f);
+    const reader = new FileReader();
+    reader.onload = (e) => setDataUrl(e.target?.result as string);
+    reader.readAsDataURL(f);
+  }
+
+  function updateRow(i: number, patch: Partial<ReimbRow>) {
+    const next = rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
+    if (i === next.length - 1 && reimbRowHasContent(next[i]))
+      next.push(mkReimbRow());
+    setRows(next);
+  }
+
+  function handleSubmit() {
+    const filledRows = rows.filter(reimbRowHasContent);
+    if (!filledRows.length || !file) return;
+    const now = new Date();
+    // submit each filled row as a separate reimbursement
+    filledRows.forEach((row) => {
+      onSubmit({
+        id: crypto.randomUUID(),
+        name: row.name || "Unnamed",
+        department,
+        submittedBy: "Admin user",
+        submittedAt: now.toISOString(),
+        monthLabel:
+          now.toLocaleString("en-GB", { month: "short" }) +
+          "'" +
+          String(now.getFullYear()).slice(2),
+        link: row.link,
+        pricePerPiece: parseFloat(row.pricePerPiece) || 0,
+        quantity: parseInt(row.quantity) || 1,
+        orderType: row.orderType,
+        urgency: row.urgency,
+        comments: row.comments,
+        invoiceFile: file,
+        invoiceDataUrl: dataUrl,
+        isPast: false,
+      });
+    });
+    setSubmitted(true);
+    setTimeout(() => {
+      setSubmitted(false);
+      setFile(null);
+      setDataUrl(null);
+      setDepartment("");
+      setRows([mkReimbRow(), mkReimbRow(), mkReimbRow()]);
+    }, 2000);
+  }
+
+  function handleSaveDraftClick() {
+    const filledRows = rows.filter(reimbRowHasContent);
+    if (!filledRows.length) return;
+    const draft: Draft = {
+      id: crypto.randomUUID(),
+      name: `Reimbursement – ${department || "Draft"}`,
+      department,
+      rows: filledRows.map((r) => ({
+        id: r.id,
+        link: r.link,
+        pricePerPiece: r.pricePerPiece,
+        quantity: r.quantity,
+        orderType: r.orderType,
+        urgency: r.urgency,
+        comments: r.comments,
+        recurTime: "",
+        recurTimescale: "Days",
+        recurEndDate: "",
+      })),
+      approvedBy: "",
+      submittedBy: "Admin user",
+      savedAt: new Date().toISOString(),
+    };
+    onSaveDraft?.(draft);
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2500);
+  }
+
+  const total = reimbRowsTotal(rows);
+
+  return (
+    <div className="pb-6">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <p className="font-mono text-[0.6rem] text-[#10b981] uppercase tracking-[0.22em]">
+            Form RB-25
+          </p>
+          <h2 className="mt-0.5 text-base font-semibold text-[#FFEDD1] tracking-tight">
+            Reimbursement Request
+          </h2>
+        </div>
+        <label className="flex flex-col gap-1 shrink-0">
+          <span className="font-mono text-[8.5px] text-[#7A6555] uppercase tracking-widest">
+            Department
+          </span>
+          <select
+            className={selectCls}
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+          >
+            <option value="">Select…</option>
+            {DEPT_LIST.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {/* Invoice drop zone — compact */}
+      <div
+        className={`rounded-xl border-2 border-dashed px-4 py-3 cursor-pointer transition-colors mb-4 flex items-center gap-3 ${drag ? "border-[#10b981]/60 bg-[#10b981]/8" : file ? "border-[#10b981]/40 bg-[#10b981]/5" : "border-[#3D3330] hover:border-[#4A3F38]"}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDrag(true);
+        }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDrag(false);
+          const f = e.dataTransfer.files[0];
+          if (f) handleFile(f);
+        }}
+        onClick={() => {
+          const inp = document.createElement("input");
+          inp.type = "file";
+          inp.accept = ".pdf,image/*";
+          inp.onchange = () => {
+            if (inp.files?.[0]) handleFile(inp.files[0]);
+          };
+          inp.click();
+        }}
+      >
+        {file ? (
+          <>
+            {dataUrl?.startsWith("data:image") && (
+              <img
+                src={dataUrl}
+                className="h-10 w-10 object-cover rounded-lg border border-[#3D3330] shrink-0"
+                alt="invoice"
+              />
+            )}
+            {!dataUrl?.startsWith("data:image") && (
+              <span className="text-xl shrink-0">📄</span>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-[#10b981] font-medium truncate">
+                {file.name}
+              </p>
+              <p className="text-[10px] text-[#7A6555]">
+                {(file.size / 1024).toFixed(1)} KB · Click to change
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-2xl text-[#4A3F38] shrink-0">🧾</span>
+            <div>
+              <p className="text-xs text-[#9C8272]">
+                Drop invoice here or click to browse
+              </p>
+              <p className="text-[10px] text-[#7A6555]">
+                PDF or image required
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Row header */}
+      <div
+        className={`${REIMB_GRID} sticky top-0 z-10 bg-[#232120] border-b border-[#3D3330] pb-1.5 pt-1 mb-0.5 font-mono text-[8px] text-[#7A6555] uppercase tracking-widest`}
+      >
+        <span>#</span>
+        <span>Description</span>
+        <span>Link / URL</span>
+        <span>Price/pc</span>
+        <span>Qty</span>
+        <span>Type</span>
+        <span>Urgency</span>
+        <span>Comments</span>
+      </div>
+
+      <div className="divide-y divide-[#3D3330]/40 mb-3">
+        {rows.map((row, i) => (
+          <div key={row.id} className={`${REIMB_GRID} items-center py-1`}>
+            <span className="font-mono text-[#7A6555] text-[9px]">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <input
+              className={fieldCls}
+              placeholder="Item description…"
+              value={row.name}
+              onChange={(e) => updateRow(i, { name: e.target.value })}
+            />
+            <input
+              className={fieldCls}
+              type="url"
+              placeholder="https://…"
+              value={row.link}
+              onChange={(e) => updateRow(i, { link: e.target.value })}
+            />
+            <input
+              className={`${fieldCls} text-right font-mono`}
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={row.pricePerPiece}
+              onChange={(e) => updateRow(i, { pricePerPiece: e.target.value })}
+            />
+            <input
+              className={`${fieldCls} text-right font-mono`}
+              type="number"
+              min="1"
+              step="1"
+              value={row.quantity}
+              onChange={(e) => updateRow(i, { quantity: e.target.value })}
+            />
+            <select
+              className={selectCls}
+              value={row.orderType}
+              onChange={(e) => updateRow(i, { orderType: e.target.value })}
+            >
+              <option value="">—</option>
+              {ORDER_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              className={selectCls}
+              value={row.urgency}
+              onChange={(e) => updateRow(i, { urgency: e.target.value })}
+            >
+              <option value="">—</option>
+              {URGENCIES.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+            <input
+              className={fieldCls}
+              placeholder="Optional note…"
+              maxLength={200}
+              value={row.comments}
+              onChange={(e) => updateRow(i, { comments: e.target.value })}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Sticky footer */}
+      <div className="sticky bottom-0 bg-[#232120] border-t border-[#3D3330] pt-3 pb-1 flex items-center justify-between gap-4">
+        <p className="text-[11px] text-[#9C8272]">
+          Total:{" "}
+          <span className="text-[#10b981] font-mono font-semibold">
+            {fmt(total)}
+          </span>
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveDraftClick}
+            className={`px-3 py-1.5 rounded-lg border text-[11px] transition-colors ${
+              draftSaved
+                ? "border-[#10b981]/50 text-[#10b981] bg-[#10b981]/10"
+                : "border-[#3D3330] text-[#9C8272] hover:border-[#4A3F38] hover:text-[#FFEDD1]"
+            }`}
+          >
+            {draftSaved ? "✓ Saved" : "Save draft"}
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!rows.some(reimbRowHasContent) || !file}
+            className={`px-5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
+              submitted
+                ? "border-[#10b981]/50 text-[#10b981] bg-[#10b981]/10"
+                : "border-[#10b981]/40 bg-[#10b981]/8 text-[#10b981] hover:bg-[#10b981]/15 disabled:opacity-40 disabled:cursor-not-allowed"
+            }`}
+          >
+            {submitted ? "✓ Submitted" : "Submit Reimbursement"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReimbursementInvoicePopup({
+  r,
+  onClose,
+}: {
+  r: Reimbursement;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#232120] rounded-2xl border border-[#3D3330] shadow-2xl max-w-sm w-full p-5 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-[#FFEDD1]">{r.name}</h3>
+            <p className="text-[10px] text-[#7A6555]">
+              {r.department} · {r.submittedBy}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-[#7A6555] hover:text-[#FFEDD1] transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        {r.invoiceDataUrl && r.invoiceDataUrl.startsWith("data:image") ? (
+          <img
+            src={r.invoiceDataUrl}
+            alt="invoice"
+            className="w-full rounded-xl border border-[#3D3330] object-contain max-h-64"
+          />
+        ) : (
+          <div className="rounded-xl border border-[#3D3330] bg-[#1A1919] p-6 text-center">
+            <p className="text-3xl mb-2">📄</p>
+            <p className="text-xs text-[#9C8272]">
+              {r.invoiceFile?.name ?? "Invoice attached"}
+            </p>
+            <p className="text-[10px] text-[#7A6555] mt-1">
+              PDF — preview not available
+            </p>
+          </div>
+        )}
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          {[
+            ["Amount", fmt(r.pricePerPiece * r.quantity)],
+            ["Qty", String(r.quantity)],
+            ["Type", r.orderType || "—"],
+          ].map(([l, v]) => (
+            <div key={l} className="bg-[#1A1919] rounded-lg p-2">
+              <p className="text-[9px] text-[#7A6555] uppercase tracking-wider">
+                {l}
+              </p>
+              <p className="text-xs text-[#FFEDD1] font-semibold mt-0.5">{v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main export ────────────────────────────────────────────────────────────────
 export function OrdersPanel({ data }: { data: BudgetData }) {
   const [tab, setTab] = useState<Tab>("submit");
@@ -2264,10 +2868,13 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [overviewSubTab, setOverviewSubTab] = useState<"orders" | "drafts">(
-    "orders"
-  );
+  const [reimbursements, setReimbursements] = useState<Reimbursement[]>([]);
+  const [overviewSubTab, setOverviewSubTab] = useState<
+    "orders" | "drafts" | "reimburse"
+  >("orders");
   const [overviewSearch, setOverviewSearch] = useState("");
+  const [viewingReimburse, setViewingReimburse] =
+    useState<Reimbursement | null>(null);
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
   const [submitKey, setSubmitKey] = useState(0);
 
@@ -2335,6 +2942,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
     { id: "overview", label: "Overview" },
     { id: "incoming", label: "Incoming" },
     { id: "past", label: "Past Orders" },
+    { id: "reimburse", label: "Reimburse" },
   ];
 
   return (
@@ -2410,7 +3018,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                 {/* Sub-tabs + search */}
                 <div className="flex items-center gap-2 mb-4 sticky top-0 z-10 bg-[#232120] pb-3 border-b border-[#3D3330]">
                   <div className="flex items-center gap-1">
-                    {(["orders", "drafts"] as const).map((st) => (
+                    {(["orders", "drafts", "reimburse"] as const).map((st) => (
                       <button
                         key={st}
                         onClick={() => setOverviewSubTab(st)}
@@ -2422,7 +3030,9 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                       >
                         {st === "orders"
                           ? "Orders"
-                          : `Drafts${drafts.length ? ` (${drafts.length})` : ""}`}
+                          : st === "drafts"
+                            ? `Drafts${drafts.length ? ` (${drafts.length})` : ""}`
+                            : `Reimbursements${reimbursements.filter((r) => !r.isPast).length ? ` (${reimbursements.filter((r) => !r.isPast).length})` : ""}`}
                       </button>
                     ))}
                   </div>
@@ -2478,12 +3088,49 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                       setTab("submit");
                     }}
                   />
-                ) : (
+                ) : overviewSubTab === "drafts" ? (
                   <DraftsList
                     drafts={drafts}
                     onLoad={handleLoadDraft}
                     onDelete={handleDeleteDraft}
                   />
+                ) : (
+                  <div className="space-y-2">
+                    {reimbursements.filter((r) => !r.isPast).length === 0 && (
+                      <div className="flex flex-col items-center justify-center py-16 text-[#4A3F38] gap-2">
+                        <span className="text-3xl font-thin">—</span>
+                        <span className="text-sm">
+                          No reimbursements submitted
+                        </span>
+                      </div>
+                    )}
+                    {reimbursements
+                      .filter((r) => !r.isPast)
+                      .map((r) => (
+                        <button
+                          key={r.id}
+                          onClick={() => setViewingReimburse(r)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#10b981]/20 bg-[#10b981]/5 hover:border-[#10b981]/40 hover:bg-[#10b981]/10 transition-all text-left"
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0 bg-[#10b981]" />
+                          <span className="flex-1 text-xs font-medium text-[#FFEDD1] truncate">
+                            {r.name}
+                          </span>
+                          <span className="text-[10px] text-[#9C8272] shrink-0">
+                            {r.department}
+                          </span>
+                          <span className="text-[11px] font-mono font-semibold text-[#10b981] shrink-0">
+                            {fmt(r.pricePerPiece * r.quantity)}
+                          </span>
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#10b981]/20 text-[#10b981] shrink-0">
+                            Pending
+                          </span>
+                          <span className="text-[#7A6555] text-[10px] shrink-0">
+                            →
+                          </span>
+                        </button>
+                      ))}
+                  </div>
                 )}
               </div>
             )}
@@ -2495,11 +3142,60 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
               />
             )}
             {tab === "past" && (
-              <OrderOverviewList orders={filteredPastOrders} isPast />
+              <div>
+                <OrderOverviewList orders={filteredPastOrders} isPast />
+                {reimbursements.filter((r) => r.isPast).length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[9px] font-semibold text-[#10b981] uppercase tracking-widest">
+                        Reimbursements
+                      </span>
+                      <div className="flex-1 h-px bg-[#3D3330]" />
+                    </div>
+                    <div className="space-y-1.5">
+                      {reimbursements
+                        .filter((r) => r.isPast)
+                        .map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => setViewingReimburse(r)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#3D3330] bg-[#1A1919] hover:border-[#10b981]/30 transition-all text-left"
+                          >
+                            <span className="w-2 h-2 rounded-full shrink-0 bg-[#10b981]" />
+                            <span className="flex-1 text-xs font-medium text-[#FFEDD1] truncate">
+                              {r.name}
+                            </span>
+                            <span className="text-[10px] text-[#9C8272] shrink-0">
+                              {r.monthLabel}
+                            </span>
+                            <span className="text-[11px] font-mono text-[#C4A882] shrink-0">
+                              {fmt(r.pricePerPiece * r.quantity)}
+                            </span>
+                            <span className="text-[10px] text-[#7A6555] shrink-0">
+                              →
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {tab === "reimburse" && (
+              <ReimbursementForm
+                onSubmit={(r) => setReimbursements((prev) => [r, ...prev])}
+                onSaveDraft={handleSaveDraft}
+              />
             )}
           </>
         )}
       </div>
+      {viewingReimburse && (
+        <ReimbursementInvoicePopup
+          r={viewingReimburse}
+          onClose={() => setViewingReimburse(null)}
+        />
+      )}
     </div>
   );
 }
