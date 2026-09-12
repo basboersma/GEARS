@@ -94,7 +94,7 @@ export function OwnerDashboardFrame({
   userEmail,
   userName,
 }: {
-  activePage: "dashboard" | "members" | "orders" | "inventory";
+  activePage: "dashboard" | "members" | "orders" | "inventory" | "gma";
   children: React.ReactNode;
   organizationName: string;
   organizationSlug: string;
@@ -106,6 +106,7 @@ export function OwnerDashboardFrame({
   const membersHref = `${dashboardHref}/members`;
   const ordersHref = `${dashboardHref}/order-review`;
   const inventoryHref = `${dashboardHref}/inventory`;
+  const gmaHref = `${dashboardHref}/gma`;
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
 
@@ -167,6 +168,12 @@ export function OwnerDashboardFrame({
                 className={`h-1 w-1 shrink-0 rounded-full ${activePage === "inventory" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
               />
               <span>Inventory</span>
+            </Link>
+            <Link className={navClass(activePage === "gma")} href={gmaHref}>
+              <span
+                className={`h-1 w-1 shrink-0 rounded-full ${activePage === "gma" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
+              />
+              <span>GMA</span>
             </Link>
           </div>
         </nav>
