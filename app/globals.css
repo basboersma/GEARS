@@ -339,6 +339,17 @@ main {
   transform: translateY(-1px);
 }
 
+.btn-secondary {
+  background: #ffffff;
+  color: #111827;
+  border-color: #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
 .section {
   max-width: 1120px;
   margin: 0 auto;

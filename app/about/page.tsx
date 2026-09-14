@@ -136,13 +136,6 @@ export default function AboutPage() {
               </li>
             </ul>
           </div>
-
-          <div className="membership-cta">
-            <span className="membership-price">Then €10 per year</span>
-            <Link className="btn btn-primary membership-btn" href="/login">
-              Fill in membership form
-            </Link>
-          </div>
         </section>
       </main>
 

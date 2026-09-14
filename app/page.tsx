@@ -1,7 +1,28 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function HomePage() {
+  const [pdfPopup, setPdfPopup] = useState<{
+    open: boolean;
+    title: string;
+    src: string;
+  }>({
+    open: false,
+    title: "",
+    src: "",
+  });
+
+  const openPdfPopup = (title: string, src: string) => {
+    setPdfPopup({
+      open: true,
+      title,
+      src,
+    });
+  };
+
   return (
     <div className="site">
       <header className="site-header">
@@ -31,7 +52,12 @@ export default function HomePage() {
             <Link href="/about">About</Link>
             <Link href="/contact">Contact</Link>
             <Link href="/login">Login</Link>
-            <Link className="nav-cta" href="/login">
+            <Link
+              className="nav-cta"
+              href="https://docs.google.com/forms/d/e/1FAIpQLSfWqyAj0pHO3R68yfyFYpkpuL4kdzWFg-wHfs8_0LBnxyFTpw/viewform?usp=dialog"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
               JOIN GEARS
             </Link>
           </nav>
@@ -65,9 +91,39 @@ export default function HomePage() {
             </p>
 
             <div className="hero-actions">
-              <Link className="btn btn-primary" href="/login">
+              <Link
+                className="btn btn-primary"
+                href="https://docs.google.com/forms/d/e/1FAIpQLSfWqyAj0pHO3R68yfyFYpkpuL4kdzWFg-wHfs8_0LBnxyFTpw/viewform?usp=dialog"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
                 JOIN GEARS
               </Link>
+              <button
+                className="btn btn-secondary"
+                onClick={() =>
+                  openPdfPopup(
+                    "FSE Student Challenge Seed Fund 2026/2027",
+                    "/fse-student-challenge-seed-fund.pdf"
+                  )
+                }
+                type="button"
+              >
+                Apply for Seed Fund
+              </button>
+            </div>
+
+            <div className="membership-cta">
+              <span className="membership-price">Then €10 per year</span>
+              <button
+                className="underline"
+                onClick={() =>
+                  openPdfPopup("Data processing", "/house_rules_gears.pdf")
+                }
+                type="button"
+              >
+                processing
+              </button>
             </div>
           </div>
         </section>
@@ -75,8 +131,8 @@ export default function HomePage() {
         <section className="section section-alt">
           <div className="section-header">
             <h2>What We Do</h2>
-            <p>
-              GEARS supports students by:
+            <div>
+              <p>GEARS supports students by:</p>
               <ul>
                 <li>
                   Providing teams with seed-funding to enable them to enter
@@ -91,10 +147,25 @@ export default function HomePage() {
                   development
                 </li>
               </ul>
-            </p>
+            </div>
           </div>
         </section>
       </main>
+
+      {pdfPopup.open && (
+        <div className="pdf-popup">
+          <div className="pdf-popup-content">
+            <h3>{pdfPopup.title}</h3>
+            <iframe src={pdfPopup.src} title={pdfPopup.title} />
+            <button
+              onClick={() => setPdfPopup((prev) => ({ ...prev, open: false }))}
+              type="button"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <footer className="site-footer">
         <div className="footer-info">
