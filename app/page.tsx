@@ -3,6 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function HomePage() {
   const [pdfPopup, setPdfPopup] = useState<{
@@ -112,19 +118,6 @@ export default function HomePage() {
                 Apply for Seed Fund
               </button>
             </div>
-
-            <div className="membership-cta">
-              <span className="membership-price">Then €10 per year</span>
-              <button
-                className="underline"
-                onClick={() =>
-                  openPdfPopup("Data processing", "/house_rules_gears.pdf")
-                }
-                type="button"
-              >
-                processing
-              </button>
-            </div>
           </div>
         </section>
 
@@ -153,18 +146,22 @@ export default function HomePage() {
       </main>
 
       {pdfPopup.open && (
-        <div className="pdf-popup">
-          <div className="pdf-popup-content">
-            <h3>{pdfPopup.title}</h3>
-            <iframe src={pdfPopup.src} title={pdfPopup.title} />
-            <button
-              onClick={() => setPdfPopup((prev) => ({ ...prev, open: false }))}
-              type="button"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <Dialog
+          onOpenChange={(open) => setPdfPopup((prev) => ({ ...prev, open }))}
+          open={pdfPopup.open}
+        >
+          <DialogContent className="!w-[96vw] !max-w-[96vw] sm:!max-w-[96vw] h-[92vh] gap-0 overflow-hidden p-0">
+            <DialogHeader className="sr-only">
+              <DialogTitle>{pdfPopup.title}</DialogTitle>
+            </DialogHeader>
+
+            <iframe
+              className="h-full w-full border-0"
+              src={pdfPopup.src}
+              title={pdfPopup.title}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       <footer className="site-footer">
