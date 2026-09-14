@@ -53,23 +53,21 @@ export default function AboutPage() {
             </p>
             <br />
             <h2>What We Do</h2>
-            <p>
-              GEARS supports students by:
-              <ul>
-                <li>
-                  Providing teams with seed-funding to enable them to enter
-                  competitions
-                </li>
-                <li>Organizing and participating in STEM competitions</li>
-                <li>Facilitating interdisciplinary projects</li>
-                <li>Connecting students with industry partners</li>
-                <li>Hosting workshops and networking events</li>
-                <li>
-                  Creating opportunities for hands-on learning and professional
-                  development
-                </li>
-              </ul>
-            </p>
+            <p>GEARS supports students by:</p>
+            <ul>
+              <li>
+                Providing teams with seed-funding to enable them to enter
+                competitions
+              </li>
+              <li>Organizing and participating in STEM competitions</li>
+              <li>Facilitating interdisciplinary projects</li>
+              <li>Connecting students with industry partners</li>
+              <li>Hosting workshops and networking events</li>
+              <li>
+                Creating opportunities for hands-on learning and professional
+                development
+              </li>
+            </ul>
             <p>
               Bureaucracy is the most time-consuming part of starting a new
               team. Our mission is to facilitate the formation and growth of
@@ -137,6 +135,13 @@ export default function AboutPage() {
                 students.
               </li>
             </ul>
+          </div>
+
+          <div className="membership-cta">
+            <span className="membership-price">Then €10 per year</span>
+            <Link className="btn btn-primary membership-btn" href="/login">
+              Fill in membership form
+            </Link>
           </div>
         </section>
       </main>
