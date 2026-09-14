@@ -58,10 +58,11 @@ function buildContentStream(title, lines, isFirstPage) {
     contentLines.push(`(${escapePdfText(title)}) Tj`, "T*", "T*");
   }
   for (const line of lines) {
-    contentLines.push(
-      line.length === 0 ? "T*" : `(${escapePdfText(line)}) Tj`,
-      "T*"
-    );
+    // blank lines only advance once, matching every other line's line-height
+    if (line.length > 0) {
+      contentLines.push(`(${escapePdfText(line)}) Tj`);
+    }
+    contentLines.push("T*");
   }
   contentLines.push("ET");
   return contentLines.join("\n");
