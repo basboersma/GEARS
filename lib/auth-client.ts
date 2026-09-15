@@ -1,4 +1,5 @@
 import {
+  genericOAuthClient,
   lastLoginMethodClient,
   organizationClient,
 } from "better-auth/client/plugins";
@@ -10,5 +11,9 @@ const authBaseURL =
 
 export const authClient = createAuthClient({
   baseURL: authBaseURL,
-  plugins: [organizationClient(), lastLoginMethodClient()],
+  plugins: [
+    organizationClient(),
+    lastLoginMethodClient(),
+    genericOAuthClient(),
+  ],
 });

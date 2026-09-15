@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import {
+  genericOAuth,
   lastLoginMethod,
   organization as organizationPlugin,
 } from "better-auth/plugins";
@@ -150,6 +151,12 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
       hd: "student.rug.nl",
     },
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID as string,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
+      tenantId: process.env.MICROSOFT_TENANT_ID ?? "common", //"common" allows both work/school+personal Microsoft accounts
+      prompt: "select_account",
+    },
   },
   emailAndPassword: {
     enabled: true,
@@ -263,6 +270,20 @@ export const auth = betterAuth({
         member: permissionMember,
         sub_owner: subOwner,
       },
+    }),
+    genericOAuth({
+      config: [
+        {
+          //SURFconext = one login for RUG, Hanze and all other dutch institutions
+          providerId: "surfconext",
+          discoveryUrl:
+            process.env.SURFCONEXT_DISCOVERY_URL ??
+            "https://connect.test.surfconext.nl/.well-known/openid-configuration",
+          clientId: process.env.SURFCONEXT_CLIENT_ID as string,
+          clientSecret: process.env.SURFCONEXT_CLIENT_SECRET as string,
+          scopes: ["openid", "profile", "email"],
+        },
+      ],
     }),
     lastLoginMethod(),
     nextCookies(),
