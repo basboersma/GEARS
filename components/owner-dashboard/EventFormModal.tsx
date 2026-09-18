@@ -13,21 +13,14 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useState } from "react";
-import {
-  avatarBg,
-  DEPARTMENTS,
-  FILES,
-  formatDate,
-  MEMBERS,
-  memberIdx,
-  parseDate,
-} from "./data";
+import { avatarBg, FILES, formatDate, parseDate } from "./data";
 import { MiniCalPicker } from "./MiniCalPicker";
 import { Field, Inp, ModalHeader, ModalShell, Sel } from "./shared";
 import type {
   CalEvent,
   DiscussionPoint,
   InviteStatus,
+  Member,
   VoteGroup,
 } from "./types";
 
@@ -43,11 +36,19 @@ const STATUS_CLS: Record<InviteStatus, string> = {
 
 interface Props {
   initial?: CalEvent;
+  departments: string[];
+  members: Member[];
   onSave: (ev: CalEvent) => void;
   onClose: () => void;
 }
 
-export function EventFormModal({ initial, onSave, onClose }: Props) {
+export function EventFormModal({
+  departments,
+  initial,
+  members,
+  onSave,
+  onClose,
+}: Props) {
   const today = formatDate(new Date());
   const blank: CalEvent = {
     id: Date.now().toString(),
@@ -100,7 +101,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
     setActiveInvMenu(null);
   };
   const addByDept = (dept: string) => {
-    const toAdd = MEMBERS.filter(
+    const toAdd = members.filter(
       (m) =>
         m.department === dept && !ev.invitees.find((i) => i.memberId === m.id)
     );
@@ -115,7 +116,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
     });
   };
 
-  const filteredM = MEMBERS.filter(
+  const filteredM = members.filter(
     (m) =>
       !ev.invitees.find((i) => i.memberId === m.id) &&
       m.name.toLowerCase().includes(mSearch.toLowerCase())
@@ -255,7 +256,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
             <span className="w-10 shrink-0 text-[#7A6555] text-xs">Starts</span>
             <div className="relative flex-1">
               <button
-                className="w-full rounded-lg border border-[#3D3330] bg-white px-3 py-1.5 text-left text-[#FFEDD1] text-sm transition-colors hover:border-[#F0684D]/40"
+                className="w-full rounded-lg border border-[#3D3330] bg-[#1a1919] px-3 py-1.5 text-left text-[#FFEDD1] text-sm transition-colors hover:border-[#F0684D]/40"
                 onClick={() => {
                   setShowStartCal(!showStartCal);
                   setShowEndCal(false);
@@ -275,7 +276,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
               )}
             </div>
             <input
-              className="w-24 rounded-lg border border-[#3D3330] bg-white px-2 py-1.5 text-[#FFEDD1] text-sm focus:border-[#F0684D] focus:outline-none"
+              className="w-24 rounded-lg border border-[#3D3330] bg-[#1a1919] px-2 py-1.5 text-[#FFEDD1] text-sm focus:border-[#F0684D] focus:outline-none"
               onChange={(e) => set({ startTime: e.target.value })}
               type="time"
               value={ev.startTime}
@@ -286,7 +287,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
             <span className="w-10 shrink-0 text-[#7A6555] text-xs">Ends</span>
             <div className="relative flex-1">
               <button
-                className="w-full rounded-lg border border-[#3D3330] bg-white px-3 py-1.5 text-left text-[#FFEDD1] text-sm transition-colors hover:border-[#F0684D]/40"
+                className="w-full rounded-lg border border-[#3D3330] bg-[#1a1919] px-3 py-1.5 text-left text-[#FFEDD1] text-sm transition-colors hover:border-[#F0684D]/40"
                 onClick={() => {
                   setShowEndCal(!showEndCal);
                   setShowStartCal(false);
@@ -306,7 +307,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
               )}
             </div>
             <input
-              className="w-24 rounded-lg border border-[#3D3330] bg-white px-2 py-1.5 text-[#FFEDD1] text-sm focus:border-[#F0684D] focus:outline-none"
+              className="w-24 rounded-lg border border-[#3D3330] bg-[#1a1919] px-2 py-1.5 text-[#FFEDD1] text-sm focus:border-[#F0684D] focus:outline-none"
               onChange={(e) => set({ endTime: e.target.value })}
               type="time"
               value={ev.endTime}
@@ -381,7 +382,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
           </div>
           {/* Dept bulk-add */}
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {DEPARTMENTS.map((dept) => (
+            {departments.map((dept) => (
               <button
                 className="rounded-lg border border-[#3D3330] bg-white px-2 py-0.5 font-medium text-[#C4A882] text-[10px] transition-colors hover:border-[#F0684D]/40 hover:text-[#F0684D]"
                 key={dept}
@@ -410,7 +411,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
                     }}
                   >
                     <span
-                      className={`h-5 w-5 rounded-full ${avatarBg(memberIdx(m.id))} flex shrink-0 items-center justify-center font-bold text-[9px] text-white`}
+                      className={`h-5 w-5 rounded-full ${avatarBg(members.findIndex((member) => member.id === m.id))} flex shrink-0 items-center justify-center font-bold text-[9px] text-white`}
                     >
                       {m.avatar}
                     </span>
@@ -427,11 +428,11 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
           {ev.invitees.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {ev.invitees.map((inv) => {
-                const m = MEMBERS.find((x) => x.id === inv.memberId);
+                const m = members.find((x) => x.id === inv.memberId);
                 if (!m) {
                   return null;
                 }
-                const mi = memberIdx(m.id);
+                const mi = members.findIndex((member) => member.id === m.id);
                 return (
                   <div className="relative" key={inv.memberId}>
                     <div
@@ -498,7 +499,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
             }}
             onDrop={handleFileDrop}
           >
-            📎 Drop files here to attach
+            Drop files here to attach
           </div>
           {/* Show dropped local files */}
           {ev.localFiles.length > 0 && (
@@ -508,7 +509,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
                   className="flex items-center gap-1.5 rounded-full border border-[#3D3330] bg-[#232120] px-2.5 py-1 text-[#FFEDD1] text-xs"
                   key={i}
                 >
-                  📎 {name}
+                  {name}
                   <button
                     className="text-[#7A6555] hover:text-rose-400"
                     onClick={() =>
@@ -626,13 +627,14 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
                           />
                           {(dpVoteSearch[dp.id] ?? "") && (
                             <div className="absolute top-full right-0 left-0 z-20 mt-0.5 overflow-hidden rounded-xl border border-[#3D3330] bg-[#232120] shadow-xl">
-                              {MEMBERS.filter((m) =>
-                                m.name
-                                  .toLowerCase()
-                                  .includes(
-                                    (dpVoteSearch[dp.id] ?? "").toLowerCase()
-                                  )
-                              )
+                              {members
+                                .filter((m) =>
+                                  m.name
+                                    .toLowerCase()
+                                    .includes(
+                                      (dpVoteSearch[dp.id] ?? "").toLowerCase()
+                                    )
+                                )
                                 .slice(0, 4)
                                 .map((m) => (
                                   <div
@@ -640,7 +642,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
                                     key={m.id}
                                   >
                                     <span
-                                      className={`h-5 w-5 rounded-full ${avatarBg(memberIdx(m.id))} flex shrink-0 items-center justify-center font-bold text-[9px] text-white`}
+                                      className={`h-5 w-5 rounded-full ${avatarBg(members.findIndex((member) => member.id === m.id))} flex shrink-0 items-center justify-center font-bold text-[9px] text-white`}
                                     >
                                       {m.avatar}
                                     </span>
@@ -700,7 +702,7 @@ export function EventFormModal({ initial, onSave, onClose }: Props) {
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   {dp.votes[g].map((id) => {
-                                    const m = MEMBERS.find((x) => x.id === id);
+                                    const m = members.find((x) => x.id === id);
                                     if (!m) {
                                       return null;
                                     }

@@ -303,7 +303,7 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
             }}
             onDrop={handleDrop}
           >
-            📎 Drop files here
+            Drop files here
           </div>
           <input
             className="mb-2 w-full rounded-lg border border-[#3D3330] bg-[#232120] px-3 py-2 text-[#FFEDD1] text-sm placeholder:text-[#7A6555] focus:border-[#F0684D] focus:outline-none"
@@ -363,7 +363,7 @@ export function TodoModal({ initial, onSave, onDelete, onClose }: Props) {
               onChange={(e) => set({ addToCalendar: e.target.checked })}
               type="checkbox"
             />
-            📅 Add to calendar
+            Add to calendar
           </label>
           {item.addToCalendar && (
             <div className="relative">

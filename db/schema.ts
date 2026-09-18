@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -221,6 +222,52 @@ export const memberRelations = relations(member, ({ one }) => ({
   user: one(user, {
     fields: [member.userId],
     references: [user.id],
+  }),
+}));
+
+export const team = pgTable(
+  "team",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    departmentId: text("department_id")
+      .notNull()
+      .references(() => organizationDepartment.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    isSubLead: boolean("is_sub_lead").notNull().default(false),
+    isAdvisor: boolean("is_advisor").notNull().default(false),
+    isTreasurer: boolean("is_treasurer").notNull().default(false),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("team_department_member_unique").on(
+      table.departmentId,
+      table.memberId
+    ),
+  ]
+);
+
+export const teamRelations = relations(team, ({ one }) => ({
+  organization: one(organization, {
+    fields: [team.organizationId],
+    references: [organization.id],
+  }),
+  department: one(organizationDepartment, {
+    fields: [team.departmentId],
+    references: [organizationDepartment.id],
+  }),
+  member: one(member, {
+    fields: [team.memberId],
+    references: [member.id],
   }),
 }));
 
@@ -463,7 +510,9 @@ export const schema = {
   dashboardFile,
   dashboardNotification,
   studentProfile,
+  team,
   organizationRelations,
   organizationDepartmentRelations,
   memberRelations,
+  teamRelations,
 };

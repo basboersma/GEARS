@@ -14,6 +14,7 @@ import {
   orderRequest,
   organization,
   organizationDepartment,
+  team,
   user,
 } from "@/db/schema";
 import { listGoogleDriveTree } from "@/lib/google-drive";
@@ -117,6 +118,7 @@ export async function getOwnerDashboardData(
   const [
     departmentRows,
     memberRows,
+    teamRows,
     todoRows,
     roadmapRows,
     fileRows,
@@ -139,6 +141,7 @@ export async function getOwnerDashboardData(
       .from(member)
       .innerJoin(user, eq(member.userId, user.id))
       .where(eq(member.organizationId, organizationId)),
+    db.select().from(team).where(eq(team.organizationId, organizationId)),
     db.query.dashboardTodo.findMany({
       where: eq(dashboardTodo.organizationId, organizationId),
       orderBy: [asc(dashboardTodo.createdAt)],
@@ -242,6 +245,9 @@ export async function getOwnerDashboardData(
     organizationId,
     driveFolderId: organizationRow?.driveFolderId ?? null,
     departments,
+    departmentIds: Object.fromEntries(
+      departmentRows.map((row) => [row.name, row.id])
+    ),
     subteams: Object.fromEntries(departments.map((name) => [name, []])),
     members: memberRows.map((row) => ({
       id: row.id,
@@ -254,6 +260,14 @@ export async function getOwnerDashboardData(
       status: "active",
       isSubLead: row.role === "sub_owner",
       strikes: 0,
+    })),
+    teams: teamRows.map((row) => ({
+      id: row.id,
+      departmentId: row.departmentId,
+      memberId: row.memberId,
+      isSubLead: row.isSubLead,
+      isAdvisor: row.isAdvisor,
+      isTreasurer: row.isTreasurer,
     })),
     files,
     fileTree: googleDriveTree,

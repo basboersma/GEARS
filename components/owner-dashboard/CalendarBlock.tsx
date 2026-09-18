@@ -291,6 +291,7 @@ function SyncModal({
 export function CalendarBlock() {
   const {
     events: initialEvents,
+    departments,
     members,
     orders,
     organizationId,
@@ -564,6 +565,7 @@ export function CalendarBlock() {
       description: ev.description || "No description provided.",
       location: ev.location,
       attendees: JSON.stringify(ev.invitees.map((invitee) => invitee.memberId)),
+      sendMail: ev.sendMail,
       discussionPoints: ev.discussionPoints.map((point) => ({
         id: point.id,
         topic: point.title,
@@ -1091,11 +1093,18 @@ export function CalendarBlock() {
         />
       )}
       {creating && (
-        <EventFormModal onClose={() => setCreating(false)} onSave={saveEvent} />
+        <EventFormModal
+          departments={departments}
+          members={members}
+          onClose={() => setCreating(false)}
+          onSave={saveEvent}
+        />
       )}
       {editing && (
         <EventFormModal
+          departments={departments}
           initial={editing}
+          members={members}
           onClose={() => setEditing(null)}
           onSave={saveEvent}
         />

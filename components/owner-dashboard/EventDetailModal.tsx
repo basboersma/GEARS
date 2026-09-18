@@ -98,14 +98,14 @@ export function EventDetailModal({ event, onEdit, onClose }: Props) {
 
         {/* Time */}
         <div className="flex items-center gap-2 text-[#C4A882] text-sm">
-          <span>🕐</span>
+          <span> </span>
           <span>
             {fmtDateTime(event.date, event.startTime)} – {event.endTime}
           </span>
         </div>
         {event.location && (
           <div className="flex items-center gap-2 text-[#C4A882] text-sm">
-            <span>📍</span>
+            <span> </span>
             <span>{event.location}</span>
           </div>
         )}
@@ -247,7 +247,7 @@ export function EventDetailModal({ event, onEdit, onClose }: Props) {
                   className="flex items-center gap-2 rounded-lg border border-[#3D3330] bg-[#232120] p-2"
                   key={i}
                 >
-                  <span className="text-sm">📎</span>
+                  <span className="text-sm"> </span>
                   <span className="truncate text-[#FFEDD1] text-xs">
                     {name}
                   </span>

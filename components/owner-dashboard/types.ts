@@ -94,6 +94,15 @@ export interface Member {
   strikes: number;
 }
 
+export interface TeamAssignment {
+  id: string;
+  departmentId: string;
+  memberId: string;
+  isSubLead: boolean;
+  isAdvisor: boolean;
+  isTreasurer: boolean;
+}
+
 export interface RoadmapItem {
   id: string;
   title: string;

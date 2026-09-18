@@ -9,6 +9,7 @@ import {
   agendaEvent,
   member,
 } from "@/db/schema";
+import { sendEventInvitationEmails } from "@/lib/agenda-notifications";
 import { auth } from "@/lib/auth";
 
 const discussionPointSchema = z.object({
@@ -37,7 +38,23 @@ const updateAgendaEventSchema = z.object({
   minutesActions: z.string().trim().optional(),
   minutes: z.string().trim().optional(),
   discussionPoints: z.array(discussionPointSchema).optional(),
+  sendMail: z.boolean().optional().default(false),
 });
+
+function parseAttendeeIds(attendees: string): string[] {
+  if (!attendees.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(attendees);
+    return Array.isArray(parsed)
+      ? parsed.filter((id) => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 async function getSessionUser() {
   const session = await auth.api.getSession({
@@ -195,10 +212,12 @@ export async function PATCH(
       parsed.data.allowVoting ?? access.event?.allowVoting ?? false;
   }
 
+  const { sendMail, ...eventUpdate } = parsed.data;
+
   await db
     .update(agendaEvent)
     .set({
-      ...parsed.data,
+      ...eventUpdate,
       title: nextTitle,
       itemType: nextItemType,
       isDeadline: nextIsDeadline,
@@ -247,6 +266,25 @@ export async function PATCH(
         }))
       );
     }
+  }
+
+  if (sendMail) {
+    const memberIds = parseAttendeeIds(
+      parsed.data.attendees ?? access.event?.attendees ?? ""
+    );
+
+    await sendEventInvitationEmails({
+      organizationId: access.event?.organizationId ?? "",
+      memberIds,
+      event: {
+        title: nextTitle,
+        itemType: nextItemType,
+        description: parsed.data.description ?? access.event?.description ?? "",
+        location: parsed.data.location ?? access.event?.location,
+        start: parsed.data.start ?? access.event?.start ?? "",
+        end: parsed.data.end ?? access.event?.end ?? "",
+      },
+    });
   }
 
   return NextResponse.json({ success: true });

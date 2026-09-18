@@ -11,6 +11,7 @@ import {
   orderRequest,
   organization,
 } from "@/db/schema";
+import { sendEventInvitationEmails } from "@/lib/agenda-notifications";
 import { auth } from "@/lib/auth";
 import { createMeetingDocument, createMeetingFolder } from "@/lib/google-drive";
 
@@ -48,7 +49,23 @@ const createAgendaEventSchema = z.object({
   minutesDecisions: z.string().trim().optional().default(""),
   minutesActions: z.string().trim().optional().default(""),
   discussionPoints: z.array(discussionPointSchema).default([]),
+  sendMail: z.boolean().optional().default(false),
 });
+
+function parseAttendeeIds(attendees: string): string[] {
+  if (!attendees.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(attendees);
+    return Array.isArray(parsed)
+      ? parsed.filter((id) => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 async function getSessionUser() {
   const session = await auth.api.getSession({
@@ -442,6 +459,23 @@ export async function POST(request: Request) {
         updatedAt: new Date(),
       }))
     );
+  }
+
+  if (parsed.data.sendMail) {
+    const memberIds = parseAttendeeIds(parsed.data.attendees);
+
+    await sendEventInvitationEmails({
+      organizationId: parsed.data.organizationId,
+      memberIds,
+      event: {
+        title: isDeadline ? "Deadline" : parsed.data.title,
+        itemType,
+        description: parsed.data.description,
+        location: parsed.data.location,
+        start: parsed.data.start,
+        end: parsed.data.end,
+      },
+    });
   }
 
   return NextResponse.json({

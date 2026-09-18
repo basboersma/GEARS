@@ -8,7 +8,7 @@ import { feature } from "topojson-client";
 // @ts-ignore – world-atlas ships plain JSON, no TS declarations
 import worldTopoRaw from "world-atlas/countries-110m.json";
 import { avatarBg, DEPARTMENTS, DEPT_COLORS, MEMBERS } from "./data";
-import type { Member } from "./types";
+import type { Member, TeamAssignment } from "./types";
 
 // ─── World GeoJSON (converted once at module level) ──────────────────────────
 
@@ -1254,6 +1254,7 @@ function MemberActionModal({
   onStrike,
   onAddToDept,
   onRemoveFromDept,
+  onSetRole,
 }: {
   member: Member;
   allDepts: string[];
@@ -1264,6 +1265,7 @@ function MemberActionModal({
   onStrike: (comment: string, file: File | null) => void;
   onAddToDept: (dept: string) => void;
   onRemoveFromDept: (dept: string) => void;
+  onSetRole: (department: string, role: "advisor" | "treasurer") => void;
 }) {
   const [tab, setTab] = useState<"strike" | "remove" | "depts">("strike");
   const [comment, setComment] = useState("");
@@ -1463,6 +1465,30 @@ function MemberActionModal({
                       + {d}
                     </button>
                   ))}
+              </div>
+              <div className="space-y-1 border-[#3D3330] border-t pt-2">
+                <div className="font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
+                  Leadership roles
+                </div>
+                {allDepts.map((dept) => (
+                  <div className="flex items-center gap-1.5" key={dept}>
+                    <span className="flex-1 truncate text-[#C4A882] text-[10px]">
+                      {dept}
+                    </span>
+                    <button
+                      className="rounded border border-cyan-500/30 px-1.5 py-0.5 text-[9px] text-cyan-400"
+                      onClick={() => onSetRole(dept, "advisor")}
+                    >
+                      Advisor
+                    </button>
+                    <button
+                      className="rounded border border-amber-500/30 px-1.5 py-0.5 text-[9px] text-amber-400"
+                      onClick={() => onSetRole(dept, "treasurer")}
+                    >
+                      Treasurer
+                    </button>
+                  </div>
+                ))}
               </div>
             </>
           )}
@@ -1863,17 +1889,115 @@ function TreasurerSlot({
   );
 }
 
+function LeadershipTree({
+  advisor,
+  lead,
+  treasurer,
+}: {
+  advisor: Member | null;
+  lead: Member | null;
+  treasurer: Member | null;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="flex items-end gap-3">
+        <div className="flex flex-col items-center gap-1">
+          <div className="h-5 w-px bg-[#3D3330]" />
+          <div className="w-52 rounded-2xl border border-[#3D3330] bg-[#232120] px-3 py-2.5">
+            <div className="mb-1.5 font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
+              Treasurer
+            </div>
+            {treasurer ? (
+              <MemberCard
+                member={treasurer}
+                q=""
+                isDragging={false}
+                crossDept={false}
+                highlightedIso={null}
+                onDragStart={() => undefined}
+                onClick={() => undefined}
+              />
+            ) : (
+              <div className="py-1.5 text-center text-[#4A3F38] text-[10px]">
+                No treasurer assigned
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mb-[52px] h-px w-8 bg-[#3D3330]" />
+        <div className="flex flex-col items-center gap-1">
+          <div className="w-52 rounded-2xl border border-[#F0684D]/50 bg-[#F0684D]/10 px-3 py-2.5">
+            <div className="mb-1.5 font-semibold text-[#F0684D] text-[9px] uppercase tracking-wider">
+              Lead
+            </div>
+            {lead ? (
+              <MemberCard
+                member={lead}
+                q=""
+                isDragging={false}
+                crossDept={false}
+                highlightedIso={null}
+                onDragStart={() => undefined}
+                onClick={() => undefined}
+              />
+            ) : (
+              <div className="py-1.5 text-center text-[#4A3F38] text-[10px]">
+                No owner assigned
+              </div>
+            )}
+          </div>
+          <div className="h-5 w-px bg-[#3D3330]" />
+        </div>
+        <div className="mb-[52px] h-px w-8 bg-[#3D3330]" />
+        <div className="flex flex-col items-center gap-1">
+          <div className="h-5 w-px bg-[#3D3330]" />
+          <div className="w-52 rounded-2xl border border-[#3D3330] bg-[#232120] px-3 py-2.5">
+            <div className="mb-1.5 font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
+              Advisor
+            </div>
+            {advisor ? (
+              <MemberCard
+                member={advisor}
+                q=""
+                isDragging={false}
+                crossDept={false}
+                highlightedIso={null}
+                onDragStart={() => undefined}
+                onClick={() => undefined}
+              />
+            ) : (
+              <div className="py-1.5 text-center text-[#4A3F38] text-[10px]">
+                No advisor assigned
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="h-5 w-px bg-[#3D3330]" />
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function MembersPage({
+  initialDepartmentIds,
+  initialOrganizationId,
   initialMembers,
   initialDepartments,
+  initialTeams,
+  leadMemberId,
 }: {
   initialMembers: Member[];
   initialDepartments: string[];
+  initialDepartmentIds: Record<string, string>;
+  initialOrganizationId: string;
+  initialTeams: TeamAssignment[];
+  leadMemberId: string | null;
 }) {
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [departments, setDepartments] = useState<string[]>(initialDepartments);
+  const [teams, setTeams] = useState<TeamAssignment[]>(initialTeams);
   const [deptColors, setDeptColors] =
     useState<Record<string, string>>(DEPT_COLORS);
   const [memberExtraDepts, setMemberExtraDepts] = useState<
@@ -1905,11 +2029,86 @@ export function MembersPage({
   const membersByDept = (dept: string) =>
     visibleMembers.filter(
       (m) =>
-        m.department === dept || (memberExtraDepts[m.id] ?? []).includes(dept)
+        teams.some(
+          (team) =>
+            team.departmentId === initialDepartmentIds[dept] &&
+            team.memberId === m.id
+        ) || (memberExtraDepts[m.id] ?? []).includes(dept)
     );
+
+  const persistTeams = async (nextTeams: TeamAssignment[]) => {
+    setTeams(nextTeams);
+    await fetch("/api/organization-teams", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId: initialOrganizationId,
+        assignments: nextTeams.map(
+          ({ departmentId, memberId, isSubLead, isAdvisor, isTreasurer }) => ({
+            departmentId,
+            memberId,
+            isSubLead,
+            isAdvisor,
+            isTreasurer,
+          })
+        ),
+      }),
+    });
+  };
+
+  const setTeamRole = (
+    memberId: string,
+    department: string,
+    role: "advisor" | "treasurer"
+  ) => {
+    const departmentId = initialDepartmentIds[department];
+    if (!departmentId) return;
+    const nextTeams = teams
+      .filter(
+        (team) =>
+          !(
+            team[role === "advisor" ? "isAdvisor" : "isTreasurer"] &&
+            team.memberId !== memberId
+          )
+      )
+      .map((team) =>
+        team.memberId === memberId && team.departmentId === departmentId
+          ? {
+              ...team,
+              [role === "advisor" ? "isAdvisor" : "isTreasurer"]: true,
+            }
+          : team
+      );
+    const existing = nextTeams.find(
+      (team) => team.memberId === memberId && team.departmentId === departmentId
+    );
+    persistTeams(
+      existing
+        ? nextTeams
+        : [
+            ...nextTeams,
+            {
+              id: crypto.randomUUID(),
+              departmentId,
+              memberId,
+              isSubLead: false,
+              isAdvisor: role === "advisor",
+              isTreasurer: role === "treasurer",
+            },
+          ]
+    ).catch(() => undefined);
+  };
+
+  const roleMember = (role: "isAdvisor" | "isTreasurer") => {
+    const assignment = teams.find((team) => team[role]);
+    return assignment
+      ? (members.find((member) => member.id === assignment.memberId) ?? null)
+      : null;
+  };
 
   const handleDrop = (targetDept: string) => {
     if (!draggingId) return;
+    const departmentId = initialDepartmentIds[targetDept];
     setMembers((prev) =>
       prev.map((m) =>
         m.id === draggingId
@@ -1917,6 +2116,37 @@ export function MembersPage({
           : m
       )
     );
+    if (departmentId) {
+      const nextTeams = [
+        ...teams.filter(
+          (team) =>
+            !(
+              team.memberId === draggingId && team.departmentId !== departmentId
+            )
+        ),
+      ];
+      const existing = nextTeams.find(
+        (team) =>
+          team.memberId === draggingId && team.departmentId === departmentId
+      );
+      persistTeams(
+        existing
+          ? nextTeams.map((team) =>
+              team.id === existing.id ? { ...team, isSubLead: false } : team
+            )
+          : [
+              ...nextTeams,
+              {
+                id: crypto.randomUUID(),
+                departmentId,
+                memberId: draggingId,
+                isSubLead: false,
+                isAdvisor: false,
+                isTreasurer: false,
+              },
+            ]
+      ).catch(() => undefined);
+    }
     setDraggingId(null);
     setDragTarget(null);
   };
@@ -1930,12 +2160,41 @@ export function MembersPage({
   const confirmSubLead = () => {
     if (!pendingSubLead) return;
     const { dept, memberId } = pendingSubLead;
+    const departmentId = initialDepartmentIds[dept];
     setMembers((prev) =>
       prev.map((m) =>
         m.id === memberId ? { ...m, department: dept, team: dept } : m
       )
     );
     setSubLeads((prev) => ({ ...prev, [dept]: memberId }));
+    if (departmentId) {
+      const nextTeams = teams.filter(
+        (team) =>
+          !(team.memberId === memberId && team.departmentId !== departmentId) &&
+          !(team.departmentId === departmentId && team.isSubLead)
+      );
+      const existing = nextTeams.find(
+        (team) =>
+          team.memberId === memberId && team.departmentId === departmentId
+      );
+      persistTeams(
+        existing
+          ? nextTeams.map((team) =>
+              team.id === existing.id ? { ...team, isSubLead: true } : team
+            )
+          : [
+              ...nextTeams,
+              {
+                id: crypto.randomUUID(),
+                departmentId,
+                memberId,
+                isSubLead: true,
+                isAdvisor: false,
+                isTreasurer: false,
+              },
+            ]
+      ).catch(() => undefined);
+    }
     setPendingSubLead(null);
   };
   const stopDrag = () => {
@@ -2046,23 +2305,13 @@ export function MembersPage({
           {/* Org tree */}
           <div className="flex-1 overflow-auto min-h-0">
             <div className="flex flex-col items-center min-w-max pb-8 pt-4">
-              <TreasurerSlot
-                member={treasurerMember}
-                q={q}
-                draggingId={draggingId}
-                dragTarget={dragTarget}
-                setDragTarget={setDragTarget}
-                onDrop={() => {
-                  if (draggingId) {
-                    setPendingTreasurer(draggingId);
-                    setDraggingId(null);
-                    setDragTarget(null);
-                  }
-                }}
-                onDragStart={setDraggingId}
-                onMemberClick={setActionMember}
+              <LeadershipTree
+                advisor={roleMember("isAdvisor")}
+                lead={
+                  members.find((member) => member.id === leadMemberId) ?? null
+                }
+                treasurer={roleMember("isTreasurer")}
               />
-              <Connector />
               <div className="relative flex gap-3 items-start">
                 {departments.length > 1 && (
                   <div
@@ -2178,6 +2427,7 @@ export function MembersPage({
               ),
             }))
           }
+          onSetRole={(dept, role) => setTeamRole(actionMember.id, dept, role)}
         />
       )}
     </div>

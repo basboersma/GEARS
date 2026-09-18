@@ -42,7 +42,7 @@ export default async function OrganizationMembersPage({
     name: entry.user.name,
     email: entry.user.email,
     team: entry.role === "owner" ? "Board" : "",
-    department: dashboardData.departments[0] ?? "Board",
+    department: "",
     role: entry.role,
     avatar: entry.user.name.slice(0, 1).toUpperCase(),
     status: "active",
@@ -62,8 +62,15 @@ export default async function OrganizationMembersPage({
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <MembersPage
+            initialDepartmentIds={dashboardData.departmentIds}
             initialDepartments={dashboardData.departments}
             initialMembers={members}
+            initialOrganizationId={dashboardData.organizationId}
+            initialTeams={dashboardData.teams}
+            leadMemberId={
+              organization.members.find((entry) => entry.role === "owner")
+                ?.id ?? null
+            }
           />
         </main>
       </OwnerDashboardFrame>
