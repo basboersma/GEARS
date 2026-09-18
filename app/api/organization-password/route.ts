@@ -97,3 +97,59 @@ export async function PATCH(request: Request) {
   }
   return NextResponse.json({ success: true });
 }
+
+export async function POST(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = z
+    .object({
+      organizationId: z.string().min(1),
+      password: z.string().min(1),
+    })
+    .safeParse(await request.json());
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Password is required" },
+      { status: 400 }
+    );
+  }
+
+  const membership = await db.query.member.findFirst({
+    where: and(
+      eq(member.organizationId, parsed.data.organizationId),
+      eq(member.userId, session.user.id)
+    ),
+  });
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "admin")
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const passwordRow = await db.query.passwords.findFirst({
+    where: eq(passwords.organizationId, parsed.data.organizationId),
+  });
+  const passwordMatches = [
+    [passwordRow?.ownerHash, passwordRow?.ownerSalt],
+    [passwordRow?.adminHash, passwordRow?.adminSalt],
+  ].some(([hash, salt]) => {
+    if (!(hash && salt)) {
+      return false;
+    }
+    const actual = scryptSync(
+      parsed.data.password,
+      Buffer.from(salt, "hex"),
+      64
+    );
+    const expected = Buffer.from(hash, "hex");
+    return (
+      expected.length === actual.length && timingSafeEqual(expected, actual)
+    );
+  });
+
+  return NextResponse.json({ valid: passwordMatches });
+}

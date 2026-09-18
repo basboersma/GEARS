@@ -1120,11 +1120,13 @@ function InvitePanel({
 // ─── Password modal ────────────────────────────────────────────────────────────
 
 function PwModal({
+  organizationId,
   title,
   desc,
   onConfirm,
   onClose,
 }: {
+  organizationId?: string;
   title: string;
   desc?: string;
   onConfirm: () => void;
@@ -1132,7 +1134,23 @@ function PwModal({
 }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(false);
-  const attempt = () => (checkPw(pw) ? (onConfirm(), onClose()) : setErr(true));
+  const attempt = async () => {
+    const valid = organizationId
+      ? (
+          (await fetch("/api/organization-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ organizationId, password: pw }),
+          }).then((response) => response.json())) as { valid?: boolean }
+        ).valid === true
+      : checkPw(pw);
+    if (valid) {
+      onConfirm();
+      onClose();
+    } else {
+      setErr(true);
+    }
+  };
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -1200,9 +1218,11 @@ const PRESET_COLORS = [
 ];
 
 function AddDeptModal({
+  organizationId,
   onAdd,
   onClose,
 }: {
+  organizationId: string;
   onAdd: (name: string, color: string) => void;
   onClose: () => void;
 }) {
@@ -1212,6 +1232,7 @@ function AddDeptModal({
   if (step === "pw")
     return (
       <PwModal
+        organizationId={organizationId}
         title="Add Department"
         desc={`Add "${name}" as a new department?`}
         onConfirm={() => {
@@ -2404,7 +2425,9 @@ export function MembersPage({
         {showInvite && (
           <InvitePanel
             departmentIds={initialDepartmentIds}
-            depts={departments}
+            depts={departments.filter(
+              (department) => initialDepartmentIds[department]
+            )}
             deptColors={deptColors}
             members={members}
             onClose={() => setShowInvite(false)}
@@ -2434,6 +2457,7 @@ export function MembersPage({
       )}
       {addingDept && (
         <AddDeptModal
+          organizationId={initialOrganizationId}
           onAdd={(name, color) => {
             setDepartments((p) => [...p, name]);
             setDeptColors((p) => ({ ...p, [name]: color }));

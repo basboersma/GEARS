@@ -16,7 +16,7 @@ export default function LoginPage() {
               alt="Better Auth Starter Logo"
               height={50}
               priority
-              src={"/better-auth-starter.png"}
+              src={"/Logo.png"}
               width={50}
             />
           </div>
