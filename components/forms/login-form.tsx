@@ -58,6 +58,7 @@ export function LoginForm({
     },
   });
 
+  /* TODO: get client id/secret from surfConext
   const signInWithSurf = async () => {
     const { error } = await authClient.signIn.oauth2({
       providerId: "surfconext",
@@ -68,6 +69,7 @@ export function LoginForm({
       toast.error(error.message || "RUG/Hanze sign-in failed.");
     }
   };
+  */
 
   const signInWithMicrosoft = async () => {
     const { error } = await authClient.signIn.social({
@@ -80,7 +82,6 @@ export function LoginForm({
     }
   };
 
-  /*TODO: come back to this later */
   const signInWithGoogle = async () => {
     const { error } = await authClient.signIn.social({
       provider: "google",
@@ -121,6 +122,7 @@ export function LoginForm({
             <form className="space-y-8" onSubmit={form.handleSubmit(onSubmit)}>
               <div className="grid gap-6">
                 <div className="flex flex-col gap-4">
+                  {/* TODO: get client id/secret from surfConext
                   <Button
                     className="w-full bg-orange-500 text-white hover:bg-orange-600"
                     onClick={signInWithSurf}
@@ -128,29 +130,7 @@ export function LoginForm({
                   >
                     RUG/Hanze inlog
                   </Button>
-                  <Button
-                    className="w-full"
-                    onClick={signInWithMicrosoft}
-                    type="button"
-                    variant="outline"
-                  >
-                    <svg viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
-                      <title>Microsoft</title>
-                      <path d="M1 1h10v10H1z" fill="#f25022" />
-                      <path d="M12 1h10v10H12z" fill="#7fba00" />
-                      <path d="M1 12h10v10H1z" fill="#00a4ef" />
-                      <path d="M12 12h10v10H12z" fill="#ffb900" />
-                    </svg>
-                    Login with Microsoft
-                  </Button>
-                </div>
-                <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
-                  <span className="relative z-10 bg-card px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-                {/*TODO: come back to this later */}
-                <div className="flex flex-col gap-4">
+                  */}
                   <Button
                     className="relative w-full"
                     onClick={signInWithGoogle}
@@ -170,6 +150,21 @@ export function LoginForm({
                         last used
                       </Badge>
                     )}
+                  </Button>
+                  <Button
+                    className="w-full"
+                    onClick={signInWithMicrosoft}
+                    type="button"
+                    variant="outline"
+                  >
+                    <svg viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
+                      <title>Microsoft</title>
+                      <path d="M1 1h10v10H1z" fill="#f25022" />
+                      <path d="M12 1h10v10H12z" fill="#7fba00" />
+                      <path d="M1 12h10v10H1z" fill="#00a4ef" />
+                      <path d="M12 12h10v10H12z" fill="#ffb900" />
+                    </svg>
+                    Login with Microsoft
                   </Button>
                 </div>
                 <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
