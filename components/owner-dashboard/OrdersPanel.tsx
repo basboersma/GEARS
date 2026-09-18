@@ -93,14 +93,7 @@ interface Draft {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const ORDER_TYPES = ["Hardware", "Electronic", "Software", "Social"] as const;
 const URGENCIES = ["1 day", "2 days", "3 days", "7 days"] as const;
-const DEPT_LIST = [
-  "Mechanical",
-  "PR",
-  "Board",
-  "Software",
-  "Finance",
-  "Design",
-];
+const DEPT_LIST = ["PR", "Board", "Software", "Finance", "Design"];
 const PERIOD_MONTHS: Record<Period, number> = { "1M": 1, "6M": 6, "1Y": 12 };
 const INIT_ROWS = 8;
 
@@ -178,7 +171,7 @@ const MOCK_ORDERS: OrderRecord[] = [
   {
     id: "ol1",
     name: "September Hardware Batch",
-    department: "Mechanical",
+    department: "Software",
     submittedBy: "Alex van den Berg",
     approvedBy: "Liam Bakker",
     submittedAt: "2026-09-01",
@@ -393,7 +386,7 @@ const MOCK_ORDERS: OrderRecord[] = [
   {
     id: "ol6",
     name: "Arm Electronics Batch",
-    department: "Mechanical",
+    department: "Software",
     submittedBy: "Alex van den Berg",
     approvedBy: "Liam Bakker",
     submittedAt: "2026-08-10",

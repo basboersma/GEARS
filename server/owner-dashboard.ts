@@ -291,6 +291,7 @@ export async function getOwnerDashboardData(
       isSubLead: row.isSubLead,
       isAdvisor: row.isAdvisor,
       isTreasurer: row.isTreasurer,
+      removed: row.removed,
     })),
     files,
     fileTree: googleDriveTree,

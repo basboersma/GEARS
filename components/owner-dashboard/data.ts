@@ -60,16 +60,8 @@ export const HEADER_H = 32;
 export const TIME_COL_W = 44;
 
 // ─── Departments ──────────────────────────────────────────────────────────────
-export const DEPARTMENTS = [
-  "Mechanical",
-  "PR",
-  "Board",
-  "Software",
-  "Finance",
-  "Design",
-];
+export const DEPARTMENTS = ["PR", "Board", "Software", "Finance", "Design"];
 export const SUBTEAMS: Record<string, string[]> = {
-  Mechanical: ["Arm", "Chassis", "Science"],
   PR: ["Print", "Digital", "Events"],
   Software: ["Licenses", "Hosting", "Tools"],
   Finance: ["Audit", "Banking", "Insurance"],
@@ -77,7 +69,6 @@ export const SUBTEAMS: Record<string, string[]> = {
   Design: ["Software", "Assets", "Print"],
 };
 export const DEPT_COLORS: Record<string, string> = {
-  Mechanical: "#4f6ef7",
   PR: "#10b981",
   Board: "#8b5cf6",
   Software: "#f59e0b",
@@ -104,8 +95,8 @@ export const MEMBERS: Member[] = [
     id: "m1",
     name: "Alex van den Berg",
     email: "a.vandenberg@gearsnl.org",
-    team: "Mechanical",
-    department: "Mechanical",
+    team: "Software",
+    department: "Software",
     role: "Lead Engineer",
     avatar: "A",
     status: "active",
@@ -128,8 +119,8 @@ export const MEMBERS: Member[] = [
     id: "m3",
     name: "Daan Mulder",
     email: "d.mulder@gearsnl.org",
-    team: "Mechanical",
-    department: "Mechanical",
+    team: "Software",
+    department: "Software",
     role: "Engineer",
     avatar: "D",
     status: "active",
@@ -164,8 +155,8 @@ export const MEMBERS: Member[] = [
     id: "m6",
     name: "Noah Smit",
     email: "n.smit@gearsnl.org",
-    team: "Mechanical",
-    department: "Mechanical",
+    team: "Software",
+    department: "Software",
     role: "Technician",
     avatar: "N",
     status: "active",
@@ -337,63 +328,6 @@ export const FILE_TREE: FileTreeNode[] = [
   },
   {
     kind: "folder",
-    id: "fd3",
-    name: "Mechanical",
-    children: [
-      {
-        kind: "folder",
-        id: "fd3a",
-        name: "Arm",
-        children: [
-          {
-            kind: "file",
-            id: "f3a",
-            name: "Arm CAD v3.other",
-            type: "other",
-            size: "12.4 MB",
-            modified: "Sep 1, 2026",
-            url: "#",
-          },
-          {
-            kind: "file",
-            id: "f3b",
-            name: "Arm BOM.xlsx",
-            type: "sheet",
-            size: "320 KB",
-            modified: "Aug 29, 2026",
-            url: "#",
-          },
-        ],
-      },
-      {
-        kind: "folder",
-        id: "fd3b",
-        name: "Chassis",
-        children: [
-          {
-            kind: "file",
-            id: "f3c",
-            name: "Chassis CAD v5.other",
-            type: "other",
-            size: "18.7 MB",
-            modified: "Sep 3, 2026",
-            url: "#",
-          },
-          {
-            kind: "file",
-            id: "f3d",
-            name: "Stress Analysis.pdf",
-            type: "pdf",
-            size: "4.2 MB",
-            modified: "Aug 22, 2026",
-            url: "#",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    kind: "folder",
     id: "fd4",
     name: "General",
     children: [
@@ -439,7 +373,7 @@ export const INIT_EVENTS: CalEvent[] = [
     endDate: "2026-09-01",
     endTime: "11:00",
     color: "#4f6ef7",
-    description: "Weekly sync for the Mechanical team.",
+    description: "Weekly team sync.",
     location: "Room 2.4",
     invitees: [
       { memberId: "m1", status: "accepted" },
@@ -447,7 +381,7 @@ export const INIT_EVENTS: CalEvent[] = [
       { memberId: "m3", status: "declined" },
     ],
     sendMail: false,
-    linkedFiles: ["f3"],
+    linkedFiles: [],
     localFiles: [],
     repeat: null,
     discussionPoints: [
@@ -557,7 +491,7 @@ export const INIT_TODOS: TodoItem[] = [
     calendarDate: "",
     dueDate: "2026-09-12",
     subtasks: [
-      { id: "st1", text: "Fill mechanical forms", done: true },
+      { id: "st1", text: "Fill order forms", done: true },
       { id: "st2", text: "Finance sign-off", done: false },
       { id: "st3", text: "Submit portal", done: false },
     ],
@@ -629,20 +563,6 @@ export const MONTHLY_SPEND: Record<string, MonthlySpend[]> = {
     { month: "Jul", budget: 8333, spent: 4700 },
     { month: "Aug", budget: 8333, spent: 5800 },
     { month: "Sep", budget: 8333, spent: 3800 },
-  ],
-  Mechanical: [
-    { month: "Oct", budget: 2500, spent: 1800 },
-    { month: "Nov", budget: 2500, spent: 1500 },
-    { month: "Dec", budget: 2500, spent: 2200 },
-    { month: "Jan", budget: 2500, spent: 1200 },
-    { month: "Feb", budget: 2500, spent: 1600 },
-    { month: "Mar", budget: 2500, spent: 1100 },
-    { month: "Apr", budget: 2500, spent: 900 },
-    { month: "May", budget: 2500, spent: 1400 },
-    { month: "Jun", budget: 2500, spent: 1800 },
-    { month: "Jul", budget: 2500, spent: 1600 },
-    { month: "Aug", budget: 2500, spent: 2100 },
-    { month: "Sep", budget: 2500, spent: 400 },
   ],
   Arm: [
     { month: "Oct", budget: 1000, spent: 700 },
@@ -761,18 +681,6 @@ export const MONTHLY_SPEND: Record<string, MonthlySpend[]> = {
 // ─── Orders ───────────────────────────────────────────────────────────────────
 export const ORDERS: Order[] = [
   {
-    id: "ord1",
-    date: "2026-09-01",
-    startTime: "09:00",
-    endTime: "09:30",
-    title: "Mechanical Parts Order",
-    items: [
-      { name: "Steel bolts M8 (100x)", qty: 2, price: 12 },
-      { name: "Bearing 6204", qty: 5, price: 8 },
-      { name: "Welding wire 1kg", qty: 1, price: 24 },
-    ],
-  },
-  {
     id: "ord2",
     date: "2026-09-04",
     startTime: "11:30",
@@ -801,44 +709,6 @@ export const BUDGET: BudgetData = {
   total: 50_000,
   spent: 24_600,
   departments: [
-    {
-      name: "Mechanical",
-      budget: 15_000,
-      spent: 8200,
-      color: DEPT_COLORS.Mechanical,
-      subs: [
-        {
-          name: "Arm",
-          budget: 6000,
-          spent: 3400,
-          subs: [
-            { name: "Electronics", budget: 2500, spent: 1400 },
-            { name: "Hardware", budget: 2000, spent: 1200 },
-            { name: "Software", budget: 1500, spent: 800 },
-          ],
-        },
-        {
-          name: "Chassis",
-          budget: 5500,
-          spent: 3000,
-          subs: [
-            { name: "Electronics", budget: 1500, spent: 900 },
-            { name: "Hardware", budget: 3000, spent: 1700 },
-            { name: "Software", budget: 1000, spent: 400 },
-          ],
-        },
-        {
-          name: "Science",
-          budget: 3500,
-          spent: 1800,
-          subs: [
-            { name: "Electronics", budget: 1200, spent: 700 },
-            { name: "Hardware", budget: 1300, spent: 600 },
-            { name: "Software", budget: 1000, spent: 500 },
-          ],
-        },
-      ],
-    },
     {
       name: "PR",
       budget: 12_000,
@@ -1042,24 +912,6 @@ export const INIT_ROADMAP: RoadmapItem[] = [
     progress: 10,
   },
   {
-    id: "rm3",
-    title: "Engine Redesign",
-    department: "Mechanical",
-    startDate: "2026-09-03",
-    endDate: "2026-09-22",
-    color: DEPT_COLORS.Mechanical,
-    progress: 30,
-  },
-  {
-    id: "rm4",
-    title: "Prototype Testing",
-    department: "Mechanical",
-    startDate: "2026-09-20",
-    endDate: "2026-09-30",
-    color: DEPT_COLORS.Mechanical,
-    progress: 0,
-  },
-  {
     id: "rm5",
     title: "Board Annual Report",
     department: "Board",
@@ -1117,14 +969,6 @@ export const INIT_ROADMAP: RoadmapItem[] = [
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export const NOTIFICATIONS: AppNotification[] = [
-  {
-    id: "notif1",
-    type: "order",
-    title: "Order delivered",
-    body: "Mechanical Parts Order has arrived at the workshop",
-    time: "2h ago",
-    read: false,
-  },
   {
     id: "notif2",
     type: "budget",

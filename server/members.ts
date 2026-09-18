@@ -4,6 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db/drizzle";
 import { member, type Role } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import {
+  recordMembershipJoin,
+  removeOrganizationMembership,
+} from "./membership-history";
 import { getCurrentUser } from "./users";
 
 export const addMember = async (
@@ -19,6 +23,15 @@ export const addMember = async (
         role,
       },
     });
+    const membership = await db.query.member.findFirst({
+      where: and(
+        eq(member.organizationId, organizationId),
+        eq(member.userId, userId)
+      ),
+    });
+    if (membership) {
+      await recordMembershipJoin(membership);
+    }
   } catch (error) {
     console.error(error);
     throw new Error("Failed to add member.");
@@ -53,13 +66,18 @@ export const removeMember = async (memberId: string) => {
     };
   }
 
-  try {
-    await db.delete(member).where(eq(member.id, memberId));
-
+  if (targetMember.role === "owner") {
     return {
-      success: true,
-      error: null,
+      success: false,
+      error: "The organization owner cannot be removed.",
     };
+  }
+
+  try {
+    return await removeOrganizationMembership(
+      targetMember.organizationId,
+      memberId
+    );
   } catch (error) {
     console.error(error);
     return {

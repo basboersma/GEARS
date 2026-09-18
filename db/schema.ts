@@ -304,15 +304,15 @@ export const teamHistory = pgTable("team_history", {
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),
   snapshotAt: timestamp("snapshot_at").notNull(),
-  departmentId: text("department_id")
-    .notNull()
-    .references(() => organizationDepartment.id, { onDelete: "cascade" }),
-  memberId: text("member_id")
-    .notNull()
-    .references(() => member.id, { onDelete: "cascade" }),
+  departmentId: text("department_id").references(
+    () => organizationDepartment.id,
+    { onDelete: "cascade" }
+  ),
+  memberId: text("member_id").notNull(),
   isSubLead: boolean("is_sub_lead").notNull().default(false),
   isAdvisor: boolean("is_advisor").notNull().default(false),
   isTreasurer: boolean("is_treasurer").notNull().default(false),
+  removed: boolean("removed").notNull().default(false),
 });
 
 export type Member = typeof member.$inferSelect & {

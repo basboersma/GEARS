@@ -106,8 +106,11 @@ export interface TeamAssignment {
   isTreasurer: boolean;
 }
 
-export interface TeamHistorySnapshot extends TeamAssignment {
+export interface TeamHistorySnapshot
+  extends Omit<TeamAssignment, "departmentId"> {
   snapshotAt: string;
+  departmentId: string | null;
+  removed: boolean;
 }
 
 export interface RoadmapItem {

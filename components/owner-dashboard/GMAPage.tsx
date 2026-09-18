@@ -46,7 +46,7 @@ const MOCK_ACTIVE: Motion = {
   id: "2025-06-15-001",
   title: "Budget Reallocation Q4 2026",
   author: "Liam Bakker",
-  text: "Motion to reallocate €2,400 from the PR budget surplus to the Mechanical subteam for CNC tooling upgrades. The current PR underspend of 18% justifies the transfer. All receipts and estimates are attached in the linked document. The Mechanical subteam lead has confirmed the tooling will be operational within two weeks of purchase and is expected to reduce external machining costs by approximately 40% over Q1 2027.",
+  text: "Motion to reallocate €2,400 from the PR budget surplus to the workshop team for tooling upgrades. The current PR underspend of 18% justifies the transfer. All receipts and estimates are attached in the linked document. The workshop team lead has confirmed the tooling will be operational within two weeks of purchase and is expected to reduce external machining costs by approximately 40% over Q1 2027.",
   signaturesNeeded: 49,
   signaturesGot: 35,
 };

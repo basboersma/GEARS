@@ -9,6 +9,7 @@ import {
   team,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { recordCurrentTeamSnapshot } from "@/server/membership-history";
 
 export async function GET(
   request: NextRequest,
@@ -76,6 +77,7 @@ export async function GET(
           }))
         )
         .onConflictDoNothing();
+      await recordCurrentTeamSnapshot(invitationRecord.organizationId);
 
       await db
         .update(departmentInvitationTable)

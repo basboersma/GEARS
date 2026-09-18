@@ -21,6 +21,7 @@ import {
   schema,
 } from "@/db/schema";
 import { createOrganizationDriveFolders } from "@/lib/google-drive";
+import { recordMembershipJoin } from "@/server/membership-history";
 import {
   admin,
   owner,
@@ -223,6 +224,13 @@ export const auth = betterAuth({
       //organizationOnly: false,
       organizationCreation: {
         afterCreate: async ({ organization }) => {
+          const ownerMembership = await db.query.member.findFirst({
+            where: eq(memberTable.organizationId, organization.id),
+          });
+          if (ownerMembership) {
+            await recordMembershipJoin(ownerMembership);
+          }
+
           const result = await createOrganizationDriveFolders({
             name: organization.name,
           });

@@ -1,4 +1,4 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -6,6 +6,11 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member, passwords } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import {
+  hashOrganizationPassword,
+  matchesOrganizationPassword,
+  verifyOrganizationPassword,
+} from "@/lib/organization-password";
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
@@ -41,19 +46,6 @@ export async function GET(request: Request) {
       membership.role === "owner" ? password?.ownerHash : password?.adminHash
     ),
   });
-}
-
-function hashPassword(password: string, salt: Buffer) {
-  return scryptSync(password, salt, 64).toString("hex");
-}
-
-function matchesPassword(password: string, hash: string, salt: string) {
-  const expected = Buffer.from(hash, "hex");
-  const actual = Buffer.from(
-    hashPassword(password, Buffer.from(salt, "hex")),
-    "hex"
-  );
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 export async function PATCH(request: Request) {
@@ -93,7 +85,11 @@ export async function PATCH(request: Request) {
   if (
     currentHash &&
     currentSalt &&
-    !matchesPassword(parsed.data.previousPassword, currentHash, currentSalt)
+    !matchesOrganizationPassword(
+      parsed.data.previousPassword,
+      currentHash,
+      currentSalt
+    )
   ) {
     return NextResponse.json(
       { error: "Previous password is incorrect" },
@@ -104,11 +100,11 @@ export async function PATCH(request: Request) {
   const values =
     membership.role === "owner"
       ? {
-          ownerHash: hashPassword(parsed.data.newPassword, salt),
+          ownerHash: hashOrganizationPassword(parsed.data.newPassword, salt),
           ownerSalt: salt.toString("hex"),
         }
       : {
-          adminHash: hashPassword(parsed.data.newPassword, salt),
+          adminHash: hashOrganizationPassword(parsed.data.newPassword, salt),
           adminSalt: salt.toString("hex"),
         };
   if (current) {
@@ -160,26 +156,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const passwordRow = await db.query.passwords.findFirst({
-    where: eq(passwords.organizationId, parsed.data.organizationId),
-  });
-  const passwordMatches = [
-    [passwordRow?.ownerHash, passwordRow?.ownerSalt],
-    [passwordRow?.adminHash, passwordRow?.adminSalt],
-  ].some(([hash, salt]) => {
-    if (!(hash && salt)) {
-      return false;
-    }
-    const actual = scryptSync(
-      parsed.data.password,
-      Buffer.from(salt, "hex"),
-      64
-    );
-    const expected = Buffer.from(hash, "hex");
-    return (
-      expected.length === actual.length && timingSafeEqual(expected, actual)
-    );
-  });
+  const passwordMatches = await verifyOrganizationPassword(
+    parsed.data.organizationId,
+    parsed.data.password
+  );
 
   return NextResponse.json({ valid: passwordMatches });
 }

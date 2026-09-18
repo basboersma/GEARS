@@ -73,10 +73,10 @@ function RoadmapForm({
   const blank: RoadmapItem = {
     id: Date.now().toString(),
     title: "",
-    department: "Mechanical",
+    department: departments[0] ?? "",
     startDate: today,
     endDate: today,
-    color: DEPT_COLORS.Mechanical,
+    color: DEPT_COLORS[departments[0] ?? ""] ?? "#6b7280",
     progress: 0,
   };
   const [item, setItem] = useState<RoadmapItem>(initial ?? blank);
@@ -110,7 +110,7 @@ function RoadmapForm({
             onChange={(v) =>
               set({
                 department: v,
-                color: DEPT_COLORS[v] ?? DEPT_COLORS.Mechanical,
+                color: DEPT_COLORS[v] ?? "#6b7280",
               })
             }
             value={item.department}

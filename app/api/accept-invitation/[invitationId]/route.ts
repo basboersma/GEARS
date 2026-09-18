@@ -4,6 +4,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/drizzle";
 import { invitation as invitationTable, member, team } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import {
+  recordCurrentTeamSnapshot,
+  recordMembershipJoin,
+} from "@/server/membership-history";
 
 export async function GET(
   request: NextRequest,
@@ -43,37 +47,41 @@ export async function GET(
       headers: await headers(),
     });
 
-    if (invitationRecord?.departmentIds) {
+    const newMember = invitationRecord
+      ? await db.query.member.findFirst({
+          where: and(
+            eq(member.organizationId, invitationRecord.organizationId),
+            eq(member.userId, session.user.id)
+          ),
+        })
+      : null;
+    if (newMember) {
+      await recordMembershipJoin(newMember);
+    }
+
+    if (invitationRecord?.departmentIds && newMember) {
       const departmentIds = JSON.parse(
         invitationRecord.departmentIds
       ) as string[];
 
       if (departmentIds.length > 0) {
-        const newMember = await db.query.member.findFirst({
-          where: and(
-            eq(member.organizationId, invitationRecord.organizationId),
-            eq(member.userId, session.user.id)
-          ),
-        });
-
-        if (newMember) {
-          await db
-            .insert(team)
-            .values(
-              departmentIds.map((departmentId) => ({
-                id: crypto.randomUUID(),
-                organizationId: invitationRecord.organizationId,
-                departmentId,
-                memberId: newMember.id,
-                isSubLead: false,
-                isAdvisor: false,
-                isTreasurer: false,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              }))
-            )
-            .onConflictDoNothing();
-        }
+        await db
+          .insert(team)
+          .values(
+            departmentIds.map((departmentId) => ({
+              id: crypto.randomUUID(),
+              organizationId: invitationRecord.organizationId,
+              departmentId,
+              memberId: newMember.id,
+              isSubLead: false,
+              isAdvisor: false,
+              isTreasurer: false,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            }))
+          )
+          .onConflictDoNothing();
+        await recordCurrentTeamSnapshot(invitationRecord.organizationId);
       }
     }
   } catch (error) {

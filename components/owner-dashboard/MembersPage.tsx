@@ -93,7 +93,6 @@ const HISTORY_MONTHS = [
 const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   "Oct '25": {
     total: 1,
-    Mechanical: 1,
     PR: 0,
     Board: 0,
     Software: 0,
@@ -102,7 +101,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Nov '25": {
     total: 2,
-    Mechanical: 1,
     PR: 0,
     Board: 1,
     Software: 0,
@@ -111,7 +109,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Dec '25": {
     total: 3,
-    Mechanical: 2,
     PR: 0,
     Board: 1,
     Software: 0,
@@ -120,7 +117,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Jan '26": {
     total: 4,
-    Mechanical: 2,
     PR: 0,
     Board: 1,
     Software: 0,
@@ -129,7 +125,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Feb '26": {
     total: 5,
-    Mechanical: 2,
     PR: 0,
     Board: 1,
     Software: 1,
@@ -138,7 +133,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Mar '26": {
     total: 5,
-    Mechanical: 2,
     PR: 0,
     Board: 1,
     Software: 1,
@@ -147,7 +141,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Apr '26": {
     total: 6,
-    Mechanical: 2,
     PR: 0,
     Board: 1,
     Software: 1,
@@ -156,7 +149,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "May '26": {
     total: 7,
-    Mechanical: 2,
     PR: 1,
     Board: 1,
     Software: 1,
@@ -165,7 +157,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Jun '26": {
     total: 7,
-    Mechanical: 2,
     PR: 1,
     Board: 1,
     Software: 1,
@@ -174,7 +165,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Jul '26": {
     total: 7,
-    Mechanical: 2,
     PR: 1,
     Board: 1,
     Software: 1,
@@ -183,7 +173,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Aug '26": {
     total: 7,
-    Mechanical: 2,
     PR: 1,
     Board: 1,
     Software: 1,
@@ -192,7 +181,6 @@ const MEMBER_HISTORY: Record<string, Record<string, number>> = {
   },
   "Sep '26": {
     total: 6,
-    Mechanical: 3,
     PR: 2,
     Board: 1,
     Software: 0,
@@ -211,7 +199,8 @@ type DragTarget =
   | { kind: "dept"; dept: string }
   | { kind: "sublead"; dept: string }
   | { kind: "advisor" }
-  | { kind: "treasurer" };
+  | { kind: "treasurer" }
+  | { kind: "unassigned" };
 
 const PIE_COLORS = [
   "#F0684D",
@@ -284,7 +273,7 @@ function PieChart({
   );
 }
 
-// ─── Pie stats widget with metric dropdown ────────────────────────────────────
+// ─── Pie Chart
 
 type StatMetric = "Gender" | "Study" | "Nationality";
 
@@ -363,11 +352,75 @@ function PieStatsWidget({ members }: { members: Member[] }) {
 
 // ─── Members-over-time chart (ann 14: flex-1, dots update org tree) ───────────
 
-type HistoryRange = "3M" | "6M" | "1Y";
-const RANGE_COUNTS: Record<HistoryRange, number> = {
-  "3M": 3,
-  "6M": 6,
-  "1Y": 12,
+type HistoryRange = "1W" | "1M" | "3M" | "6M" | "1Y";
+
+const endOfDay = (date: Date) => {
+  const result = new Date(date);
+  result.setHours(23, 59, 59, 999);
+  return result;
+};
+
+const weekNumber = (date: Date) => {
+  const utcDate = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  return Math.ceil(
+    ((utcDate.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7
+  );
+};
+
+const historyBuckets = (range: HistoryRange) => {
+  const now = new Date();
+  if (range === "1W") {
+    return Array.from({ length: 7 }, (_, index) => {
+      const cutoff = new Date(now);
+      cutoff.setDate(now.getDate() - (6 - index));
+      return {
+        cutoff: index === 6 ? now : endOfDay(cutoff),
+        label: cutoff.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        }),
+      };
+    });
+  }
+  if (range === "1M") {
+    return Array.from({ length: 5 }, (_, index) => {
+      const cutoff = new Date(now);
+      cutoff.setDate(now.getDate() - (4 - index) * 7);
+      return {
+        cutoff: index === 4 ? now : endOfDay(cutoff),
+        label: `W${weekNumber(cutoff)}`,
+      };
+    });
+  }
+
+  const count = range === "3M" ? 3 : range === "6M" ? 6 : 12;
+  return Array.from({ length: count }, (_, index) => {
+    const monthsAgo = count - 1 - index;
+    const cutoff = new Date(
+      now.getFullYear(),
+      now.getMonth() - monthsAgo + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    );
+    if (index === count - 1) {
+      cutoff.setTime(now.getTime());
+    }
+    return {
+      cutoff,
+      label: cutoff.toLocaleDateString("en-GB", {
+        month: "short",
+        year: "2-digit",
+      }),
+    };
+  });
 };
 
 function MembersOverTimeChart({
@@ -383,34 +436,55 @@ function MembersOverTimeChart({
   deptColors: Record<string, string>;
   history: TeamHistorySnapshot[];
   activeSnapshot: string | null;
-  onSnapshotChange: (month: string | null) => void;
+  onSnapshotChange: (snapshotAt: string | null) => void;
 }) {
   const [filter, setFilter] = useState<"total" | string>("total");
   const [range, setRange] = useState<HistoryRange>("6M");
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const snapshots = Array.from(
-    new Set(history.map((entry) => entry.snapshotAt))
-  )
-    .sort()
-    .slice(-RANGE_COUNTS[range]);
-  const pointsForSnapshot = (snapshotAt: string) =>
-    history.filter((entry) => entry.snapshotAt === snapshotAt);
-  const months = snapshots.map((snapshotAt) =>
-    new Date(snapshotAt).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-    })
+  const buckets = historyBuckets(range);
+  const lifecycleEvents = history.filter(
+    (entry) => entry.departmentId === null
   );
-  const values = snapshots.map((snapshotAt) => {
-    const entries = pointsForSnapshot(snapshotAt);
-    const filteredEntries =
-      filter === "total"
-        ? entries
-        : entries.filter(
-            (entry) => entry.departmentId === departmentIds[filter]
-          );
-    return new Set(filteredEntries.map((entry) => entry.memberId)).size;
+  const assignmentSnapshots = history.filter(
+    (entry) => entry.departmentId !== null && !entry.removed
+  );
+  const values = buckets.map(({ cutoff }) => {
+    if (filter === "total") {
+      const joinedMemberIds = new Set(
+        lifecycleEvents
+          .filter(
+            (entry) => !entry.removed && new Date(entry.snapshotAt) <= cutoff
+          )
+          .map((entry) => entry.memberId)
+      );
+      for (const entry of lifecycleEvents) {
+        if (entry.removed && new Date(entry.snapshotAt) <= cutoff) {
+          joinedMemberIds.delete(entry.memberId);
+        }
+      }
+      return joinedMemberIds.size;
+    }
+
+    const boundary = history
+      .filter(
+        (entry) =>
+          new Date(entry.snapshotAt) <= cutoff &&
+          (entry.departmentId !== null || entry.removed)
+      )
+      .map((entry) => entry.snapshotAt)
+      .sort()
+      .at(-1);
+    if (!boundary) return 0;
+    return new Set(
+      assignmentSnapshots
+        .filter(
+          (entry) =>
+            entry.snapshotAt === boundary &&
+            entry.departmentId === departmentIds[filter]
+        )
+        .map((entry) => entry.memberId)
+    ).size;
   });
   const maxVal = Math.max(...values, 1);
   const W = 400,
@@ -419,15 +493,15 @@ function MembersOverTimeChart({
   const iW = W - PAD.l - PAD.r,
     iH = H - PAD.t - PAD.b;
   const xScale = (i: number) =>
-    PAD.l + (i / Math.max(months.length - 1, 1)) * iW;
+    PAD.l + (i / Math.max(buckets.length - 1, 1)) * iW;
   const yScale = (v: number) => PAD.t + iH - (v / maxVal) * iH;
 
   const points = values.map((v, i) => ({
     x: xScale(i),
     y: yScale(v),
     v,
-    label: months[i],
-    snapshotAt: snapshots[i],
+    label: buckets[i].label,
+    snapshotAt: buckets[i].cutoff.toISOString(),
   }));
   const linePath = points
     .map((p, i) =>
@@ -481,7 +555,7 @@ function MembersOverTimeChart({
             )}
           </div>
           <div className="flex items-center gap-0.5">
-            {(["3M", "6M", "1Y"] as HistoryRange[]).map((r) => (
+            {(["1W", "1M", "3M", "6M", "1Y"] as HistoryRange[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}
@@ -544,13 +618,14 @@ function MembersOverTimeChart({
             />
           )}
           {points.map((p, i) => {
-            const isActive = activeSnapshot === p.label;
+            const isActive = activeSnapshot === p.snapshotAt;
             return (
               <g
                 key={i}
                 className="cursor-pointer"
                 onClick={() => onSnapshotChange(isActive ? null : p.snapshotAt)}
               >
+                <title>{`${p.label}: ${p.v} member${p.v === 1 ? "" : "s"}`}</title>
                 {isActive && (
                   <circle
                     cx={p.x}
@@ -573,10 +648,10 @@ function MembersOverTimeChart({
                   fontSize={7}
                   fill={isActive ? lineColor : "#7A6555"}
                   transform={
-                    months.length > 6 ? `rotate(-35, ${p.x}, ${H - 6})` : ""
+                    buckets.length > 6 ? `rotate(-35, ${p.x}, ${H - 6})` : ""
                   }
                 >
-                  {p.label.split(" ")[0]}
+                  {p.label}
                 </text>
               </g>
             );
@@ -1339,7 +1414,7 @@ function MemberActionModal({
   deptColors: Record<string, string>;
   organizationId: string;
   onClose: () => void;
-  onRemove: () => void;
+  onRemove: (password: string) => Promise<void>;
   onStrike: (comment: string, file: File | null) => void;
   onAddToDept: (dept: string) => void;
   onRemoveFromDept: (dept: string) => void;
@@ -1353,7 +1428,7 @@ function MemberActionModal({
   const [pwErr, setPwErr] = useState(false);
   const [pwChecking, setPwChecking] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const allMemberDepts = [member.department, ...extraDepts];
+  const allMemberDepts = extraDepts;
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -1502,7 +1577,7 @@ function MemberActionModal({
                     .catch(() => null)) as { valid?: boolean } | null;
                   setPwChecking(false);
                   if (result?.valid) {
-                    onRemove();
+                    await onRemove(pw);
                     onClose();
                   } else {
                     setPwErr(true);
@@ -1533,14 +1608,12 @@ function MemberActionModal({
                     >
                       {d}
                     </span>
-                    {d !== member.department && (
-                      <button
-                        onClick={() => onRemoveFromDept(d)}
-                        className="text-[9px] opacity-50 hover:opacity-100 hover:text-rose-400 ml-0.5"
-                      >
-                        ✕
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onRemoveFromDept(d)}
+                      className="text-[9px] opacity-50 hover:opacity-100 hover:text-rose-400 ml-0.5"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1648,6 +1721,8 @@ function MemberCard({
   highlightedIso,
   onDragStart,
   onClick,
+  onRemove,
+  removeLabel,
 }: {
   member: Member;
   q: string;
@@ -1656,6 +1731,8 @@ function MemberCard({
   highlightedIso: string | null;
   onDragStart: () => void;
   onClick: () => void;
+  onRemove?: () => void;
+  removeLabel?: string;
 }) {
   const match =
     q.trim() !== "" && member.name.toLowerCase().includes(q.toLowerCase());
@@ -1696,6 +1773,20 @@ function MemberCard({
             />
           ))}
         </div>
+      )}
+      {onRemove && (
+        <button
+          aria-label={removeLabel ?? `Release ${member.name}`}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[9px] text-[#7A6555] transition-colors hover:bg-rose-400/10 hover:text-rose-400"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove();
+          }}
+          title={removeLabel ?? `Release ${member.name}`}
+          type="button"
+        >
+          ✕
+        </button>
       )}
     </div>
   );
@@ -1762,6 +1853,7 @@ function DeptColumn({
   onMemberClick,
   onRemoveDept,
   onRemoveSubLead,
+  onRemoveMemberFromDept,
 }: {
   dept: string;
   color: string;
@@ -1779,7 +1871,8 @@ function DeptColumn({
   onDragStart: (id: string) => void;
   onMemberClick: (m: Member) => void;
   onRemoveDept: (dept: string) => void;
-  onRemoveSubLead: (dept: string) => void;
+  onRemoveSubLead: (memberId: string, dept: string) => void;
+  onRemoveMemberFromDept: (memberId: string, dept: string) => void;
 }) {
   const subLead = members.find((m) => m.id === subLeadId) ?? null;
   const regularMembers = members.filter((m) => m.id !== subLead?.id);
@@ -1861,6 +1954,8 @@ function DeptColumn({
                 highlightedIso={highlightedIso}
                 onDragStart={() => onDragStart(subLead.id)}
                 onClick={() => onMemberClick(subLead)}
+                onRemove={() => onRemoveSubLead(subLead.id, dept)}
+                removeLabel={`Release ${subLead.name} as sub-lead of ${dept}`}
               />
             )}
           </DropSlot>
@@ -1879,6 +1974,8 @@ function DeptColumn({
               highlightedIso={highlightedIso}
               onDragStart={() => onDragStart(m.id)}
               onClick={() => onMemberClick(m)}
+              onRemove={() => onRemoveMemberFromDept(m.id, dept)}
+              removeLabel={`Remove ${m.name} from ${dept}`}
             />
           ))}
           {regularMembers.length === 0 && (
@@ -1901,7 +1998,7 @@ function DeptColumn({
           title="Remove Sub-lead"
           desc={`Remove ${subLead?.name ?? ""} as sub-lead of ${dept}?`}
           onConfirm={() => {
-            onRemoveSubLead(dept);
+            if (subLead) onRemoveSubLead(subLead.id, dept);
             setShowRemoveSublead(false);
           }}
           onClose={() => setShowRemoveSublead(false)}
@@ -1990,6 +2087,8 @@ function LeadershipTree({
   dragTarget,
   onDragStart,
   onDropRole,
+  onRoleClick,
+  onReleaseRole,
   setDragTarget,
 }: {
   advisor: Member | null;
@@ -1999,6 +2098,8 @@ function LeadershipTree({
   dragTarget: DragTarget | null;
   onDragStart: (id: string) => void;
   onDropRole: (role: "advisor" | "treasurer") => void;
+  onRoleClick: (member: Member, role: "advisor" | "treasurer") => void;
+  onReleaseRole: (memberId: string, role: "advisor" | "treasurer") => void;
   setDragTarget: (target: DragTarget | null) => void;
 }) {
   const roleCard = (
@@ -2035,7 +2136,9 @@ function LeadershipTree({
             crossDept={false}
             highlightedIso={null}
             onDragStart={() => onDragStart(member.id)}
-            onClick={() => undefined}
+            onClick={() => onRoleClick(member, role)}
+            onRemove={() => onReleaseRole(member.id, role)}
+            removeLabel={`Release ${member.name} as ${label.toLowerCase()}`}
           />
         ) : (
           <div className="py-1.5 text-center text-[#4A3F38] text-[10px]">
@@ -2090,6 +2193,136 @@ function LeadershipTree({
   );
 }
 
+function NonAssignedMembers({
+  members,
+  q,
+  draggingId,
+  active,
+  highlightedIso,
+  onDragStart,
+  onDrop,
+  onMemberClick,
+  setDragTarget,
+}: {
+  members: Member[];
+  q: string;
+  draggingId: string | null;
+  active: boolean;
+  highlightedIso: string | null;
+  onDragStart: (id: string) => void;
+  onDrop: () => void;
+  onMemberClick: (member: Member) => void;
+  setDragTarget: (target: DragTarget | null) => void;
+}) {
+  return (
+    <div
+      className={`flex min-w-[190px] max-w-[230px] flex-1 flex-col gap-2 rounded-2xl border p-3 transition-all ${active ? "border-[#F0684D] bg-[#F0684D]/5" : "border-[#3D3330] bg-[#232120]"}`}
+      onDragLeave={() => {
+        if (active) setDragTarget(null);
+      }}
+      onDragOver={(event) => {
+        if (draggingId) {
+          event.preventDefault();
+          setDragTarget({ kind: "unassigned" });
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDrop();
+      }}
+    >
+      <div className="flex items-center gap-2 border-[#3D3330] border-b pb-2">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-[#7A6555]" />
+        <span className="flex-1 truncate font-bold text-[#FFEDD1] text-xs">
+          Non Assigned Members
+        </span>
+        <span className="rounded bg-[#7A6555]/20 px-1.5 py-0.5 font-semibold text-[9px] text-[#9C8272]">
+          {members.length}
+        </span>
+      </div>
+      <div className="flex min-h-14 flex-col gap-1.5">
+        {members.map((member) => (
+          <MemberCard
+            crossDept={false}
+            highlightedIso={highlightedIso}
+            isDragging={draggingId === member.id}
+            key={member.id}
+            member={member}
+            onClick={() => onMemberClick(member)}
+            onDragStart={() => onDragStart(member.id)}
+            q={q}
+          />
+        ))}
+        {members.length === 0 && (
+          <div className="py-3 text-center text-[#4A3F38] text-[10px]">
+            {active ? "Drop to unassign member" : "No unassigned members"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LeadershipActionModal({
+  member,
+  role,
+  onClose,
+  onRelease,
+  onRemove,
+}: {
+  member: Member;
+  role: "advisor" | "treasurer";
+  onClose: () => void;
+  onRelease: () => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xs rounded-2xl border border-[#3D3330] bg-[#2A2724] p-5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-[#FFEDD1] text-sm">
+              {member.name}
+            </h3>
+            <p className="mt-0.5 text-[#7A6555] text-[11px] capitalize">
+              {role}
+            </p>
+          </div>
+          <button
+            className="text-[#7A6555] hover:text-[#FFEDD1]"
+            onClick={onClose}
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="space-y-2">
+          <button
+            className="w-full rounded-xl bg-[#F0684D] py-2 font-semibold text-sm text-white hover:bg-[#E05538]"
+            onClick={onRelease}
+            type="button"
+          >
+            Release from Power
+          </button>
+          <button
+            className="w-full rounded-xl bg-rose-600 py-2 font-semibold text-sm text-white hover:bg-rose-700"
+            onClick={onRemove}
+            type="button"
+          >
+            Remove from Team
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function MembersPage({
@@ -2114,9 +2347,6 @@ export function MembersPage({
   const [teams, setTeams] = useState<TeamAssignment[]>(initialTeams);
   const [deptColors, setDeptColors] =
     useState<Record<string, string>>(DEPT_COLORS);
-  const [memberExtraDepts, setMemberExtraDepts] = useState<
-    Record<string, string[]>
-  >({});
   const [subLeads, setSubLeads] = useState<Record<string, string | null>>({});
   const [q, setQ] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -2132,6 +2362,12 @@ export function MembersPage({
     TeamAssignment[] | null
   >(null);
   const [teamSaveError, setTeamSaveError] = useState<string | null>(null);
+  const [leadershipAction, setLeadershipAction] = useState<{
+    member: Member;
+    role: "advisor" | "treasurer";
+  } | null>(null);
+  const [pendingMemberRemoval, setPendingMemberRemoval] =
+    useState<Member | null>(null);
 
   // When a snapshot is active, only show members who had joined by that month
   const visibleMembers = historySnapshot
@@ -2140,7 +2376,11 @@ export function MembersPage({
   const historicalTeams = historySnapshot
     ? (() => {
         const snapshotAt = teamHistory
-          .filter((entry) => entry.snapshotAt <= historySnapshot)
+          .filter(
+            (entry) =>
+              entry.snapshotAt <= historySnapshot &&
+              (entry.departmentId !== null || entry.removed)
+          )
           .map((entry) => entry.snapshotAt)
           .sort()
           .at(-1);
@@ -2151,19 +2391,43 @@ export function MembersPage({
     : teams;
 
   const membersByDept = (dept: string) =>
-    visibleMembers.filter(
-      (m) =>
-        historicalTeams.some(
-          (team) =>
-            team.departmentId === initialDepartmentIds[dept] &&
-            team.memberId === m.id
-        ) || (memberExtraDepts[m.id] ?? []).includes(dept)
+    visibleMembers.filter((m) =>
+      historicalTeams.some(
+        (team) =>
+          team.departmentId === initialDepartmentIds[dept] &&
+          team.memberId === m.id
+      )
     );
+  const unassignedMembers = visibleMembers.filter(
+    (member) =>
+      !historicalTeams.some(
+        (assignment) =>
+          assignment.memberId === member.id && assignment.departmentId !== null
+      )
+  );
+  const assignedDepartmentsByMember = Object.fromEntries(
+    members.map((member) => [
+      member.id,
+      teams
+        .filter((assignment) => assignment.memberId === member.id)
+        .map(
+          (assignment) =>
+            Object.entries(initialDepartmentIds).find(
+              ([, id]) => id === assignment.departmentId
+            )?.[0]
+        )
+        .filter((department): department is string => Boolean(department)),
+    ])
+  );
 
   const persistTeams = async (
     nextTeams: TeamAssignment[],
     password?: string
   ) => {
+    if (historySnapshot) {
+      setTeamSaveError("Return to the current view before changing teams.");
+      return;
+    }
     if (!password) {
       setPendingTeamSave(nextTeams);
       return;
@@ -2361,6 +2625,126 @@ export function MembersPage({
     setDraggingId(null);
     setDragTarget(null);
   };
+  const handleDropUnassigned = () => {
+    if (!draggingId) return;
+    persistTeams(teams.filter((team) => team.memberId !== draggingId)).catch(
+      () => undefined
+    );
+    setDraggingId(null);
+    setDragTarget(null);
+  };
+  const releaseTeamRole = (
+    memberId: string,
+    role: "advisor" | "treasurer",
+    removeBackingAssignment = false
+  ) => {
+    const roleKey = role === "advisor" ? "isAdvisor" : "isTreasurer";
+    const roleAssignmentIds = new Set(
+      teams
+        .filter((team) => team.memberId === memberId && team[roleKey])
+        .map((team) => team.id)
+    );
+    const released = teams.map((team) =>
+      roleAssignmentIds.has(team.id) ? { ...team, [roleKey]: false } : team
+    );
+    const nextTeams = removeBackingAssignment
+      ? released.filter(
+          (team) =>
+            !(
+              roleAssignmentIds.has(team.id) &&
+              !team.isSubLead &&
+              !team.isAdvisor &&
+              !team.isTreasurer
+            )
+        )
+      : released;
+    persistTeams(nextTeams).catch(() => undefined);
+  };
+  const releaseSubLead = (memberId: string, dept: string) => {
+    const departmentId = initialDepartmentIds[dept];
+    persistTeams(
+      teams.map((team) =>
+        team.memberId === memberId && team.departmentId === departmentId
+          ? { ...team, isSubLead: false }
+          : team
+      )
+    ).catch(() => undefined);
+  };
+  const removeMemberFromDepartment = (memberId: string, dept: string) => {
+    const departmentId = initialDepartmentIds[dept];
+    const target = teams.find(
+      (team) => team.memberId === memberId && team.departmentId === departmentId
+    );
+    if (!target) return;
+    const otherAssignments = teams.filter(
+      (team) => team.memberId === memberId && team.id !== target.id
+    );
+    if ((target.isAdvisor || target.isTreasurer) && !otherAssignments[0]) {
+      setTeamSaveError(
+        "Release the member's advisor or treasurer role before removing their final department."
+      );
+      return;
+    }
+    const nextTeams = teams
+      .filter((team) => team.id !== target.id)
+      .map((team) =>
+        team.id === otherAssignments[0]?.id
+          ? {
+              ...team,
+              isAdvisor: team.isAdvisor || target.isAdvisor,
+              isTreasurer: team.isTreasurer || target.isTreasurer,
+            }
+          : team
+      );
+    persistTeams(nextTeams).catch(() => undefined);
+  };
+  const addMemberToDepartment = (memberId: string, dept: string) => {
+    const departmentId = initialDepartmentIds[dept];
+    if (
+      !departmentId ||
+      teams.some(
+        (team) =>
+          team.memberId === memberId && team.departmentId === departmentId
+      )
+    ) {
+      return;
+    }
+    persistTeams([
+      ...teams,
+      {
+        id: crypto.randomUUID(),
+        departmentId,
+        memberId,
+        isSubLead: false,
+        isAdvisor: false,
+        isTreasurer: false,
+      },
+    ]).catch(() => undefined);
+  };
+  const removeMemberFromOrganization = async (
+    memberId: string,
+    password: string
+  ) => {
+    const response = await fetch(`/api/organization-members/${memberId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId: initialOrganizationId,
+        password,
+      }),
+    });
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setTeamSaveError(result?.error ?? "Unable to remove member.");
+      return;
+    }
+    setMembers((current) => current.filter((member) => member.id !== memberId));
+    setTeams((current) => current.filter((team) => team.memberId !== memberId));
+    setActionMember(null);
+    setPendingMemberRemoval(null);
+  };
   const stopDrag = () => {
     setDraggingId(null);
     setDragTarget(null);
@@ -2482,6 +2866,12 @@ export function MembersPage({
                 }
                 onDragStart={setDraggingId}
                 onDropRole={handleDropRole}
+                onReleaseRole={(memberId, role) =>
+                  releaseTeamRole(memberId, role)
+                }
+                onRoleClick={(member, role) =>
+                  setLeadershipAction({ member, role })
+                }
                 setDragTarget={setDragTarget}
                 treasurer={roleMember("isTreasurer")}
               />
@@ -2515,7 +2905,7 @@ export function MembersPage({
                       draggingId={draggingId}
                       dragTarget={dragTarget}
                       setDragTarget={setDragTarget}
-                      memberExtraDepts={memberExtraDepts}
+                      memberExtraDepts={assignedDepartmentsByMember}
                       deptColors={deptColors}
                       highlightedIso={selectedCountryIso}
                       onDrop={handleDrop}
@@ -2525,12 +2915,25 @@ export function MembersPage({
                       onRemoveDept={(d) =>
                         setDepartments((prev) => prev.filter((x) => x !== d))
                       }
-                      onRemoveSubLead={(d) =>
-                        setSubLeads((prev) => ({ ...prev, [d]: null }))
-                      }
+                      onRemoveSubLead={releaseSubLead}
+                      onRemoveMemberFromDept={removeMemberFromDepartment}
                     />
                   </div>
                 ))}
+                <div className="flex flex-col items-center">
+                  <div className="h-4 w-px bg-[#3D3330]" />
+                  <NonAssignedMembers
+                    active={dragTarget?.kind === "unassigned"}
+                    draggingId={draggingId}
+                    highlightedIso={selectedCountryIso}
+                    members={unassignedMembers}
+                    onDragStart={setDraggingId}
+                    onDrop={handleDropUnassigned}
+                    onMemberClick={setActionMember}
+                    q={q}
+                    setDragTarget={setDragTarget}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -2572,18 +2975,52 @@ export function MembersPage({
           onClose={() => setPendingTeamSave(null)}
         />
       )}
+      {leadershipAction && (
+        <LeadershipActionModal
+          member={leadershipAction.member}
+          onClose={() => setLeadershipAction(null)}
+          onRelease={() => {
+            releaseTeamRole(
+              leadershipAction.member.id,
+              leadershipAction.role,
+              true
+            );
+            setLeadershipAction(null);
+          }}
+          onRemove={() => {
+            setPendingMemberRemoval(leadershipAction.member);
+            setLeadershipAction(null);
+          }}
+          role={leadershipAction.role}
+        />
+      )}
+      {pendingMemberRemoval && (
+        <PwModal
+          desc={`Remove ${pendingMemberRemoval.name} from this organization?`}
+          onClose={() => setPendingMemberRemoval(null)}
+          onConfirm={(password) => {
+            if (password) {
+              removeMemberFromOrganization(
+                pendingMemberRemoval.id,
+                password
+              ).catch(() => undefined);
+            }
+          }}
+          organizationId={initialOrganizationId}
+          title="Remove from Team"
+        />
+      )}
       {actionMember && (
         <MemberActionModal
           member={actionMember}
           allDepts={departments}
-          extraDepts={memberExtraDepts[actionMember.id] ?? []}
+          extraDepts={assignedDepartmentsByMember[actionMember.id] ?? []}
           deptColors={deptColors}
           organizationId={initialOrganizationId}
           onClose={() => setActionMember(null)}
-          onRemove={() => {
-            setMembers((p) => p.filter((m) => m.id !== actionMember.id));
-            setActionMember(null);
-          }}
+          onRemove={(password) =>
+            removeMemberFromOrganization(actionMember.id, password)
+          }
           onStrike={() =>
             setMembers((p) =>
               p.map((m) =>
@@ -2591,19 +3028,9 @@ export function MembersPage({
               )
             )
           }
-          onAddToDept={(dept) =>
-            setMemberExtraDepts((p) => ({
-              ...p,
-              [actionMember.id]: [...(p[actionMember.id] ?? []), dept],
-            }))
-          }
+          onAddToDept={(dept) => addMemberToDepartment(actionMember.id, dept)}
           onRemoveFromDept={(dept) =>
-            setMemberExtraDepts((p) => ({
-              ...p,
-              [actionMember.id]: (p[actionMember.id] ?? []).filter(
-                (d) => d !== dept
-              ),
-            }))
+            removeMemberFromDepartment(actionMember.id, dept)
           }
           onSetRole={(dept, role) => setTeamRole(actionMember.id, dept, role)}
         />

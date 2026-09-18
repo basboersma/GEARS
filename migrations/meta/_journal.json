@@ -78,6 +78,13 @@
       "when": 1789735696265,
       "tag": "0010_striped_darkstar",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789771164236,
+      "tag": "0011_brainy_magik",
+      "breakpoints": true
     }
   ]
 }

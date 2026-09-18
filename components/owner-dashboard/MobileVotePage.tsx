@@ -21,7 +21,7 @@ type VoteChoice = "infavour" | "abstain" | "against" | null;
 const MOCK_ACTIVE: ActiveVote = {
   title: "Budget Reallocation Q4 2026",
   author: "Liam Bakker",
-  text: "Motion to reallocate €2,400 from the PR budget surplus to the Mechanical subteam for CNC tooling upgrades.",
+  text: "Motion to reallocate €2,400 from the PR budget surplus to the workshop team for tooling upgrades.",
 };
 
 const MOCK_SUGGESTED: SuggestedItem[] = [

@@ -1,17 +1,12 @@
-import { scryptSync, timingSafeEqual } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import {
-  member,
-  organizationDepartment,
-  passwords,
-  team,
-  teamHistory,
-} from "@/db/schema";
+import { member, organizationDepartment, team } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { verifyOrganizationPassword } from "@/lib/organization-password";
+import { recordCurrentTeamSnapshot } from "@/server/membership-history";
 
 const assignmentSchema = z.object({
   departmentId: z.string().min(1),
@@ -55,26 +50,10 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const passwordRow = await db.query.passwords.findFirst({
-    where: eq(passwords.organizationId, parsed.data.organizationId),
-  });
-  const passwordMatches = [
-    [passwordRow?.ownerHash, passwordRow?.ownerSalt],
-    [passwordRow?.adminHash, passwordRow?.adminSalt],
-  ].some(([hash, salt]) => {
-    if (!(hash && salt)) {
-      return false;
-    }
-    const actual = scryptSync(
-      parsed.data.password,
-      Buffer.from(salt, "hex"),
-      64
-    );
-    const expected = Buffer.from(hash, "hex");
-    return (
-      expected.length === actual.length && timingSafeEqual(expected, actual)
-    );
-  });
+  const passwordMatches = await verifyOrganizationPassword(
+    parsed.data.organizationId,
+    parsed.data.password
+  );
   if (!passwordMatches) {
     return NextResponse.json(
       { error: "Invalid organization password" },
@@ -132,16 +111,8 @@ export async function PATCH(request: Request) {
         updatedAt: new Date(),
       }))
     );
-    const snapshotAt = new Date();
-    await db.insert(teamHistory).values(
-      uniqueAssignments.map((assignment) => ({
-        id: crypto.randomUUID(),
-        organizationId: parsed.data.organizationId,
-        snapshotAt,
-        ...assignment,
-      }))
-    );
   }
+  await recordCurrentTeamSnapshot(parsed.data.organizationId);
 
   return NextResponse.json({ success: true });
 }
