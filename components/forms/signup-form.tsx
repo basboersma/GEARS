@@ -118,7 +118,9 @@ export function SignupForm({
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>Sign up with your RUG or Hanze account</CardDescription>
+          <CardDescription>
+            Sign up with your RUG or Hanze account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

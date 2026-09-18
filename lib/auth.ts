@@ -93,8 +93,6 @@ async function sendEmailSafely({
   let text: string;
 
   try {
-    // Render ourselves instead of passing `react` to Resend, so rendering failures
-    // are caught and logged separately from delivery failures.
     html = await render(react);
     text = await render(react, { plainText: true });
   } catch (error) {

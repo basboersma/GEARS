@@ -80,7 +80,7 @@ export function LoginForm({
     }
   };
 
-  /*TODO: come back to this later
+  /*TODO: come back to this later */
   const signInWithGoogle = async () => {
     const { error } = await authClient.signIn.social({
       provider: "google",
@@ -91,7 +91,6 @@ export function LoginForm({
       toast.error(error.message || "Google sign-in failed.");
     }
   };
-  */
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -113,7 +112,9 @@ export function LoginForm({
       <Card>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>Log in with your RUG or Hanze account</CardDescription>
+          <CardDescription>
+            Log in with your RUG or Hanze account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -148,7 +149,7 @@ export function LoginForm({
                     Or continue with
                   </span>
                 </div>
-                {/*TODO: come back to this later
+                {/*TODO: come back to this later */}
                 <div className="flex flex-col gap-4">
                   <Button
                     className="relative w-full"
@@ -176,7 +177,6 @@ export function LoginForm({
                     Or continue with
                   </span>
                 </div>
-                */}
                 <div className="grid gap-6">
                   <div className="grid gap-3">
                     <FormField
