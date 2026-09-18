@@ -64,6 +64,13 @@
       "when": 1789728962095,
       "tag": "0008_living_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789731584863,
+      "tag": "0009_striped_bloodaxe",
+      "breakpoints": true
     }
   ]
 }

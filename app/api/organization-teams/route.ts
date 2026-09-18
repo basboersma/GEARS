@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { scryptSync, timingSafeEqual } from "node:crypto";
+import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, organizationDepartment, team } from "@/db/schema";
+import { member, organizationDepartment, passwords, team } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const assignmentSchema = z.object({
@@ -16,6 +17,7 @@ const assignmentSchema = z.object({
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
+  password: z.string().min(1),
   assignments: z.array(assignmentSchema),
 });
 
@@ -33,16 +35,43 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const owner = await db.query.member.findFirst({
+  const manager = await db.query.member.findFirst({
     where: and(
       eq(member.organizationId, parsed.data.organizationId),
       eq(member.userId, session.user.id),
-      eq(member.role, "owner")
+      inArray(member.role, ["owner", "admin"])
     ),
   });
-  if (!owner) {
+  if (!manager) {
     return NextResponse.json(
       { error: "Only owners can update teams" },
+      { status: 403 }
+    );
+  }
+
+  const passwordRow = await db.query.passwords.findFirst({
+    where: eq(passwords.organizationId, parsed.data.organizationId),
+  });
+  const passwordMatches = [
+    [passwordRow?.ownerHash, passwordRow?.ownerSalt],
+    [passwordRow?.adminHash, passwordRow?.adminSalt],
+  ].some(([hash, salt]) => {
+    if (!(hash && salt)) {
+      return false;
+    }
+    const actual = scryptSync(
+      parsed.data.password,
+      Buffer.from(salt, "hex"),
+      64
+    );
+    const expected = Buffer.from(hash, "hex");
+    return (
+      expected.length === actual.length && timingSafeEqual(expected, actual)
+    );
+  });
+  if (!passwordMatches) {
+    return NextResponse.json(
+      { error: "Invalid organization password" },
       { status: 403 }
     );
   }

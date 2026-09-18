@@ -26,7 +26,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
 
-  if (isOwner && organization) {
+  if ((isOwner || isAdmin) && organization) {
     const dashboardData = await getOwnerDashboardData(organization.id);
     const organizations = await getOrganizations();
     const spent = dashboardData.monthlySpend.Total.reduce(
@@ -64,6 +64,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
           budget={budget}
           dashboardData={dashboardData}
           organizationName={organization.name}
+          organizationRole={membership.role === "admin" ? "admin" : "owner"}
           organizationSlug={slug}
           organizations={organizations}
           userEmail={user.email}

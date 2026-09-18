@@ -110,6 +110,31 @@ export const organizationDepartmentRelations = relations(
   })
 );
 
+export const passwords = pgTable("passwords", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  ownerHash: text("owner_hash"),
+  ownerSalt: text("owner_salt"),
+  adminHash: text("admin_hash"),
+  adminSalt: text("admin_salt"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const passwordsRelations = relations(passwords, ({ one }) => ({
+  organization: one(organization, {
+    fields: [passwords.organizationId],
+    references: [organization.id],
+  }),
+}));
+
 export type Organization = typeof organization.$inferSelect;
 
 export const role = pgEnum("role", ["member", "sub_owner", "admin", "owner"]);
@@ -289,6 +314,28 @@ export const invitation = pgTable("invitation", {
   inviterId: text("inviter_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  // JSON-stringified array of organizationDepartment ids to join on acceptance.
+  departmentIds: text("department_ids"),
+});
+
+// Invites an EXISTING org member into additional department(s) via an emailed link.
+export const departmentInvitation = pgTable("department_invitation", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  memberId: text("member_id")
+    .notNull()
+    .references(() => member.id, { onDelete: "cascade" }),
+  departmentIds: text("department_ids").notNull(),
+  status: text("status").default("pending").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  inviterId: text("inviter_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
 });
 
 export const orderRequest = pgTable("order_request", {
@@ -498,8 +545,10 @@ export const schema = {
   verification,
   organization,
   organizationDepartment,
+  passwords,
   member,
   invitation,
+  departmentInvitation,
   orderRequest,
   agendaEvent,
   agendaDiscussionPoint,
@@ -513,6 +562,7 @@ export const schema = {
   team,
   organizationRelations,
   organizationDepartmentRelations,
+  passwordsRelations,
   memberRelations,
   teamRelations,
 };

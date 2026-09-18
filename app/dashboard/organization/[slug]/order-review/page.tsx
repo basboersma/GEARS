@@ -96,7 +96,9 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
     <DashboardDataProvider value={dashboardData}>
       <OwnerDashboardFrame
         activePage="orders"
+        organizationId={selectedOrganization.id}
         organizationName={selectedOrganization.name}
+        organizationRole="owner"
         organizationSlug={slug}
         organizations={organizations}
         userEmail={user.email}

@@ -831,11 +831,15 @@ function InvitePanel({
   members,
   depts,
   deptColors,
+  departmentIds,
+  organizationId,
   onClose,
 }: {
   members: Member[];
   depts: string[];
   deptColors: Record<string, string>;
+  departmentIds: Record<string, string>;
+  organizationId: string;
   onClose: () => void;
 }) {
   const [email, setEmail] = useState("");
@@ -849,6 +853,7 @@ function InvitePanel({
   const [invitedDepts, setInvitedDepts] = useState<Record<string, string[]>>(
     {}
   );
+  const [sendError, setSendError] = useState("");
 
   const filtered = members.filter(
     (m) => deptFilter === "all" || m.department === deptFilter
@@ -967,7 +972,7 @@ function InvitePanel({
                   style={{ background: deptColors[deptFilter] ?? "#888" }}
                 />
               )}
-              {deptFilter === "all" ? "All Departments" : deptFilter}
+              {deptFilter === "all" ? "Invite Within GEARS" : deptFilter}
             </span>
             <span className="text-[8px]">{deptFilterOpen ? "▲" : "▼"}</span>
           </button>
@@ -988,7 +993,7 @@ function InvitePanel({
                       style={{ background: deptColors[d] ?? "#888" }}
                     />
                   )}
-                  {d === "all" ? "All Departments" : d}
+                  {d === "all" ? "Invite Within GEARS" : d}
                 </button>
               ))}
             </div>
@@ -1039,13 +1044,33 @@ function InvitePanel({
         })}
       </div>
 
+      {sendError && (
+        <div className="px-3 pb-2 shrink-0">
+          <p className="text-[10px] text-rose-400">{sendError}</p>
+        </div>
+      )}
       {invitingMember && (
         <DeptPickerPopup
           name={invitingMember.name}
           depts={depts}
           deptColors={deptColors}
           onClose={() => setInvitingMember(null)}
-          onInvite={(ds) => {
+          onInvite={async (ds) => {
+            setSendError("");
+            const res = await fetch("/api/member-department-invitations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                organizationId,
+                memberId: invitingMember.id,
+                departmentIds: ds.map((d) => departmentIds[d]).filter(Boolean),
+              }),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => null);
+              setSendError(body?.error ?? "Failed to send invitation email.");
+              return;
+            }
             setInvitedDepts((prev) => ({
               ...prev,
               [invitingMember.id]: [
@@ -1062,7 +1087,22 @@ function InvitePanel({
           depts={depts}
           deptColors={deptColors}
           onClose={() => setPendingEmail(null)}
-          onInvite={(ds) => {
+          onInvite={async (ds) => {
+            setSendError("");
+            const res = await fetch("/api/organization-invitations", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                organizationId,
+                email: pendingEmail,
+                departmentIds: ds.map((d) => departmentIds[d]).filter(Boolean),
+              }),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => null);
+              setSendError(body?.error ?? "Failed to send invitation email.");
+              return;
+            }
             setSentOutsiders((p) => [
               ...p,
               { email: pendingEmail, note, depts: ds },
@@ -2037,12 +2077,17 @@ export function MembersPage({
     );
 
   const persistTeams = async (nextTeams: TeamAssignment[]) => {
+    const password = window.prompt(
+      "Enter the owner or admin organization password"
+    );
+    if (!password) return;
     setTeams(nextTeams);
     await fetch("/api/organization-teams", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         organizationId: initialOrganizationId,
+        password,
         assignments: nextTeams.map(
           ({ departmentId, memberId, isSubLead, isAdvisor, isTreasurer }) => ({
             departmentId,
@@ -2304,7 +2349,7 @@ export function MembersPage({
 
           {/* Org tree */}
           <div className="flex-1 overflow-auto min-h-0">
-            <div className="flex flex-col items-center min-w-max pb-8 pt-4">
+            <div className="flex flex-col items-center min-w-max pb-8 pt-10">
               <LeadershipTree
                 advisor={roleMember("isAdvisor")}
                 lead={
@@ -2358,10 +2403,12 @@ export function MembersPage({
         {/* Right invite panel */}
         {showInvite && (
           <InvitePanel
-            members={members}
+            departmentIds={initialDepartmentIds}
             depts={departments}
             deptColors={deptColors}
+            members={members}
             onClose={() => setShowInvite(false)}
+            organizationId={initialOrganizationId}
           />
         )}
       </div>

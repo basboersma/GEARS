@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import type { Organization } from "@/db/schema";
+import { ChangeOrganizationPassword } from "./ChangeOrganizationPassword";
 import { useDashboardData } from "./dashboard-data-context";
 
 function SubteamsNav() {
@@ -93,6 +94,8 @@ export function OwnerDashboardFrame({
   organizations,
   userEmail,
   userName,
+  organizationId,
+  organizationRole,
 }: {
   activePage: "dashboard" | "members" | "orders" | "inventory" | "gma";
   children: React.ReactNode;
@@ -101,6 +104,8 @@ export function OwnerDashboardFrame({
   organizations: Organization[];
   userEmail: string;
   userName: string;
+  organizationId: string;
+  organizationRole: "owner" | "admin";
 }) {
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
   const membersHref = `${dashboardHref}/members`;
@@ -142,6 +147,12 @@ export function OwnerDashboardFrame({
           </Link>
           <div className="space-y-0.5 pt-1">
             <SubteamsNav />
+            {(organizationRole === "owner" || organizationRole === "admin") && (
+              <ChangeOrganizationPassword
+                organizationId={organizationId}
+                role={organizationRole}
+              />
+            )}
             <Link
               className={navClass(activePage === "members")}
               href={membersHref}

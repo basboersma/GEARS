@@ -29,7 +29,10 @@ export default async function OrganizationMembersPage({
     (entry) => entry.userId === user.id
   );
 
-  if (!membership || membership.role !== "owner") {
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "admin")
+  ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
@@ -54,7 +57,9 @@ export default async function OrganizationMembersPage({
     <DashboardDataProvider value={dashboardData}>
       <OwnerDashboardFrame
         activePage="members"
+        organizationId={organization.id}
         organizationName={organization.name}
+        organizationRole={membership.role === "admin" ? "admin" : "owner"}
         organizationSlug={slug}
         organizations={organizations}
         userEmail={user.email}

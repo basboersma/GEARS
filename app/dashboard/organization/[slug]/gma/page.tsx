@@ -43,7 +43,9 @@ export default async function GMARoute({ params }: { params: Params }) {
     <DashboardDataProvider value={dashboardData}>
       <OwnerDashboardFrame
         activePage="gma"
+        organizationId={selectedOrganization.id}
         organizationName={selectedOrganization.name}
+        organizationRole="owner"
         organizationSlug={slug}
         organizations={organizations}
         userEmail={user.email}

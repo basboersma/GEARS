@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/drizzle";
-import { invitation as invitationTable } from "@/db/schema";
+import { invitation as invitationTable, member, team } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export async function GET(
@@ -28,6 +28,10 @@ export async function GET(
     return NextResponse.redirect(loginUrl);
   }
 
+  const invitationRecord = await db.query.invitation.findFirst({
+    where: eq(invitationTable.id, invitationId),
+  });
+
   const dashboardUrl = new URL("/dashboard", request.url);
   let inviteStatus: "accepted" | "error" = "accepted";
 
@@ -38,6 +42,40 @@ export async function GET(
       },
       headers: await headers(),
     });
+
+    if (invitationRecord?.departmentIds) {
+      const departmentIds = JSON.parse(
+        invitationRecord.departmentIds
+      ) as string[];
+
+      if (departmentIds.length > 0) {
+        const newMember = await db.query.member.findFirst({
+          where: and(
+            eq(member.organizationId, invitationRecord.organizationId),
+            eq(member.userId, session.user.id)
+          ),
+        });
+
+        if (newMember) {
+          await db
+            .insert(team)
+            .values(
+              departmentIds.map((departmentId) => ({
+                id: crypto.randomUUID(),
+                organizationId: invitationRecord.organizationId,
+                departmentId,
+                memberId: newMember.id,
+                isSubLead: false,
+                isAdvisor: false,
+                isTreasurer: false,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }))
+            )
+            .onConflictDoNothing();
+        }
+      }
+    }
   } catch (error) {
     console.error("Failed to accept invitation", error);
     inviteStatus = "error";
