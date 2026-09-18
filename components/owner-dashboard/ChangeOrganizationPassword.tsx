@@ -74,7 +74,7 @@ export function ChangeOrganizationPassword({
               className="w-36 rounded-none"
               minLength={8}
               onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="New Password"
+              placeholder={hasPassword ? "New Password" : "Set Password"}
               required
               type="password"
               value={newPassword}

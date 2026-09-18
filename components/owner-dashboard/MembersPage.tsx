@@ -1325,6 +1325,7 @@ function MemberActionModal({
   allDepts,
   extraDepts,
   deptColors,
+  organizationId,
   onClose,
   onRemove,
   onStrike,
@@ -1336,6 +1337,7 @@ function MemberActionModal({
   allDepts: string[];
   extraDepts: string[];
   deptColors: Record<string, string>;
+  organizationId: string;
   onClose: () => void;
   onRemove: () => void;
   onStrike: (comment: string, file: File | null) => void;
@@ -1349,6 +1351,7 @@ function MemberActionModal({
   const [dragOver, setDragOver] = useState(false);
   const [pw, setPw] = useState("");
   const [pwErr, setPwErr] = useState(false);
+  const [pwChecking, setPwChecking] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const allMemberDepts = [member.department, ...extraDepts];
   return (
@@ -1488,15 +1491,27 @@ function MemberActionModal({
                 <p className="text-[10px] text-rose-400">Incorrect password</p>
               )}
               <button
-                onClick={() => {
-                  if (checkPw(pw)) {
+                onClick={async () => {
+                  setPwChecking(true);
+                  const result = (await fetch("/api/organization-password", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ organizationId, password: pw }),
+                  })
+                    .then((response) => response.json())
+                    .catch(() => null)) as { valid?: boolean } | null;
+                  setPwChecking(false);
+                  if (result?.valid) {
                     onRemove();
                     onClose();
-                  } else setPwErr(true);
+                  } else {
+                    setPwErr(true);
+                  }
                 }}
-                className="w-full py-2 rounded-xl text-sm bg-rose-600 text-white hover:bg-rose-700 font-semibold"
+                disabled={pwChecking}
+                className="w-full py-2 rounded-xl text-sm bg-rose-600 text-white hover:bg-rose-700 font-semibold disabled:opacity-50"
               >
-                Remove from Team
+                {pwChecking ? "Checking…" : "Remove from Team"}
               </button>
             </>
           )}
@@ -2563,6 +2578,7 @@ export function MembersPage({
           allDepts={departments}
           extraDepts={memberExtraDepts[actionMember.id] ?? []}
           deptColors={deptColors}
+          organizationId={initialOrganizationId}
           onClose={() => setActionMember(null)}
           onRemove={() => {
             setMembers((p) => p.filter((m) => m.id !== actionMember.id));

@@ -118,33 +118,30 @@ export async function PATCH(request: Request) {
     ).values()
   );
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(team)
-      .where(eq(team.organizationId, parsed.data.organizationId));
-    if (uniqueAssignments.length > 0) {
-      await tx.insert(team).values(
-        uniqueAssignments.map((assignment) => ({
-          id: crypto.randomUUID(),
-          organizationId: parsed.data.organizationId,
-          ...assignment,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }))
-      );
-    }
-    if (uniqueAssignments.length > 0) {
-      const snapshotAt = new Date();
-      await tx.insert(teamHistory).values(
-        uniqueAssignments.map((assignment) => ({
-          id: crypto.randomUUID(),
-          organizationId: parsed.data.organizationId,
-          snapshotAt,
-          ...assignment,
-        }))
-      );
-    }
-  });
+  // neon-http driver does not support db.transaction(); run sequentially instead.
+  await db
+    .delete(team)
+    .where(eq(team.organizationId, parsed.data.organizationId));
+  if (uniqueAssignments.length > 0) {
+    await db.insert(team).values(
+      uniqueAssignments.map((assignment) => ({
+        id: crypto.randomUUID(),
+        organizationId: parsed.data.organizationId,
+        ...assignment,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+    );
+    const snapshotAt = new Date();
+    await db.insert(teamHistory).values(
+      uniqueAssignments.map((assignment) => ({
+        id: crypto.randomUUID(),
+        organizationId: parsed.data.organizationId,
+        snapshotAt,
+        ...assignment,
+      }))
+    );
+  }
 
   return NextResponse.json({ success: true });
 }
