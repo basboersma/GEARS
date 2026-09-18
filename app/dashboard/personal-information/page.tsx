@@ -51,6 +51,8 @@ export default async function PersonalInformationPage() {
           educationalInstitution: profile.educationalInstitution,
           study: profile.study,
           ibanNumber: profile.ibanNumber,
+          gender: profile.gender,
+          nationality: profile.nationality,
           informationProcessingConsent: profile.inormationProcessingConsent,
         }}
       />

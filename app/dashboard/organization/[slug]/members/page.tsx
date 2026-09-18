@@ -76,6 +76,7 @@ export default async function OrganizationMembersPage({
               organization.members.find((entry) => entry.role === "owner")
                 ?.id ?? null
             }
+            teamHistory={dashboardData.teamHistory}
           />
         </main>
       </OwnerDashboardFrame>

@@ -10,6 +10,7 @@ import type {
   Order,
   RoadmapItem,
   TeamAssignment,
+  TeamHistorySnapshot,
   TodoItem,
 } from "./types";
 
@@ -21,6 +22,7 @@ export interface DashboardData {
   subteams: Record<string, string[]>;
   members: Member[];
   teams: TeamAssignment[];
+  teamHistory: TeamHistorySnapshot[];
   files: DriveFile[];
   fileTree: FileTreeNode[];
   events: CalEvent[];

@@ -4,7 +4,13 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, organizationDepartment, passwords, team } from "@/db/schema";
+import {
+  member,
+  organizationDepartment,
+  passwords,
+  team,
+  teamHistory,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const assignmentSchema = z.object({
@@ -124,6 +130,17 @@ export async function PATCH(request: Request) {
           ...assignment,
           createdAt: new Date(),
           updatedAt: new Date(),
+        }))
+      );
+    }
+    if (uniqueAssignments.length > 0) {
+      const snapshotAt = new Date();
+      await tx.insert(teamHistory).values(
+        uniqueAssignments.map((assignment) => ({
+          id: crypto.randomUUID(),
+          organizationId: parsed.data.organizationId,
+          snapshotAt,
+          ...assignment,
         }))
       );
     }

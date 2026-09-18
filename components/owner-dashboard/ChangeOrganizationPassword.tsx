@@ -37,21 +37,26 @@ export function ChangeOrganizationPassword({
   };
 
   return (
-    <div className="relative">
+    <div>
       <button
         className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
-        <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
+        <span
+          className="text-[8px] transition-transform duration-150"
+          style={{ transform: open ? "rotate(90deg)" : "none" }}
+        >
+          ▶
+        </span>
         <span>Change Password</span>
       </button>
       {open && (
         <form
-          className="absolute top-full left-0 z-50 mt-2 w-64 space-y-2 rounded-xl border border-[#3D3330] bg-[#232120] p-3 shadow-xl"
+          className="mt-1 ml-3 space-y-2 rounded-lg border border-[#3D3330] bg-[#1B1918] p-2.5"
           onSubmit={submit}
         >
-          <div className="font-semibold text-[#FFEDD1] text-xs">
+          <div className="font-semibold text-[#9C8272] text-[10px] uppercase tracking-wider">
             {role === "owner" ? "Owner" : "Admin"} password
           </div>
           <input

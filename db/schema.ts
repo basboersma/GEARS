@@ -221,6 +221,8 @@ export const studentProfile = pgTable("student_profile", {
   ).notNull(),
   study: text("study").notNull(),
   ibanNumber: text("iban_number").notNull(),
+  gender: text("gender"),
+  nationality: text("nationality"),
   fieldsFilled: boolean("fields_filled")
     .$defaultFn(() => false)
     .notNull(),
@@ -295,6 +297,23 @@ export const teamRelations = relations(team, ({ one }) => ({
     references: [member.id],
   }),
 }));
+
+export const teamHistory = pgTable("team_history", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  snapshotAt: timestamp("snapshot_at").notNull(),
+  departmentId: text("department_id")
+    .notNull()
+    .references(() => organizationDepartment.id, { onDelete: "cascade" }),
+  memberId: text("member_id")
+    .notNull()
+    .references(() => member.id, { onDelete: "cascade" }),
+  isSubLead: boolean("is_sub_lead").notNull().default(false),
+  isAdvisor: boolean("is_advisor").notNull().default(false),
+  isTreasurer: boolean("is_treasurer").notNull().default(false),
+});
 
 export type Member = typeof member.$inferSelect & {
   user: typeof user.$inferSelect;
@@ -565,4 +584,5 @@ export const schema = {
   passwordsRelations,
   memberRelations,
   teamRelations,
+  teamHistory,
 };

@@ -103,6 +103,10 @@ export interface TeamAssignment {
   isTreasurer: boolean;
 }
 
+export interface TeamHistorySnapshot extends TeamAssignment {
+  snapshotAt: string;
+}
+
 export interface RoadmapItem {
   id: string;
   title: string;

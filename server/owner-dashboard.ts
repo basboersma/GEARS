@@ -15,6 +15,7 @@ import {
   organization,
   organizationDepartment,
   team,
+  teamHistory,
   user,
 } from "@/db/schema";
 import { listGoogleDriveTree } from "@/lib/google-drive";
@@ -119,6 +120,7 @@ export async function getOwnerDashboardData(
     departmentRows,
     memberRows,
     teamRows,
+    teamHistoryRows,
     todoRows,
     roadmapRows,
     fileRows,
@@ -142,6 +144,10 @@ export async function getOwnerDashboardData(
       .innerJoin(user, eq(member.userId, user.id))
       .where(eq(member.organizationId, organizationId)),
     db.select().from(team).where(eq(team.organizationId, organizationId)),
+    db
+      .select()
+      .from(teamHistory)
+      .where(eq(teamHistory.organizationId, organizationId)),
     db.query.dashboardTodo.findMany({
       where: eq(dashboardTodo.organizationId, organizationId),
       orderBy: [asc(dashboardTodo.createdAt)],
@@ -263,6 +269,15 @@ export async function getOwnerDashboardData(
     })),
     teams: teamRows.map((row) => ({
       id: row.id,
+      departmentId: row.departmentId,
+      memberId: row.memberId,
+      isSubLead: row.isSubLead,
+      isAdvisor: row.isAdvisor,
+      isTreasurer: row.isTreasurer,
+    })),
+    teamHistory: teamHistoryRows.map((row) => ({
+      id: row.id,
+      snapshotAt: row.snapshotAt.toISOString(),
       departmentId: row.departmentId,
       memberId: row.memberId,
       isSubLead: row.isSubLead,

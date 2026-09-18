@@ -3,11 +3,19 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -24,6 +32,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { findClosestCountries, isValidCountry } from "@/lib/countries";
+
+const GENDER_OPTIONS = [
+  "Male",
+  "Female",
+  "Non-Binary",
+  "Other",
+  "Prefer Not To Say",
+] as const;
+
+const DELETE_CONFIRMATION_PHRASE = "Remove Me From GEARS";
 
 const formSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
@@ -32,6 +51,14 @@ const formSchema = z.object({
   educationalInstitution: z.enum(["University of Groningen", "Hanze", "Guest"]),
   study: z.string().trim().min(1, "Study is required"),
   ibanNumber: z.string().trim().min(1, "IBAN is required"),
+  gender: z.enum(GENDER_OPTIONS).optional(),
+  nationality: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || isValidCountry(value), {
+      message: "Select a valid country from the list",
+    }),
   informationProcessingConsent: z
     .boolean()
     .refine((value) => value, { message: "Consent is required to continue" }),
@@ -44,7 +71,52 @@ interface EditMemberProfileDefaults {
   educationalInstitution: "University of Groningen" | "Hanze" | "Guest";
   study: string;
   ibanNumber: string;
+  gender?: string | null;
+  nationality?: string | null;
   informationProcessingConsent: boolean;
+}
+
+function NationalityField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const matches = useMemo(() => findClosestCountries(value), [value]);
+
+  return (
+    <div className="relative">
+      <Input
+        onBlur={() => setTimeout(() => setOpen(false), 100)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder="Start typing a country…"
+        value={value}
+      />
+      {open && matches.length > 0 && (
+        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+          {matches.map((country) => (
+            <button
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+              key={country}
+              onClick={() => {
+                onChange(country);
+                setOpen(false);
+              }}
+              type="button"
+            >
+              {country}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function EditMemberProfileForm({
@@ -54,10 +126,19 @@ export function EditMemberProfileForm({
 }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: defaults,
+    defaultValues: {
+      ...defaults,
+      gender: (defaults.gender ?? undefined) as
+        | (typeof GENDER_OPTIONS)[number]
+        | undefined,
+      nationality: defaults.nationality ?? "",
+    },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -86,6 +167,37 @@ export function EditMemberProfileForm({
       toast.error(message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteData = async () => {
+    setIsDeleting(true);
+
+    try {
+      const response = await fetch("/api/student-profile", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Failed to remove your data");
+      }
+
+      toast.success("Your identifiable information has been removed");
+      setDeleteOpen(false);
+      setDeleteConfirmation("");
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -187,6 +299,48 @@ export function EditMemberProfileForm({
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="gender"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Gender</FormLabel>
+                <FormControl>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GENDER_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="nationality"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nationality</FormLabel>
+                <FormControl>
+                  <NationalityField
+                    onChange={field.onChange}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <FormField
@@ -208,14 +362,70 @@ export function EditMemberProfileForm({
           )}
         />
 
-        <Button className="w-fit" disabled={isSaving} type="submit">
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            "Save changes"
-          )}
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button className="w-fit" disabled={isSaving} type="submit">
+            {isSaving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Save changes"
+            )}
+          </Button>
+          <Button
+            className="w-fit"
+            onClick={() => setDeleteOpen(true)}
+            type="button"
+            variant="destructive"
+          >
+            Remove my data
+          </Button>
+        </div>
       </form>
+
+      <Dialog onOpenChange={setDeleteOpen} open={deleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove all your identifiable information</DialogTitle>
+            <DialogDescription>
+              This permanently deletes your name, student number, IBAN, gender,
+              nationality, and study from our database. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="font-medium text-sm" htmlFor="delete-confirm">
+              Type &quot;{DELETE_CONFIRMATION_PHRASE}&quot; to confirm
+            </label>
+            <Input
+              id="delete-confirm"
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              value={deleteConfirmation}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => setDeleteOpen(false)}
+              type="button"
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={
+                deleteConfirmation !== DELETE_CONFIRMATION_PHRASE || isDeleting
+              }
+              onClick={handleDeleteData}
+              type="button"
+              variant="destructive"
+            >
+              {isDeleting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Permanently remove my data"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }
