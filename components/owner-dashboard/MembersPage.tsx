@@ -2116,6 +2116,7 @@ export function MembersPage({
   const [pendingTeamSave, setPendingTeamSave] = useState<
     TeamAssignment[] | null
   >(null);
+  const [teamSaveError, setTeamSaveError] = useState<string | null>(null);
 
   // When a snapshot is active, only show members who had joined by that month
   const visibleMembers = historySnapshot
@@ -2152,7 +2153,8 @@ export function MembersPage({
       setPendingTeamSave(nextTeams);
       return;
     }
-    await fetch("/api/organization-teams", {
+    setTeamSaveError(null);
+    const response = await fetch("/api/organization-teams", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2168,13 +2170,16 @@ export function MembersPage({
           })
         ),
       }),
-    }).then(async (response) => {
-      if (!response.ok) {
-        return;
-      }
-      setTeams(nextTeams);
-      setPendingTeamSave(null);
     });
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setTeamSaveError(result?.error ?? "Unable to save member tree changes.");
+      return;
+    }
+    setTeams(nextTeams);
+    setPendingTeamSave(null);
   };
 
   const setTeamRole = (
@@ -2447,6 +2452,11 @@ export function MembersPage({
 
           {/* Org tree */}
           <div className="flex-1 overflow-auto min-h-0">
+            {teamSaveError && (
+              <div className="mx-auto mb-2 max-w-xl rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-rose-300 text-xs">
+                {teamSaveError}
+              </div>
+            )}
             <div className="flex flex-col items-center min-w-max pb-8 pt-10">
               <LeadershipTree
                 advisor={roleMember("isAdvisor")}

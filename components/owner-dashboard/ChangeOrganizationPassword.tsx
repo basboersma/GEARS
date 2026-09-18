@@ -2,15 +2,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function ChangeOrganizationPassword({
   organizationId,
-  role,
 }: {
   organizationId: string;
   role: "owner" | "admin";
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [previousPassword, setPreviousPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -48,56 +49,43 @@ export function ChangeOrganizationPassword({
   };
 
   return (
-    <div>
-      <button
-        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
-        <span
-          className="text-[8px] transition-transform duration-150"
-          style={{ transform: open ? "rotate(90deg)" : "none" }}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <Button
+          className="w-fit rounded-none"
+          onClick={() => setOpen((current) => !current)}
+          type="button"
+          variant="outline"
         >
-          ▶
-        </span>
-        <span>{hasPassword ? "Change Password" : "Set password"}</span>
-      </button>
-      {open && (
-        <form
-          className="mt-1 ml-3 space-y-2 rounded-lg border border-[#3D3330] bg-[#1B1918] p-2.5"
-          onSubmit={submit}
-        >
-          <div className="font-semibold text-[#9C8272] text-[10px] uppercase tracking-wider">
-            {role === "owner" ? "Owner" : "Admin"} password
-          </div>
-          {hasPassword && (
-            <input
-              className="w-full rounded-lg border border-[#3D3330] bg-[#141212] px-2.5 py-2 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
-              onChange={(event) => setPreviousPassword(event.target.value)}
-              placeholder="Previous Password"
+          {hasPassword ? "Change Password" : "Set Password"}
+        </Button>
+        {open && (
+          <form className="flex items-center gap-2" onSubmit={submit}>
+            {hasPassword && (
+              <Input
+                className="w-36 rounded-none"
+                onChange={(event) => setPreviousPassword(event.target.value)}
+                placeholder="Password"
+                type="password"
+                value={previousPassword}
+              />
+            )}
+            <Input
+              className="w-36 rounded-none"
+              minLength={8}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="New Password"
+              required
               type="password"
-              value={previousPassword}
+              value={newPassword}
             />
-          )}
-          <input
-            className="w-full rounded-lg border border-[#3D3330] bg-[#141212] px-2.5 py-2 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
-            minLength={8}
-            onChange={(event) => setNewPassword(event.target.value)}
-            placeholder="New Password"
-            required
-            type="password"
-            value={newPassword}
-          />
-          <button
-            className="w-full rounded-lg bg-[#F0684D] px-2.5 py-2 font-semibold text-white text-xs disabled:opacity-50"
-            disabled={saving}
-            type="submit"
-          >
-            {saving ? "Saving…" : "Save Password"}
-          </button>
-          {message && <p className="text-[#C4A882] text-[10px]">{message}</p>}
-        </form>
-      )}
+            <Button className="rounded-none" disabled={saving} type="submit">
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </form>
+        )}
+      </div>
+      {message && <p className="text-muted-foreground text-xs">{message}</p>}
     </div>
   );
 }
