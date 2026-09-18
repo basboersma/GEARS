@@ -92,6 +92,9 @@ export interface Member {
   status: "active" | "inactive";
   isSubLead: boolean;
   strikes: number;
+  gender?: string | null;
+  nationality?: string | null;
+  study?: string | null;
 }
 
 export interface TeamAssignment {

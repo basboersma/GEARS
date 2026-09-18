@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { ChangeOrganizationPassword } from "@/components/owner-dashboard/ChangeOrganizationPassword";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { findClosestCountries, isValidCountry } from "@/lib/countries";
+import { findClosestStudies, isValidStudy } from "@/lib/studies";
 
 const GENDER_OPTIONS = [
   "Male",
@@ -49,7 +51,13 @@ const formSchema = z.object({
   surname: z.string().trim().min(1, "Surname is required"),
   studentNumber: z.string().trim().min(1, "Student number is required"),
   educationalInstitution: z.enum(["University of Groningen", "Hanze", "Guest"]),
-  study: z.string().trim().min(1, "Study is required"),
+  study: z
+    .string()
+    .trim()
+    .min(1, "Study is required")
+    .refine((value) => isValidStudy(value), {
+      message: "Select a valid study from the list",
+    }),
   ibanNumber: z.string().trim().min(1, "IBAN is required"),
   gender: z.enum(GENDER_OPTIONS).optional(),
   nationality: z
@@ -76,15 +84,19 @@ interface EditMemberProfileDefaults {
   informationProcessingConsent: boolean;
 }
 
-function NationalityField({
+function SearchableTextField({
   value,
   onChange,
+  findMatches,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
+  findMatches: (query: string) => string[];
+  placeholder: string;
 }) {
   const [open, setOpen] = useState(false);
-  const matches = useMemo(() => findClosestCountries(value), [value]);
+  const matches = useMemo(() => findMatches(value), [value, findMatches]);
 
   return (
     <div className="relative">
@@ -95,22 +107,22 @@ function NationalityField({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        placeholder="Start typing a country…"
+        placeholder={placeholder}
         value={value}
       />
       {open && matches.length > 0 && (
         <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-          {matches.map((country) => (
+          {matches.map((option) => (
             <button
               className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
-              key={country}
+              key={option}
               onClick={() => {
-                onChange(country);
+                onChange(option);
                 setOpen(false);
               }}
               type="button"
             >
-              {country}
+              {option}
             </button>
           ))}
         </div>
@@ -121,8 +133,12 @@ function NationalityField({
 
 export function EditMemberProfileForm({
   defaults,
+  organizationId,
+  organizationRole,
 }: {
   defaults: EditMemberProfileDefaults;
+  organizationId: string;
+  organizationRole: "owner" | "admin";
 }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -279,7 +295,12 @@ export function EditMemberProfileForm({
               <FormItem>
                 <FormLabel>Study</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <SearchableTextField
+                    findMatches={findClosestStudies}
+                    onChange={field.onChange}
+                    placeholder="Start typing a study…"
+                    value={field.value}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -332,8 +353,10 @@ export function EditMemberProfileForm({
               <FormItem>
                 <FormLabel>Nationality</FormLabel>
                 <FormControl>
-                  <NationalityField
+                  <SearchableTextField
+                    findMatches={findClosestCountries}
                     onChange={field.onChange}
+                    placeholder="Start typing a country…"
                     value={field.value ?? ""}
                   />
                 </FormControl>
@@ -370,6 +393,10 @@ export function EditMemberProfileForm({
               "Save changes"
             )}
           </Button>
+          <ChangeOrganizationPassword
+            organizationId={organizationId}
+            role={organizationRole}
+          />
           <Button
             className="w-fit"
             onClick={() => setDeleteOpen(true)}

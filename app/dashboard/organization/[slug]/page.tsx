@@ -64,7 +64,6 @@ export default async function OrganizationPage({ params }: { params: Params }) {
           budget={budget}
           dashboardData={dashboardData}
           organizationName={organization.name}
-          organizationRole={membership.role === "admin" ? "admin" : "owner"}
           organizationSlug={slug}
           organizations={organizations}
           userEmail={user.email}

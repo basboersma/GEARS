@@ -14,6 +14,7 @@ import {
   orderRequest,
   organization,
   organizationDepartment,
+  studentProfile,
   team,
   teamHistory,
   user,
@@ -139,9 +140,13 @@ export async function getOwnerDashboardData(
         userId: user.id,
         name: user.name,
         email: user.email,
+        gender: studentProfile.gender,
+        nationality: studentProfile.nationality,
+        study: studentProfile.study,
       })
       .from(member)
       .innerJoin(user, eq(member.userId, user.id))
+      .leftJoin(studentProfile, eq(studentProfile.userId, user.id))
       .where(eq(member.organizationId, organizationId)),
     db.select().from(team).where(eq(team.organizationId, organizationId)),
     db
@@ -266,6 +271,9 @@ export async function getOwnerDashboardData(
       status: "active",
       isSubLead: row.role === "sub_owner",
       strikes: 0,
+      gender: row.gender,
+      nationality: row.nationality,
+      study: row.study,
     })),
     teams: teamRows.map((row) => ({
       id: row.id,

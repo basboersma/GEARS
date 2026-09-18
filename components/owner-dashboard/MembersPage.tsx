@@ -7,18 +7,14 @@ import { useRef, useState } from "react";
 import { feature } from "topojson-client";
 // @ts-ignore – world-atlas ships plain JSON, no TS declarations
 import worldTopoRaw from "world-atlas/countries-110m.json";
+import { countryForIso, isoForCountry } from "@/lib/countries";
 import { avatarBg, DEPARTMENTS, DEPT_COLORS, MEMBERS } from "./data";
 import type { Member, TeamAssignment, TeamHistorySnapshot } from "./types";
-
-// ─── World GeoJSON (converted once at module level) ──────────────────────────
 
 const WORLD_FEATURES: any[] = (
   feature(worldTopoRaw as any, (worldTopoRaw as any).objects.countries) as any
 ).features;
 
-// ─── Mock demographic + historical data ───────────────────────────────────────
-
-// iso = ISO 3166-1 numeric string (matches world-atlas feature ids)
 const DEMOGRAPHICS: Record<
   string,
   {
@@ -78,13 +74,6 @@ const DEMOGRAPHICS: Record<
     iso: "792",
     joinMonth: "Jan '26",
   },
-};
-
-const ISO_NAME: Record<string, string> = {
-  "528": "Netherlands",
-  "276": "Germany",
-  "056": "Belgium",
-  "792": "Turkey",
 };
 
 const HISTORY_MONTHS = [
@@ -297,7 +286,7 @@ function PieChart({
 
 // ─── Pie stats widget with metric dropdown ────────────────────────────────────
 
-type StatMetric = "Gender" | "Study" | "University";
+type StatMetric = "Gender" | "Study" | "Nationality";
 
 function PieStatsWidget({ members }: { members: Member[] }) {
   const [metric, setMetric] = useState<StatMetric>("Gender");
@@ -305,14 +294,12 @@ function PieStatsWidget({ members }: { members: Member[] }) {
   const total = members.length;
   const counts: Record<string, number> = {};
   members.forEach((m) => {
-    const d = DEMOGRAPHICS[m.id];
-    if (!d) return;
     const key =
       metric === "Gender"
-        ? d.gender
+        ? (m.gender ?? "Unknown")
         : metric === "Study"
-          ? d.study
-          : d.university;
+          ? (m.study ?? "Unknown")
+          : (m.nationality ?? "Unknown");
     counts[key] = (counts[key] ?? 0) + 1;
   });
   const segments = Object.entries(counts).map(([label, value], i) => ({
@@ -335,7 +322,7 @@ function PieStatsWidget({ members }: { members: Member[] }) {
           </button>
           {open && (
             <div className="absolute right-0 top-full mt-1 z-50 rounded-xl border border-[#3D3330] bg-[#232120] shadow-xl overflow-hidden min-w-[100px]">
-              {(["Gender", "Study", "University"] as StatMetric[]).map((m) => (
+              {(["Gender", "Study", "Nationality"] as StatMetric[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => {
@@ -613,9 +600,9 @@ function ChoroplethMap({
 }) {
   const counts: Record<string, number> = {};
   members.forEach((m) => {
-    const d = DEMOGRAPHICS[m.id];
-    if (!d) return;
-    counts[d.iso] = (counts[d.iso] ?? 0) + 1;
+    const iso = m.nationality ? isoForCountry(m.nationality) : null;
+    if (!iso) return;
+    counts[iso] = (counts[iso] ?? 0) + 1;
   });
   const data = Object.entries(counts).map(([id, value]) => ({ id, value }));
   const maxCount = Math.max(1, ...Object.values(counts));
@@ -670,7 +657,7 @@ function ChoroplethMap({
               onClick={() => onCountryClick(null)}
               className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30 text-[9px] text-cyan-400 hover:bg-cyan-500/30"
             >
-              {ISO_NAME[selectedIso] ?? selectedIso} ✕
+              {countryForIso(selectedIso) ?? selectedIso} ✕
             </button>
           )}
         </div>
@@ -728,7 +715,8 @@ function ChoroplethMap({
           tooltip={({ feature: f }: { feature: any }) => {
             const iso = f.id as string;
             const val = counts[iso] ?? 0;
-            const name = ISO_NAME[iso] ?? (f as any).properties?.name ?? iso;
+            const name =
+              countryForIso(iso) ?? (f as any).properties?.name ?? iso;
             return (
               <div
                 style={{
@@ -1657,7 +1645,9 @@ function MemberCard({
   const match =
     q.trim() !== "" && member.name.toLowerCase().includes(q.toLowerCase());
   const countryMatch =
-    highlightedIso !== null && DEMOGRAPHICS[member.id]?.iso === highlightedIso;
+    highlightedIso !== null &&
+    member.nationality != null &&
+    isoForCountry(member.nationality) === highlightedIso;
   return (
     <div
       draggable

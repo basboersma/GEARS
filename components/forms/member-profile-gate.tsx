@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,18 +31,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { findClosestStudies, isValidStudy } from "@/lib/studies";
 
 const formSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
   surname: z.string().trim().min(1, "Surname is required"),
   studentNumber: z.string().trim().min(1, "Student number is required"),
   educationalInstitution: z.enum(["University of Groningen", "Hanze", "Guest"]),
-  study: z.string().trim().min(1, "Study is required"),
+  study: z
+    .string()
+    .trim()
+    .min(1, "Study is required")
+    .refine((value) => isValidStudy(value), {
+      message: "Select a valid study from the list",
+    }),
   ibanNumber: z.string().trim().min(1, "IBAN is required"),
   informationProcessingConsent: z
     .boolean()
     .refine((value) => value, { message: "Consent is required to continue" }),
 });
+
+function StudyField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const matches = useMemo(() => findClosestStudies(value), [value]);
+
+  return (
+    <div className="relative">
+      <Input
+        onBlur={() => setTimeout(() => setOpen(false), 100)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder="Start typing a study…"
+        value={value}
+      />
+      {open && matches.length > 0 && (
+        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+          {matches.map((study) => (
+            <button
+              className="block w-full px-3 py-1.5 text-left text-sm hover:bg-accent"
+              key={study}
+              onClick={() => {
+                onChange(study);
+                setOpen(false);
+              }}
+              type="button"
+            >
+              {study}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface StudentProfileDefaults {
   firstName: string;
@@ -219,7 +269,10 @@ export function MemberProfileGate({
                     <FormItem>
                       <FormLabel>Study</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <StudyField
+                          onChange={field.onChange}
+                          value={field.value}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

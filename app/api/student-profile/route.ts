@@ -6,6 +6,7 @@ import { db } from "@/db/drizzle";
 import { member, studentProfile } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { isValidCountry } from "@/lib/countries";
+import { isValidStudy } from "@/lib/studies";
 
 const DELETE_CONFIRMATION_PHRASE = "Remove Me From GEARS";
 
@@ -14,7 +15,13 @@ const studentProfileSchema = z.object({
   surname: z.string().trim().min(1, "Surname is required"),
   studentNumber: z.string().trim().min(1, "Student number is required"),
   educationalInstitution: z.enum(["University of Groningen", "Hanze", "Guest"]),
-  study: z.string().trim().min(1, "Study is required"),
+  study: z
+    .string()
+    .trim()
+    .min(1, "Study is required")
+    .refine((value) => isValidStudy(value), {
+      message: "Select a valid study from the list",
+    }),
   ibanNumber: z.string().trim().min(1, "IBAN is required"),
   gender: z
     .enum(["Male", "Female", "Non-Binary", "Other", "Prefer Not To Say"])

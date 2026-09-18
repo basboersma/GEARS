@@ -21,7 +21,6 @@ import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import type { Organization } from "@/db/schema";
 import { CalendarBlock } from "./CalendarBlock";
-import { ChangeOrganizationPassword } from "./ChangeOrganizationPassword";
 import {
   DashboardDataProvider,
   useDashboardData,
@@ -203,16 +202,13 @@ function Sidebar({
   userName,
   userEmail,
   organizations,
-  organizationRole,
 }: {
   organizationName: string;
   organizationSlug: string;
   userName: string;
   userEmail: string;
   organizations: Organization[];
-  organizationRole: "owner" | "admin";
 }) {
-  const { organizationId } = useDashboardData();
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
       {/* Org dropdown */}
@@ -238,10 +234,6 @@ function Sidebar({
         </button>
         <div className="space-y-0.5 pt-1">
           <SubteamsNav />
-          <ChangeOrganizationPassword
-            organizationId={organizationId}
-            role={organizationRole}
-          />
           <Link
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
             href={`/dashboard/organization/${organizationSlug}/members`}
@@ -322,7 +314,6 @@ export default function App({
   budget,
   dashboardData,
   organizations,
-  organizationRole,
 }: {
   organizationName: string;
   organizationSlug: string;
@@ -331,7 +322,6 @@ export default function App({
   budget: BudgetData;
   dashboardData: import("./dashboard-data-context").DashboardData;
   organizations: Organization[];
-  organizationRole: "owner" | "admin";
 }) {
   return (
     <DashboardDataProvider
@@ -344,7 +334,6 @@ export default function App({
       >
         <Sidebar
           organizationName={organizationName}
-          organizationRole={organizationRole}
           organizationSlug={organizationSlug}
           organizations={organizations}
           userEmail={userEmail}

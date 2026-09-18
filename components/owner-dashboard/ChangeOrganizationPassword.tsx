@@ -1,7 +1,7 @@
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the existing dashboard component naming convention.
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function ChangeOrganizationPassword({
   organizationId,
@@ -10,11 +10,21 @@ export function ChangeOrganizationPassword({
   organizationId: string;
   role: "owner" | "admin";
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [previousPassword, setPreviousPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/organization-password?organizationId=${organizationId}`)
+      .then((response) => response.json())
+      .then((result: { hasPassword?: boolean }) =>
+        setHasPassword(result.hasPassword === true)
+      )
+      .catch(() => setHasPassword(false));
+  }, [organizationId]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -31,6 +41,7 @@ export function ChangeOrganizationPassword({
       setMessage(result.error ?? "Unable to change password.");
       return;
     }
+    setHasPassword(true);
     setPreviousPassword("");
     setNewPassword("");
     setMessage("Password updated.");
@@ -49,7 +60,7 @@ export function ChangeOrganizationPassword({
         >
           ▶
         </span>
-        <span>Change Password</span>
+        <span>{hasPassword ? "Change Password" : "Set password"}</span>
       </button>
       {open && (
         <form
@@ -59,13 +70,15 @@ export function ChangeOrganizationPassword({
           <div className="font-semibold text-[#9C8272] text-[10px] uppercase tracking-wider">
             {role === "owner" ? "Owner" : "Admin"} password
           </div>
-          <input
-            className="w-full rounded-lg border border-[#3D3330] bg-[#141212] px-2.5 py-2 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
-            onChange={(event) => setPreviousPassword(event.target.value)}
-            placeholder="Previous Password"
-            type="password"
-            value={previousPassword}
-          />
+          {hasPassword && (
+            <input
+              className="w-full rounded-lg border border-[#3D3330] bg-[#141212] px-2.5 py-2 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
+              onChange={(event) => setPreviousPassword(event.target.value)}
+              placeholder="Previous Password"
+              type="password"
+              value={previousPassword}
+            />
+          )}
           <input
             className="w-full rounded-lg border border-[#3D3330] bg-[#141212] px-2.5 py-2 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
             minLength={8}

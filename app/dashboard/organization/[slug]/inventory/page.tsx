@@ -43,9 +43,7 @@ export default async function InventoryRoute({ params }: { params: Params }) {
     <DashboardDataProvider value={dashboardData}>
       <OwnerDashboardFrame
         activePage="inventory"
-        organizationId={selectedOrganization.id}
         organizationName={selectedOrganization.name}
-        organizationRole="owner"
         organizationSlug={slug}
         organizations={organizations}
         userEmail={user.email}

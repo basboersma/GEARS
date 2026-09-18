@@ -55,6 +55,8 @@ export default async function PersonalInformationPage() {
           nationality: profile.nationality,
           informationProcessingConsent: profile.inormationProcessingConsent,
         }}
+        organizationId={membership.organizationId}
+        organizationRole={membership.role === "admin" ? "admin" : "owner"}
       />
     </div>
   );

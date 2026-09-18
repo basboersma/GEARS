@@ -13,6 +13,36 @@ const payloadSchema = z.object({
   newPassword: z.string().min(8),
 });
 
+export async function GET(request: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const organizationId = new URL(request.url).searchParams.get(
+    "organizationId"
+  );
+  if (!(session && organizationId)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const membership = await db.query.member.findFirst({
+    where: and(
+      eq(member.organizationId, organizationId),
+      eq(member.userId, session.user.id)
+    ),
+  });
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "admin")
+  ) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const password = await db.query.passwords.findFirst({
+    where: eq(passwords.organizationId, organizationId),
+  });
+  return NextResponse.json({
+    hasPassword: Boolean(
+      membership.role === "owner" ? password?.ownerHash : password?.adminHash
+    ),
+  });
+}
+
 function hashPassword(password: string, salt: Buffer) {
   return scryptSync(password, salt, 64).toString("hex");
 }

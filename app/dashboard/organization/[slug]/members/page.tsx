@@ -40,6 +40,9 @@ export default async function OrganizationMembersPage({
     getOwnerDashboardData(organization.id),
     getOrganizations(),
   ]);
+  const profileById = new Map(
+    dashboardData.members.map((entry) => [entry.id, entry])
+  );
   const members: Member[] = organization.members.map((entry) => ({
     id: entry.id,
     name: entry.user.name,
@@ -51,15 +54,16 @@ export default async function OrganizationMembersPage({
     status: "active",
     isSubLead: entry.role === "sub_owner",
     strikes: 0,
+    gender: profileById.get(entry.id)?.gender,
+    nationality: profileById.get(entry.id)?.nationality,
+    study: profileById.get(entry.id)?.study,
   }));
 
   return (
     <DashboardDataProvider value={dashboardData}>
       <OwnerDashboardFrame
         activePage="members"
-        organizationId={organization.id}
         organizationName={organization.name}
-        organizationRole={membership.role === "admin" ? "admin" : "owner"}
         organizationSlug={slug}
         organizations={organizations}
         userEmail={user.email}
