@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -6,11 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member, passwords } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import {
-  hashUserPassword,
-  matchesUserPassword,
-  verifyUserPassword,
-} from "@/lib/organization-password";
+import { verifyUserPassword } from "@/lib/organization-password";
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
@@ -80,24 +75,13 @@ export async function PATCH(request: Request) {
       { status: 400 }
     );
   }
-  if (
-    current &&
-    !matchesUserPassword(
-      parsed.data.previousPassword as string,
-      current.hash,
-      current.salt
-    )
-  ) {
+  if (current && parsed.data.previousPassword !== current.password) {
     return NextResponse.json(
       { error: "Previous password is incorrect" },
       { status: 400 }
     );
   }
-  const salt = randomBytes(16);
-  const values = {
-    hash: hashUserPassword(parsed.data.newPassword, salt),
-    salt: salt.toString("hex"),
-  };
+  const values = { password: parsed.data.newPassword };
   if (current) {
     await db
       .update(passwords)

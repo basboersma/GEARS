@@ -116,8 +116,7 @@ export const passwords = pgTable("passwords", {
     .notNull()
     .unique()
     .references(() => user.id, { onDelete: "cascade" }),
-  hash: text("hash").notNull(),
-  salt: text("salt").notNull(),
+  password: text("password").notNull(),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
