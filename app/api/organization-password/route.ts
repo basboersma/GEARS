@@ -81,20 +81,30 @@ export async function PATCH(request: Request) {
       { status: 400 }
     );
   }
-  const values = { password: parsed.data.newPassword };
-  if (current) {
+  try {
+    const now = new Date();
     await db
-      .update(passwords)
-      .set({ ...values, updatedAt: new Date() })
-      .where(eq(passwords.id, current.id));
-  } else {
-    await db.insert(passwords).values({
-      id: crypto.randomUUID(),
-      userId: session.user.id,
-      ...values,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+      .insert(passwords)
+      .values({
+        id: crypto.randomUUID(),
+        userId: session.user.id,
+        password: parsed.data.newPassword,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: passwords.userId,
+        set: {
+          password: parsed.data.newPassword,
+          updatedAt: now,
+        },
+      });
+  } catch (error) {
+    console.error("Failed to save user password", error);
+    return NextResponse.json(
+      { error: "Unable to save password" },
+      { status: 500 }
+    );
   }
   return NextResponse.json({ success: true });
 }
