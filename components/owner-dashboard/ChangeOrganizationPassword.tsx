@@ -57,16 +57,24 @@ export function ChangeOrganizationPassword({
     }
   };
 
+  let passwordButtonLabel = "Checking Password";
+  if (hasPassword === true) {
+    passwordButtonLabel = "Change Password";
+  } else if (hasPassword === false) {
+    passwordButtonLabel = "Set Password";
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <Button
           className="w-fit rounded-none"
+          disabled={hasPassword === null || saving}
           onClick={() => setOpen((current) => !current)}
           type="button"
           variant="outline"
         >
-          {hasPassword ? "Change Password" : "Set Password"}
+          {passwordButtonLabel}
         </Button>
         {open && (
           <form className="flex items-center gap-2" onSubmit={submit}>
@@ -76,6 +84,7 @@ export function ChangeOrganizationPassword({
                 className="w-36 rounded-none"
                 onChange={(event) => setPreviousPassword(event.target.value)}
                 placeholder="Old Password"
+                required
                 type="password"
                 value={previousPassword}
               />
