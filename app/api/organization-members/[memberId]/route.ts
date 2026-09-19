@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { verifyOrganizationPassword } from "@/lib/organization-password";
+import { verifyUserPassword } from "@/lib/organization-password";
 import { removeOrganizationMembership } from "@/server/membership-history";
 
 const payloadSchema = z.object({
@@ -58,15 +58,12 @@ export async function DELETE(
     );
   }
 
-  const passwordMatches = await verifyOrganizationPassword(
-    parsed.data.organizationId,
+  const passwordMatches = await verifyUserPassword(
+    session.user.id,
     parsed.data.password
   );
   if (!passwordMatches) {
-    return NextResponse.json(
-      { error: "Invalid organization password" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Invalid password" }, { status: 403 });
   }
 
   const result = await removeOrganizationMembership(

@@ -7,14 +7,14 @@ import { db } from "@/db/drizzle";
 import { member, passwords } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
-  hashOrganizationPassword,
-  matchesOrganizationPassword,
-  verifyOrganizationPassword,
+  hashUserPassword,
+  matchesUserPassword,
+  verifyUserPassword,
 } from "@/lib/organization-password";
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
-  previousPassword: z.string(),
+  previousPassword: z.string().optional(),
   newPassword: z.string().min(8),
 });
 
@@ -39,13 +39,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const password = await db.query.passwords.findFirst({
-    where: eq(passwords.organizationId, organizationId),
+    where: eq(passwords.userId, session.user.id),
   });
-  return NextResponse.json({
-    hasPassword: Boolean(
-      membership.role === "owner" ? password?.ownerHash : password?.adminHash
-    ),
-  });
+  return NextResponse.json({ hasPassword: Boolean(password) });
 }
 
 export async function PATCH(request: Request) {
@@ -76,19 +72,20 @@ export async function PATCH(request: Request) {
     );
   }
   const current = await db.query.passwords.findFirst({
-    where: eq(passwords.organizationId, parsed.data.organizationId),
+    where: eq(passwords.userId, session.user.id),
   });
-  const currentHash =
-    membership.role === "owner" ? current?.ownerHash : current?.adminHash;
-  const currentSalt =
-    membership.role === "owner" ? current?.ownerSalt : current?.adminSalt;
+  if (current && !parsed.data.previousPassword) {
+    return NextResponse.json(
+      { error: "Old password is required" },
+      { status: 400 }
+    );
+  }
   if (
-    currentHash &&
-    currentSalt &&
-    !matchesOrganizationPassword(
-      parsed.data.previousPassword,
-      currentHash,
-      currentSalt
+    current &&
+    !matchesUserPassword(
+      parsed.data.previousPassword as string,
+      current.hash,
+      current.salt
     )
   ) {
     return NextResponse.json(
@@ -97,16 +94,10 @@ export async function PATCH(request: Request) {
     );
   }
   const salt = randomBytes(16);
-  const values =
-    membership.role === "owner"
-      ? {
-          ownerHash: hashOrganizationPassword(parsed.data.newPassword, salt),
-          ownerSalt: salt.toString("hex"),
-        }
-      : {
-          adminHash: hashOrganizationPassword(parsed.data.newPassword, salt),
-          adminSalt: salt.toString("hex"),
-        };
+  const values = {
+    hash: hashUserPassword(parsed.data.newPassword, salt),
+    salt: salt.toString("hex"),
+  };
   if (current) {
     await db
       .update(passwords)
@@ -115,7 +106,7 @@ export async function PATCH(request: Request) {
   } else {
     await db.insert(passwords).values({
       id: crypto.randomUUID(),
-      organizationId: parsed.data.organizationId,
+      userId: session.user.id,
       ...values,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -156,8 +147,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const passwordMatches = await verifyOrganizationPassword(
-    parsed.data.organizationId,
+  const passwordMatches = await verifyUserPassword(
+    session.user.id,
     parsed.data.password
   );
 

@@ -112,14 +112,12 @@ export const organizationDepartmentRelations = relations(
 
 export const passwords = pgTable("passwords", {
   id: text("id").primaryKey(),
-  organizationId: text("organization_id")
+  userId: text("user_id")
     .notNull()
     .unique()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  ownerHash: text("owner_hash"),
-  ownerSalt: text("owner_salt"),
-  adminHash: text("admin_hash"),
-  adminSalt: text("admin_salt"),
+    .references(() => user.id, { onDelete: "cascade" }),
+  hash: text("hash").notNull(),
+  salt: text("salt").notNull(),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
@@ -129,9 +127,9 @@ export const passwords = pgTable("passwords", {
 });
 
 export const passwordsRelations = relations(passwords, ({ one }) => ({
-  organization: one(organization, {
-    fields: [passwords.organizationId],
-    references: [organization.id],
+  user: one(user, {
+    fields: [passwords.userId],
+    references: [user.id],
   }),
 }));
 

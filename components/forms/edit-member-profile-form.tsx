@@ -137,8 +137,8 @@ export function EditMemberProfileForm({
   organizationRole,
 }: {
   defaults: EditMemberProfileDefaults;
-  organizationId: string;
-  organizationRole: "owner" | "admin";
+  organizationId?: string;
+  organizationRole?: "owner" | "admin";
 }) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -393,10 +393,9 @@ export function EditMemberProfileForm({
               "Save changes"
             )}
           </Button>
-          <ChangeOrganizationPassword
-            organizationId={organizationId}
-            role={organizationRole}
-          />
+          {organizationId && organizationRole && (
+            <ChangeOrganizationPassword organizationId={organizationId} />
+          )}
           <Button
             className="w-fit"
             onClick={() => setDeleteOpen(true)}

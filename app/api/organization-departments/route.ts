@@ -23,7 +23,10 @@ async function getOrganizationForUser(slug: string, userId: string) {
     where: and(eq(member.organizationId, org.id), eq(member.userId, userId)),
   });
 
-  if (!membership || membership.role !== "owner") {
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "admin")
+  ) {
     return null;
   }
 

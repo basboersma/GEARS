@@ -3,37 +3,30 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/drizzle";
 import { passwords } from "@/db/schema";
 
-export function hashOrganizationPassword(password: string, salt: Buffer) {
+export function hashUserPassword(password: string, salt: Buffer) {
   return scryptSync(password, salt, 64).toString("hex");
 }
 
-export function matchesOrganizationPassword(
+export function matchesUserPassword(
   password: string,
   hash: string,
   salt: string
 ) {
   const expected = Buffer.from(hash, "hex");
   const actual = Buffer.from(
-    hashOrganizationPassword(password, Buffer.from(salt, "hex")),
+    hashUserPassword(password, Buffer.from(salt, "hex")),
     "hex"
   );
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-export async function verifyOrganizationPassword(
-  organizationId: string,
-  password: string
-) {
+export async function verifyUserPassword(userId: string, password: string) {
   const passwordRow = await db.query.passwords.findFirst({
-    where: eq(passwords.organizationId, organizationId),
+    where: eq(passwords.userId, userId),
   });
 
-  return [
-    [passwordRow?.ownerHash, passwordRow?.ownerSalt],
-    [passwordRow?.adminHash, passwordRow?.adminSalt],
-  ].some(
-    ([hash, salt]) =>
-      Boolean(hash && salt) &&
-      matchesOrganizationPassword(password, hash as string, salt as string)
+  return Boolean(
+    passwordRow &&
+      matchesUserPassword(password, passwordRow.hash, passwordRow.salt)
   );
 }

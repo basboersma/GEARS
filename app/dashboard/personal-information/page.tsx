@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { EditMemberProfileForm } from "@/components/forms/edit-member-profile-form";
@@ -7,11 +7,19 @@ import { member, studentProfile } from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 export default async function PersonalInformationPage() {
-  const { user } = await getCurrentUser();
+  const { user, session } = await getCurrentUser();
 
-  const membership = await db.query.member.findFirst({
-    where: eq(member.userId, user.id),
-  });
+  const activeMembership = session.activeOrganizationId
+    ? await db.query.member.findFirst({
+        where: and(
+          eq(member.userId, user.id),
+          eq(member.organizationId, session.activeOrganizationId)
+        ),
+      })
+    : null;
+  const membership =
+    activeMembership ??
+    (await db.query.member.findFirst({ where: eq(member.userId, user.id) }));
 
   if (!membership) {
     redirect("/dashboard");
@@ -49,8 +57,16 @@ export default async function PersonalInformationPage() {
           nationality: profile.nationality,
           informationProcessingConsent: profile.inormationProcessingConsent,
         }}
-        organizationId={membership.organizationId}
-        organizationRole={membership.role === "admin" ? "admin" : "owner"}
+        organizationId={
+          membership.role === "owner" || membership.role === "admin"
+            ? membership.organizationId
+            : undefined
+        }
+        organizationRole={
+          membership.role === "owner" || membership.role === "admin"
+            ? membership.role
+            : undefined
+        }
       />
     </div>
   );

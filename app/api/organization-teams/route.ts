@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member, organizationDepartment, team } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { verifyOrganizationPassword } from "@/lib/organization-password";
+import { verifyUserPassword } from "@/lib/organization-password";
 import { recordCurrentTeamSnapshot } from "@/server/membership-history";
 
 const assignmentSchema = z.object({
@@ -50,15 +50,12 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const passwordMatches = await verifyOrganizationPassword(
-    parsed.data.organizationId,
+  const passwordMatches = await verifyUserPassword(
+    session.user.id,
     parsed.data.password
   );
   if (!passwordMatches) {
-    return NextResponse.json(
-      { error: "Invalid organization password" },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Invalid password" }, { status: 403 });
   }
 
   const departments = await db.query.organizationDepartment.findMany({

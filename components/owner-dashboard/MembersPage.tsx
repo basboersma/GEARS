@@ -1103,7 +1103,7 @@ function PwModal({
             setErr(false);
           }}
           onKeyDown={(e) => e.key === "Enter" && attempt()}
-          placeholder="Admin password…"
+          placeholder="Your password…"
           autoFocus
           className={`w-full mt-3 px-3 py-2 rounded-xl bg-[#232120] border text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none transition-colors ${err ? "border-rose-500" : "border-[#3D3330] focus:border-[#F0684D]"}`}
         />
@@ -1143,30 +1143,53 @@ const PRESET_COLORS = [
 ];
 
 function AddDeptModal({
-  organizationId,
+  organizationSlug,
   onAdd,
   onClose,
 }: {
-  organizationId: string;
-  onAdd: (name: string, color: string) => void;
+  organizationSlug: string;
+  onAdd: (department: { id: string; name: string }, color: string) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [step, setStep] = useState<"form" | "pw">("form");
-  if (step === "pw")
-    return (
-      <PwModal
-        organizationId={organizationId}
-        title="Add Department"
-        desc={`Add "${name}" as a new department?`}
-        onConfirm={() => {
-          onAdd(name.trim(), color);
-          onClose();
-        }}
-        onClose={() => setStep("form")}
-      />
-    );
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleAdd = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/organization-departments?slug=${encodeURIComponent(organizationSlug)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+        }
+      );
+      const result = (await response.json().catch(() => null)) as {
+        department?: { id: string; name: string };
+        error?: string;
+      } | null;
+
+      if (!response.ok || !result?.department) {
+        setError(result?.error ?? "Unable to add department.");
+        return;
+      }
+
+      onAdd(result.department, color);
+      onClose();
+    } catch {
+      setError("Unable to add department.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -1189,7 +1212,10 @@ function AddDeptModal({
         </div>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            setError(null);
+          }}
           placeholder="Department name…"
           className="w-full px-3 py-2 rounded-xl bg-[#232120] border border-[#3D3330] text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none focus:border-[#F0684D] mb-3"
         />
@@ -1197,6 +1223,7 @@ function AddDeptModal({
         <div className="flex flex-wrap gap-2 mb-4">
           {PRESET_COLORS.map((c) => (
             <button
+              disabled={isSubmitting}
               key={c}
               onClick={() => setColor(c)}
               className="w-6 h-6 rounded-lg"
@@ -1208,19 +1235,21 @@ function AddDeptModal({
             />
           ))}
         </div>
+        {error && <p className="mb-3 text-rose-400 text-xs">{error}</p>}
         <div className="flex gap-2">
           <button
+            disabled={isSubmitting}
             onClick={onClose}
             className="flex-1 py-2 rounded-xl text-sm bg-[#232120] border border-[#3D3330] text-[#C4A882]"
           >
             Cancel
           </button>
           <button
-            disabled={!name.trim()}
-            onClick={() => name.trim() && setStep("pw")}
+            disabled={!name.trim() || isSubmitting}
+            onClick={() => handleAdd().catch(() => undefined)}
             className="flex-1 py-2 rounded-xl text-sm bg-[#F0684D] text-white font-semibold disabled:opacity-40"
           >
-            Add
+            {isSubmitting ? "Adding…" : "Add"}
           </button>
         </div>
       </div>
@@ -1384,7 +1413,7 @@ function MemberActionModal({
           {tab === "remove" && (
             <>
               <p className="text-xs text-[#C4A882]">
-                Enter admin password to remove{" "}
+                Enter your password to remove{" "}
                 <strong className="text-[#FFEDD1]">{member.name}</strong>.
               </p>
               <input
@@ -1394,7 +1423,7 @@ function MemberActionModal({
                   setPw(e.target.value);
                   setPwErr(false);
                 }}
-                placeholder="Admin password…"
+                placeholder="Your password…"
                 className={`w-full px-3 py-2 rounded-xl bg-[#232120] border text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none transition-colors ${pwErr ? "border-rose-500" : "border-[#3D3330] focus:border-[#F0684D]"}`}
               />
               {pwErr && (
@@ -2168,6 +2197,7 @@ function LeadershipActionModal({
 export function MembersPage({
   initialDepartmentIds,
   initialOrganizationId,
+  organizationSlug,
   initialMembers,
   initialDepartments,
   initialTeams,
@@ -2178,12 +2208,14 @@ export function MembersPage({
   initialDepartments: string[];
   initialDepartmentIds: Record<string, string>;
   initialOrganizationId: string;
+  organizationSlug: string;
   initialTeams: TeamAssignment[];
   teamHistory: TeamHistorySnapshot[];
   leadMemberId: string | null;
 }) {
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [departments, setDepartments] = useState<string[]>(initialDepartments);
+  const [departmentIds, setDepartmentIds] = useState(initialDepartmentIds);
   const [teams, setTeams] = useState<TeamAssignment[]>(initialTeams);
   const [deptColors, setDeptColors] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -2240,8 +2272,7 @@ export function MembersPage({
     visibleMembers.filter((m) =>
       historicalTeams.some(
         (team) =>
-          team.departmentId === initialDepartmentIds[dept] &&
-          team.memberId === m.id
+          team.departmentId === departmentIds[dept] && team.memberId === m.id
       )
     );
   const unassignedMembers = visibleMembers.filter(
@@ -2258,7 +2289,7 @@ export function MembersPage({
         .filter((assignment) => assignment.memberId === member.id)
         .map(
           (assignment) =>
-            Object.entries(initialDepartmentIds).find(
+            Object.entries(departmentIds).find(
               ([, id]) => id === assignment.departmentId
             )?.[0]
         )
@@ -2312,7 +2343,7 @@ export function MembersPage({
     department: string,
     role: "advisor" | "treasurer"
   ) => {
-    const departmentId = initialDepartmentIds[department];
+    const departmentId = departmentIds[department];
     if (!departmentId) return;
     const nextTeams = teams
       .filter(
@@ -2362,7 +2393,7 @@ export function MembersPage({
     const memberId = draggingId;
     const departmentId =
       teams.find((team) => team.memberId === memberId)?.departmentId ??
-      Object.values(initialDepartmentIds)[0];
+      Object.values(departmentIds)[0];
     if (!departmentId) return;
     const roleKey = role === "advisor" ? "isAdvisor" : "isTreasurer";
     const nextTeams = teams
@@ -2394,7 +2425,7 @@ export function MembersPage({
 
   const handleDrop = (targetDept: string) => {
     if (!draggingId) return;
-    const departmentId = initialDepartmentIds[targetDept];
+    const departmentId = departmentIds[targetDept];
     setMembers((prev) =>
       prev.map((m) =>
         m.id === draggingId
@@ -2438,7 +2469,7 @@ export function MembersPage({
   };
   const handleDropSublead = (dept: string) => {
     if (!draggingId) return;
-    const departmentId = initialDepartmentIds[dept];
+    const departmentId = departmentIds[dept];
     if (!departmentId) return;
     const memberId = draggingId;
     const nextTeams = teams
@@ -2507,7 +2538,7 @@ export function MembersPage({
     persistTeams(nextTeams).catch(() => undefined);
   };
   const releaseSubLead = (memberId: string, dept: string) => {
-    const departmentId = initialDepartmentIds[dept];
+    const departmentId = departmentIds[dept];
     persistTeams(
       teams.map((team) =>
         team.memberId === memberId && team.departmentId === departmentId
@@ -2517,7 +2548,7 @@ export function MembersPage({
     ).catch(() => undefined);
   };
   const removeMemberFromDepartment = (memberId: string, dept: string) => {
-    const departmentId = initialDepartmentIds[dept];
+    const departmentId = departmentIds[dept];
     const target = teams.find(
       (team) => team.memberId === memberId && team.departmentId === departmentId
     );
@@ -2545,7 +2576,7 @@ export function MembersPage({
     persistTeams(nextTeams).catch(() => undefined);
   };
   const addMemberToDepartment = (memberId: string, dept: string) => {
-    const departmentId = initialDepartmentIds[dept];
+    const departmentId = departmentIds[dept];
     if (
       !departmentId ||
       teams.some(
@@ -2655,7 +2686,7 @@ export function MembersPage({
             </div>
             <div className="flex-1 min-w-0 rounded-xl bg-[#232120] border border-[#3D3330] p-3 flex flex-col">
               <MembersOverTimeChart
-                departmentIds={initialDepartmentIds}
+                departmentIds={departmentIds}
                 departments={departments}
                 deptColors={deptColors}
                 history={teamHistory}
@@ -2742,7 +2773,7 @@ export function MembersPage({
                       subLeadId={
                         historicalTeams.find(
                           (team) =>
-                            team.departmentId === initialDepartmentIds[dept] &&
+                            team.departmentId === departmentIds[dept] &&
                             team.isSubLead
                         )?.memberId ??
                         subLeads[dept] ??
@@ -2789,9 +2820,9 @@ export function MembersPage({
         {/* Right invite panel */}
         {showInvite && (
           <InvitePanel
-            departmentIds={initialDepartmentIds}
+            departmentIds={departmentIds}
             depts={departments.filter(
-              (department) => initialDepartmentIds[department]
+              (department) => departmentIds[department]
             )}
             deptColors={deptColors}
             members={members}
@@ -2803,10 +2834,17 @@ export function MembersPage({
 
       {addingDept && (
         <AddDeptModal
-          organizationId={initialOrganizationId}
-          onAdd={(name, color) => {
-            setDepartments((p) => [...p, name]);
-            setDeptColors((p) => ({ ...p, [name]: color }));
+          organizationSlug={organizationSlug}
+          onAdd={(department, color) => {
+            setDepartments((current) => [...current, department.name]);
+            setDepartmentIds((current) => ({
+              ...current,
+              [department.name]: department.id,
+            }));
+            setDeptColors((current) => ({
+              ...current,
+              [department.name]: color,
+            }));
           }}
           onClose={() => setAddingDept(false)}
         />
@@ -2815,7 +2853,7 @@ export function MembersPage({
         <PwModal
           organizationId={initialOrganizationId}
           title="Update member tree"
-          desc="Enter the owner or admin organization password."
+          desc="Enter your password to continue."
           onConfirm={(password) => {
             persistTeams(pendingTeamSave, password).catch(() => undefined);
           }}

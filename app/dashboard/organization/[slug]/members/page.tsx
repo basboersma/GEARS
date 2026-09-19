@@ -80,6 +80,7 @@ export default async function OrganizationMembersPage({
               organization.members.find((entry) => entry.role === "owner")
                 ?.id ?? null
             }
+            organizationSlug={slug}
             teamHistory={dashboardData.teamHistory}
           />
         </main>
