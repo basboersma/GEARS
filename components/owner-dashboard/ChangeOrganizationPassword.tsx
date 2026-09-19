@@ -3,6 +3,14 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 export function ChangeOrganizationPassword({
@@ -65,47 +73,73 @@ export function ChangeOrganizationPassword({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <Button
-          className="w-fit rounded-none"
-          disabled={hasPassword === null || saving}
-          onClick={() => setOpen((current) => !current)}
-          type="button"
-          variant="outline"
-        >
-          {passwordButtonLabel}
-        </Button>
-        {open && (
-          <form className="flex items-center gap-2" onSubmit={submit}>
-            {hasPassword && (
+    <>
+      <Button
+        className="w-fit"
+        disabled={hasPassword === null || saving}
+        onClick={() => setOpen(true)}
+        type="button"
+        variant="outline"
+      >
+        {passwordButtonLabel}
+      </Button>
+
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {hasPassword ? "Change password" : "Set password"}
+            </DialogTitle>
+            <DialogDescription>
+              {hasPassword
+                ? "Enter your old password and choose a new password."
+                : "Choose a password for this organization membership."}
+            </DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-4" onSubmit={submit}>
+            <div className="grid gap-2">
+              <label className="font-medium text-sm" htmlFor="old-password">
+                Old password
+              </label>
               <Input
-                aria-label="Old Password"
-                className="w-36 rounded-none"
+                id="old-password"
                 onChange={(event) => setPreviousPassword(event.target.value)}
-                placeholder="Old Password"
-                required
+                placeholder="Old password"
+                required={hasPassword === true}
                 type="password"
                 value={previousPassword}
               />
-            )}
-            <Input
-              aria-label={hasPassword ? "New Password" : "Set Password"}
-              className="w-36 rounded-none"
-              minLength={8}
-              onChange={(event) => setNewPassword(event.target.value)}
-              placeholder={hasPassword ? "New Password" : "Set Password"}
-              required
-              type="password"
-              value={newPassword}
-            />
-            <Button className="rounded-none" disabled={saving} type="submit">
-              {saving ? "Saving…" : "Save"}
-            </Button>
+            </div>
+            <div className="grid gap-2">
+              <label className="font-medium text-sm" htmlFor="new-password">
+                New password
+              </label>
+              <Input
+                id="new-password"
+                minLength={8}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="New password"
+                required
+                type="password"
+                value={newPassword}
+              />
+            </div>
+            {message && <p className="text-destructive text-sm">{message}</p>}
+            <DialogFooter>
+              <Button
+                onClick={() => setOpen(false)}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button disabled={saving} type="submit">
+                {saving ? "Saving…" : "Save"}
+              </Button>
+            </DialogFooter>
           </form>
-        )}
-      </div>
-      {message && <p className="text-muted-foreground text-xs">{message}</p>}
-    </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

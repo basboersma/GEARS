@@ -1,11 +1,19 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/drizzle";
-import { passwords } from "@/db/schema";
+import { member } from "@/db/schema";
 
-export async function verifyUserPassword(userId: string, password: string) {
-  const passwordRow = await db.query.passwords.findFirst({
-    where: eq(passwords.userId, userId),
+export async function verifyMemberPassword(
+  organizationId: string,
+  userId: string,
+  password: string
+) {
+  const membership = await db.query.member.findFirst({
+    where: and(
+      eq(member.organizationId, organizationId),
+      eq(member.userId, userId),
+      inArray(member.role, ["owner", "admin"])
+    ),
   });
 
-  return passwordRow?.password === password;
+  return membership?.password === password;
 }

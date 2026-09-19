@@ -3,9 +3,9 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, passwords } from "@/db/schema";
+import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { verifyUserPassword } from "@/lib/organization-password";
+import { verifyMemberPassword } from "@/lib/organization-password";
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
@@ -33,10 +33,7 @@ export async function GET(request: Request) {
   ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const password = await db.query.passwords.findFirst({
-    where: eq(passwords.userId, session.user.id),
-  });
-  return NextResponse.json({ hasPassword: Boolean(password) });
+  return NextResponse.json({ hasPassword: Boolean(membership.password) });
 }
 
 export async function PATCH(request: Request) {
@@ -66,39 +63,26 @@ export async function PATCH(request: Request) {
       { status: 403 }
     );
   }
-  const current = await db.query.passwords.findFirst({
-    where: eq(passwords.userId, session.user.id),
-  });
-  if (current && !parsed.data.previousPassword) {
+  if (membership.password && !parsed.data.previousPassword) {
     return NextResponse.json(
       { error: "Old password is required" },
       { status: 400 }
     );
   }
-  if (current && parsed.data.previousPassword !== current.password) {
+  if (
+    membership.password &&
+    parsed.data.previousPassword !== membership.password
+  ) {
     return NextResponse.json(
       { error: "Previous password is incorrect" },
       { status: 400 }
     );
   }
   try {
-    const now = new Date();
     await db
-      .insert(passwords)
-      .values({
-        id: crypto.randomUUID(),
-        userId: session.user.id,
-        password: parsed.data.newPassword,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: passwords.userId,
-        set: {
-          password: parsed.data.newPassword,
-          updatedAt: now,
-        },
-      });
+      .update(member)
+      .set({ password: parsed.data.newPassword })
+      .where(eq(member.id, membership.id));
   } catch (error) {
     console.error("Failed to save user password", error);
     return NextResponse.json(
@@ -141,7 +125,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const passwordMatches = await verifyUserPassword(
+  const passwordMatches = await verifyMemberPassword(
+    parsed.data.organizationId,
     session.user.id,
     parsed.data.password
   );

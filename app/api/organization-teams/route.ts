@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member, organizationDepartment, team } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { verifyUserPassword } from "@/lib/organization-password";
+import { verifyMemberPassword } from "@/lib/organization-password";
 import { recordCurrentTeamSnapshot } from "@/server/membership-history";
 
 const assignmentSchema = z.object({
@@ -50,7 +50,8 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const passwordMatches = await verifyUserPassword(
+  const passwordMatches = await verifyMemberPassword(
+    parsed.data.organizationId,
     session.user.id,
     parsed.data.password
   );

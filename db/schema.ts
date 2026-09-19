@@ -110,28 +110,6 @@ export const organizationDepartmentRelations = relations(
   })
 );
 
-export const passwords = pgTable("passwords", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .unique()
-    .references(() => user.id, { onDelete: "cascade" }),
-  password: text("password").notNull(),
-  createdAt: timestamp("created_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  updatedAt: timestamp("updated_at")
-    .$defaultFn(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
-
-export const passwordsRelations = relations(passwords, ({ one }) => ({
-  user: one(user, {
-    fields: [passwords.userId],
-    references: [user.id],
-  }),
-}));
-
 export type Organization = typeof organization.$inferSelect;
 
 export const role = pgEnum("role", ["member", "sub_owner", "admin", "owner"]);
@@ -202,6 +180,7 @@ export const member = pgTable("member", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   role: role("role").default("member").notNull(),
+  password: text("password"),
   createdAt: timestamp("created_at").notNull(),
 });
 
@@ -561,7 +540,6 @@ export const schema = {
   verification,
   organization,
   organizationDepartment,
-  passwords,
   member,
   invitation,
   departmentInvitation,
@@ -578,7 +556,6 @@ export const schema = {
   team,
   organizationRelations,
   organizationDepartmentRelations,
-  passwordsRelations,
   memberRelations,
   teamRelations,
   teamHistory,

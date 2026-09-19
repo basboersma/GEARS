@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { verifyUserPassword } from "@/lib/organization-password";
+import { verifyMemberPassword } from "@/lib/organization-password";
 import { removeOrganizationMembership } from "@/server/membership-history";
 
 const payloadSchema = z.object({
@@ -58,7 +58,8 @@ export async function DELETE(
     );
   }
 
-  const passwordMatches = await verifyUserPassword(
+  const passwordMatches = await verifyMemberPassword(
+    parsed.data.organizationId,
     session.user.id,
     parsed.data.password
   );
