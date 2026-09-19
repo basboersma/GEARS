@@ -13,7 +13,8 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useRef, useState } from "react";
-import { avatarBg, DEPARTMENTS, MEMBERS, memberIdx } from "./data";
+import { useDashboardData } from "./dashboard-data-context";
+import { avatarBg } from "./data";
 import { Inp, ModalHeader, ModalShell } from "./shared";
 import type { Member } from "./types";
 
@@ -138,9 +139,11 @@ function StrikeModal({
 
 function RemoveModal({
   member,
+  members,
   onClose,
 }: {
   member: Member;
+  members: Member[];
   onClose: () => void;
 }) {
   const [pw, setPw] = useState("");
@@ -161,7 +164,7 @@ function RemoveModal({
         </div>
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3">
           <span
-            className={`h-9 w-9 rounded-full ${avatarBg(memberIdx(member.id))} flex shrink-0 items-center justify-center font-bold text-sm text-white`}
+            className={`h-9 w-9 rounded-full ${avatarBg(members.findIndex((entry) => entry.id === member.id))} flex shrink-0 items-center justify-center font-bold text-sm text-white`}
           >
             {member.avatar}
           </span>
@@ -204,12 +207,18 @@ function RemoveModal({
 
 type InviteState = Record<string, "invite" | "pending" | "declined">;
 
-function InviteTab({ currentTeam }: { currentTeam: string }) {
+function InviteTab({
+  currentTeam,
+  members,
+}: {
+  currentTeam: string;
+  members: Member[];
+}) {
   const [q, setQ] = useState("");
   const [states, setStates] = useState<InviteState>({});
   const [hovered, setHovered] = useState<string | null>(null);
 
-  const outside = MEMBERS.filter(
+  const outside = members.filter(
     (m) =>
       m.team !== currentTeam && m.name.toLowerCase().includes(q.toLowerCase())
   );
@@ -245,7 +254,7 @@ function InviteTab({ currentTeam }: { currentTeam: string }) {
               key={m.id}
             >
               <div
-                className={`h-9 w-9 rounded-full ${avatarBg(MEMBERS.indexOf(m))} flex shrink-0 items-center justify-center font-bold text-sm text-white`}
+                className={`h-9 w-9 rounded-full ${avatarBg(members.findIndex((member) => member.id === m.id))} flex shrink-0 items-center justify-center font-bold text-sm text-white`}
               >
                 {m.avatar}
               </div>
@@ -298,13 +307,21 @@ function InviteTab({ currentTeam }: { currentTeam: string }) {
 
 // ─── Manage Members tab ───────────────────────────────────────────────────────
 
-function ManageTab({ currentTeam }: { currentTeam: string }) {
+function ManageTab({
+  currentTeam,
+  departments,
+  members,
+}: {
+  currentTeam: string;
+  departments: string[];
+  members: Member[];
+}) {
   const [q, setQ] = useState("");
   const [strikeTarget, setStrikeTarget] = useState<Member | null>(null);
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
   const [depts, setDepts] = useState<Record<string, string>>({});
 
-  const team = MEMBERS.filter(
+  const team = members.filter(
     (m) =>
       m.team === currentTeam && m.name.toLowerCase().includes(q.toLowerCase())
   );
@@ -325,7 +342,7 @@ function ManageTab({ currentTeam }: { currentTeam: string }) {
           >
             <div className="flex items-center gap-2.5">
               <div
-                className={`h-9 w-9 rounded-full ${avatarBg(MEMBERS.indexOf(m))} relative flex shrink-0 items-center justify-center font-bold text-sm text-white`}
+                className={`h-9 w-9 rounded-full ${avatarBg(members.findIndex((member) => member.id === m.id))} relative flex shrink-0 items-center justify-center font-bold text-sm text-white`}
               >
                 {m.avatar}
                 {m.isSubLead && (
@@ -358,7 +375,7 @@ function ManageTab({ currentTeam }: { currentTeam: string }) {
                 }
                 value={depts[m.id] ?? m.department}
               >
-                {DEPARTMENTS.map((d) => (
+                {departments.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
@@ -400,6 +417,7 @@ function ManageTab({ currentTeam }: { currentTeam: string }) {
       {removeTarget && (
         <RemoveModal
           member={removeTarget}
+          members={members}
           onClose={() => setRemoveTarget(null)}
         />
       )}
@@ -416,6 +434,7 @@ export function MembersModal({
   currentTeam: string;
   onClose: () => void;
 }) {
+  const { departments, members } = useDashboardData();
   const [tab, setTab] = useState<"invite" | "manage">("invite");
 
   return (
@@ -442,9 +461,13 @@ export function MembersModal({
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
         {tab === "invite" ? (
-          <InviteTab currentTeam={currentTeam} />
+          <InviteTab currentTeam={currentTeam} members={members} />
         ) : (
-          <ManageTab currentTeam={currentTeam} />
+          <ManageTab
+            currentTeam={currentTeam}
+            departments={departments}
+            members={members}
+          />
         )}
       </div>
     </ModalShell>

@@ -3,8 +3,8 @@
 "use client";
 
 import { useState } from "react";
-import { DEPT_COLORS, MONTHLY_SPEND } from "./data";
-import type { BudgetData } from "./types";
+import { useDashboardData } from "./dashboard-data-context";
+import type { BudgetData, Order } from "./types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Tab = "submit" | "overview" | "incoming" | "past" | "reimburse";
@@ -93,7 +93,6 @@ interface Draft {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const ORDER_TYPES = ["Hardware", "Electronic", "Software", "Social"] as const;
 const URGENCIES = ["1 day", "2 days", "3 days", "7 days"] as const;
-const DEPT_LIST = ["PR", "Board", "Software", "Finance", "Design"];
 const PERIOD_MONTHS: Record<Period, number> = { "1M": 1, "6M": 6, "1Y": 12 };
 const INIT_ROWS = 8;
 
@@ -166,425 +165,50 @@ function matchesSearch(order: OrderRecord, q: string): boolean {
   );
 }
 
-// ── Mock data ──────────────────────────────────────────────────────────────────
-const MOCK_ORDERS: OrderRecord[] = [
-  {
-    id: "ol1",
-    name: "September Hardware Batch",
-    department: "Software",
-    submittedBy: "Alex van den Berg",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-09-01",
-    monthLabel: "Sep'26",
-    status: "action_needed",
-    isPast: false,
-    items: [
-      {
-        id: "i1",
-        link: "https://shop.rs.com/bolts",
-        description: "Steel bolts M8 (100×)",
-        pricePerPiece: 12,
-        quantity: 2,
-        orderType: "Hardware",
-        urgency: "3 days",
-        comments: "",
-        status: "ordered",
-        requiresPhoto: true,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: true,
-      },
-      {
-        id: "i2",
-        link: "https://shop.rs.com/bearing",
-        description: "Bearing 6204 double-sealed",
-        pricePerPiece: 8,
-        quantity: 5,
-        orderType: "Hardware",
-        urgency: "7 days",
-        comments: "Double-sealed preferred",
-        status: "arrived",
-        requiresPhoto: true,
-        requiresInvoice: false,
-        photoUploaded: true,
-        invoiceUploaded: false,
-      },
-      {
-        id: "i3",
-        link: "https://shop.rs.com/wire",
-        description: "Welding wire 1 kg",
-        pricePerPiece: 24,
-        quantity: 1,
-        orderType: "Hardware",
-        urgency: "7 days",
-        comments: "",
-        status: "pending",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-  {
-    id: "ol2",
-    name: "PR Materials Q4",
-    department: "PR",
-    submittedBy: "Sophie Janssen",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-09-04",
-    monthLabel: "Sep'26",
-    status: "ordered",
-    isPast: false,
-    items: [
-      {
-        id: "i4",
-        link: "https://print.example.com/flyers",
-        description: "Flyers A5 (500×)",
-        pricePerPiece: 45,
-        quantity: 1,
-        orderType: "Social",
-        urgency: "3 days",
-        comments: "",
-        status: "ordered",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-      {
-        id: "i5",
-        link: "https://print.example.com/banner",
-        description: "Roll-up banner 200 cm",
-        pricePerPiece: 85,
-        quantity: 2,
-        orderType: "Social",
-        urgency: "7 days",
-        comments: "Both double-sided",
-        status: "ordered",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-  {
-    id: "ol3",
-    name: "Software Licenses Oct",
-    department: "Software",
-    submittedBy: "Daan Mulder",
-    approvedBy: "",
-    submittedAt: "2026-09-05",
-    monthLabel: "Sep'26",
-    status: "pending",
-    isPast: false,
-    items: [
-      {
-        id: "i6",
-        link: "https://jetbrains.com/all",
-        description: "JetBrains All Products Pack",
-        pricePerPiece: 50,
-        quantity: 3,
-        orderType: "Software",
-        urgency: "7 days",
-        comments: "",
-        status: "pending",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-      {
-        id: "i7",
-        link: "https://github.com/pricing",
-        description: "GitHub Pro seats (×5)",
-        pricePerPiece: 4,
-        quantity: 5,
-        orderType: "Software",
-        urgency: "7 days",
-        comments: "",
-        status: "pending",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-  {
-    id: "ol4",
-    name: "Design Software Aug",
-    department: "Design",
-    submittedBy: "Emma de Vries",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-08-15",
-    monthLabel: "Aug'26",
-    status: "arrived",
-    isPast: true,
-    items: [
-      {
-        id: "i8",
-        link: "https://figma.com/pricing",
-        description: "Figma Organisation annual",
-        pricePerPiece: 500,
-        quantity: 1,
-        orderType: "Software",
-        urgency: "7 days",
-        comments: "",
-        status: "arrived",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: true,
-      },
-      {
-        id: "i9",
-        link: "https://adobe.com/creativecloud",
-        description: "Adobe Creative Cloud team",
-        pricePerPiece: 400,
-        quantity: 1,
-        orderType: "Software",
-        urgency: "7 days",
-        comments: "",
-        status: "arrived",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: true,
-      },
-    ],
-  },
-  {
-    id: "ol5",
-    name: "Finance Audit Tools Jul",
-    department: "Finance",
-    submittedBy: "Noah Smit",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-07-20",
-    monthLabel: "Jul'26",
-    status: "denied",
-    isPast: true,
-    items: [
-      {
-        id: "i10",
-        link: "https://auditboard.com/pricing",
-        description: "AuditBoard licence (annual)",
-        pricePerPiece: 1200,
-        quantity: 1,
-        orderType: "Software",
-        urgency: "7 days",
-        comments: "Annual renewal",
-        status: "denied",
-        requiresPhoto: false,
-        requiresInvoice: false,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-  {
-    id: "ol6",
-    name: "Arm Electronics Batch",
-    department: "Software",
-    submittedBy: "Alex van den Berg",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-08-10",
-    monthLabel: "Aug'26",
-    status: "arrived",
-    isPast: true,
-    items: [
-      {
-        id: "i11",
-        link: "https://rs-online.com/motor",
-        description: "Stepper motor NEMA 17",
-        pricePerPiece: 22,
-        quantity: 4,
-        orderType: "Electronic",
-        urgency: "3 days",
-        comments: "",
-        status: "arrived",
-        requiresPhoto: true,
-        requiresInvoice: true,
-        photoUploaded: true,
-        invoiceUploaded: true,
-      },
-      {
-        id: "i12",
-        link: "https://rs-online.com/driver",
-        description: "Motor driver A4988",
-        pricePerPiece: 6,
-        quantity: 4,
-        orderType: "Electronic",
-        urgency: "3 days",
-        comments: "",
-        status: "arrived",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: true,
-      },
-    ],
-  },
-  {
-    id: "ol7",
-    name: "Board Travel Jun",
-    department: "Board",
-    submittedBy: "Liam Bakker",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-06-12",
-    monthLabel: "Jun'26",
-    status: "arrived",
-    isPast: true,
-    items: [
-      {
-        id: "i13",
-        link: "https://booking.com/flights",
-        description: "Flights Amsterdam–Berlin (×3)",
-        pricePerPiece: 180,
-        quantity: 3,
-        orderType: "Social",
-        urgency: "7 days",
-        comments: "Economy class",
-        status: "arrived",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: true,
-      },
-      {
-        id: "i14",
-        link: "https://booking.com/hotel",
-        description: "Hotel Berlin (3 nights)",
-        pricePerPiece: 120,
-        quantity: 3,
-        orderType: "Social",
-        urgency: "7 days",
-        comments: "",
-        status: "arrived",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: true,
-      },
-    ],
-  },
-  // Recurring orders
-  {
-    id: "rec1",
-    name: "Monthly Cleaning Supplies",
-    department: "Board",
-    submittedBy: "Admin user",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-09-01",
-    monthLabel: "Sep'26",
-    status: "ordered",
-    isPast: false,
-    isRecurring: true,
-    recurInterval: "1 Month",
-    recurEndDate: "2027-06-01",
-    recurEnabled: true,
-    recurPaused: false,
-    items: [
-      {
-        id: "ri1",
-        link: "https://example.com/cleaning",
-        description: "Cleaning supplies restock",
-        pricePerPiece: 15,
-        quantity: 3,
-        orderType: "Hardware",
-        urgency: "7 days",
-        comments: "Monthly restock",
-        status: "ordered",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-  {
-    id: "rec2",
-    name: "Weekly Coffee & Snacks",
-    department: "Board",
-    submittedBy: "Admin user",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-09-05",
-    monthLabel: "Sep'26",
-    status: "pending",
-    isPast: false,
-    isRecurring: true,
-    recurInterval: "1 Week",
-    recurEndDate: "2026-12-31",
-    recurEnabled: true,
-    recurPaused: false,
-    items: [
-      {
-        id: "ri2",
-        link: "https://example.com/coffee",
-        description: "Coffee beans 500g",
-        pricePerPiece: 12,
-        quantity: 2,
-        orderType: "Hardware",
-        urgency: "3 days",
-        comments: "",
-        status: "pending",
-        requiresPhoto: false,
-        requiresInvoice: false,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-      {
-        id: "ri3",
-        link: "https://example.com/snacks",
-        description: "Snack assortment",
-        pricePerPiece: 18,
-        quantity: 1,
-        orderType: "Hardware",
-        urgency: "3 days",
-        comments: "",
-        status: "pending",
-        requiresPhoto: false,
-        requiresInvoice: false,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-  {
-    id: "rec3",
-    name: "Software License Renewal",
-    department: "Software",
-    submittedBy: "Daan Mulder",
-    approvedBy: "Liam Bakker",
-    submittedAt: "2026-09-01",
-    monthLabel: "Sep'26",
-    status: "ordered",
-    isPast: false,
-    isRecurring: true,
-    recurInterval: "1 Month",
-    recurEndDate: "2027-09-01",
-    recurEnabled: true,
-    recurPaused: true,
-    items: [
-      {
-        id: "ri4",
-        link: "https://example.com/license",
-        description: "Tool licence seat",
-        pricePerPiece: 40,
-        quantity: 5,
-        orderType: "Software",
-        urgency: "7 days",
-        comments: "Auto-renew",
-        status: "ordered",
-        requiresPhoto: false,
-        requiresInvoice: true,
-        photoUploaded: false,
-        invoiceUploaded: false,
-      },
-    ],
-  },
-];
+const monthLabel = (date: string): string => {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleString("en-GB", { month: "short" });
+};
+
+const orderStatus = (order: Order): OrderStatus => {
+  if (order.canceled || order.status === "declined") return "denied";
+  if (order.finalized || order.delivered) return "arrived";
+  if (order.ordered || order.accepted) return "ordered";
+  return "pending";
+};
+
+const itemStatus = (order: Order): ItemStatus => {
+  const status = orderStatus(order);
+  return status === "action_needed" ? "pending" : status;
+};
+
+const toOrderRecord = (order: Order): OrderRecord => ({
+  id: order.id,
+  name: order.title,
+  department: order.department,
+  submittedBy: order.submittedBy ?? "",
+  approvedBy: order.approvedBy ?? "",
+  submittedAt: order.date,
+  monthLabel: monthLabel(order.date),
+  status: orderStatus(order),
+  isPast: Boolean(order.finalized || order.delivered || order.canceled),
+  items: order.items.map((item, index) => ({
+    id: `${order.id}-${index}`,
+    link: item.link ?? "",
+    description: item.name,
+    pricePerPiece: item.price,
+    quantity: item.qty,
+    orderType: item.orderType ?? "",
+    urgency: item.urgency ?? "",
+    comments: item.comments ?? "",
+    status: itemStatus(order),
+    requiresPhoto: Boolean(item.photoNeeded),
+    requiresInvoice: true,
+    photoUploaded: Boolean(item.photoUploaded),
+    invoiceUploaded: false,
+  })),
+});
 
 // ── Field styles ───────────────────────────────────────────────────────────────
 const fieldCls =
@@ -676,6 +300,7 @@ function BudgetBar({
 function SpendingChart({
   name,
   color,
+  monthlySpend,
   pendingByMonth,
   recurringByMonth,
   onPointClick,
@@ -688,6 +313,10 @@ function SpendingChart({
 }: {
   name: string;
   color: string;
+  monthlySpend: Record<
+    string,
+    { month: string; budget: number; spent: number }[]
+  >;
   pendingByMonth?: Record<string, number>;
   recurringByMonth?: Record<string, number>;
   onPointClick: (month: string) => void;
@@ -700,7 +329,7 @@ function SpendingChart({
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const allData = MONTHLY_SPEND[name] ?? MONTHLY_SPEND.Total;
+  const allData = monthlySpend[name] ?? monthlySpend.Total ?? [];
   const data = allData.slice(-PERIOD_MONTHS[period]);
 
   const pendingAmt = data.map((d) => pendingByMonth?.[d.month] ?? 0);
@@ -1179,6 +808,7 @@ function OrderForm({
   onSubmit?: () => void;
   onSaveDraft?: (d: Draft) => void;
 }) {
+  const { departments } = useDashboardData();
   const isIncoming = incomingSubmitter !== undefined;
 
   const [rows, setRows] = useState<FormRow[]>(() => {
@@ -1288,7 +918,7 @@ function OrderForm({
               }}
             >
               <option value="">Select department</option>
-              {DEPT_LIST.map((d) => (
+              {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -1807,6 +1437,7 @@ function OrderDetailView({
   order: OrderRecord;
   onClose: () => void;
 }) {
+  const { departments } = useDashboardData();
   const isPending = order.status === "pending";
   const uploadsOnly =
     order.status === "ordered" || order.status === "action_needed";
@@ -1874,7 +1505,7 @@ function OrderDetailView({
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
             >
-              {DEPT_LIST.map((d) => (
+              {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -2480,6 +2111,7 @@ function ReimbursementForm({
   onSubmit: (r: Reimbursement) => void;
   onSaveDraft?: (draft: Draft) => void;
 }) {
+  const { departments } = useDashboardData();
   const [drag, setDrag] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -2594,7 +2226,7 @@ function ReimbursementForm({
             onChange={(e) => setDepartment(e.target.value)}
           >
             <option value="">Select…</option>
-            {DEPT_LIST.map((d) => (
+            {departments.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>
@@ -2852,6 +2484,7 @@ function ReimbursementInvoicePopup({
 
 // ── Main export ────────────────────────────────────────────────────────────────
 export function OrdersPanel({ data }: { data: BudgetData }) {
+  const { monthlySpend, orders } = useDashboardData();
   const [tab, setTab] = useState<Tab>("submit");
   const [formTotal, setFormTotal] = useState(0);
   const [formDept, setFormDept] = useState("");
@@ -2871,11 +2504,10 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
   const [loadedDraft, setLoadedDraft] = useState<Draft | null>(null);
   const [submitKey, setSubmitKey] = useState(0);
 
-  const allPastOrders = MOCK_ORDERS.filter((o) => o.isPast);
-  const currentOrders = MOCK_ORDERS.filter((o) => !o.isPast);
-  const incomingOrders = currentOrders.filter(
-    (o) => o.status === "pending" && o.submittedBy !== "Admin user"
-  );
+  const orderRecords = orders.map(toOrderRecord);
+  const allPastOrders = orderRecords.filter((o) => o.isPast);
+  const currentOrders = orderRecords.filter((o) => !o.isPast);
+  const incomingOrders = currentOrders.filter((o) => o.status === "pending");
 
   // Filtered past orders for search
   const filteredPastOrders = allPastOrders.filter((o) =>
@@ -2886,24 +2518,26 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
 
   // Pending amounts
   const pendingByMonth: Record<string, number> = {};
-  MOCK_ORDERS.filter((o) => o.status === "pending").forEach((o) => {
-    pendingByMonth[o.monthLabel] =
-      (pendingByMonth[o.monthLabel] ?? 0) + calcTotal(o.items);
-  });
+  orderRecords
+    .filter((o) => o.status === "pending")
+    .forEach((o) => {
+      pendingByMonth[o.monthLabel] =
+        (pendingByMonth[o.monthLabel] ?? 0) + calcTotal(o.items);
+    });
   if (tab === "submit" && formTotal > 0)
     pendingByMonth["Sep"] = (pendingByMonth["Sep"] ?? 0) + formTotal;
 
   const recurringByMonth: Record<string, number> = {};
-  MOCK_ORDERS.filter(
-    (o) => o.isRecurring && o.recurEnabled && !o.recurPaused
-  ).forEach((o) => {
-    recurringByMonth[o.monthLabel] =
-      (recurringByMonth[o.monthLabel] ?? 0) + calcTotal(o.items);
-  });
+  orderRecords
+    .filter((o) => o.isRecurring && o.recurEnabled && !o.recurPaused)
+    .forEach((o) => {
+      recurringByMonth[o.monthLabel] =
+        (recurringByMonth[o.monthLabel] ?? 0) + calcTotal(o.items);
+    });
 
-  const activeRecurTotal = MOCK_ORDERS.filter(
-    (o) => o.isRecurring && o.recurEnabled && !o.recurPaused
-  ).reduce((s, o) => s + calcTotal(o.items), 0);
+  const activeRecurTotal = orderRecords
+    .filter((o) => o.isRecurring && o.recurEnabled && !o.recurPaused)
+    .reduce((s, o) => s + calcTotal(o.items), 0);
 
   // ordersForMonth filtered by search (for chart tooltips in past tab)
   function filteredOrdersForMonth(month: string): OrderRecord[] {
@@ -2975,6 +2609,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
           <SpendingChart
             name="Total"
             color="#F0684D"
+            monthlySpend={monthlySpend}
             pendingByMonth={pendingByMonth}
             recurringByMonth={recurringByMonth}
             onPointClick={handlePointClick}

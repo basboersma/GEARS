@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BitJsonQrCode } from "./BitJsonQrCode";
+import { useDashboardData } from "./dashboard-data-context";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Motion {
@@ -40,86 +41,6 @@ interface SeatMember {
   name: string;
   status: VoteStatus;
 }
-
-// ── Mock data ──────────────────────────────────────────────────────────────────
-const MOCK_ACTIVE: Motion = {
-  id: "2025-06-15-001",
-  title: "Budget Reallocation Q4 2026",
-  author: "Liam Bakker",
-  text: "Motion to reallocate €2,400 from the PR budget surplus to the workshop team for tooling upgrades. The current PR underspend of 18% justifies the transfer. All receipts and estimates are attached in the linked document. The workshop team lead has confirmed the tooling will be operational within two weeks of purchase and is expected to reduce external machining costs by approximately 40% over Q1 2027.",
-  signaturesNeeded: 49,
-  signaturesGot: 35,
-};
-
-const MOCK_PENDING: PendingMotion[] = [
-  {
-    id: "p1",
-    title: "Amendment to Membership Fee Structure",
-    author: "Sophie Janssen",
-    text: "Proposes revising the annual membership fee from €60 to €75 for active members, with a reduced rate of €35 for students. The increase reflects rising operational costs and will fund additional workshop equipment.",
-  },
-  {
-    id: "p2",
-    title: "Approval of External Sponsorship Agreement",
-    author: "Emma de Vries",
-    text: "Formalise the sponsorship agreement with TechPartner BV, providing €1,200 annually in exchange for logo placement on team materials and a 30-minute presentation slot at the annual showcase.",
-  },
-  {
-    id: "p3",
-    title: "Ratify Subteam Lead Elections 2026–2027",
-    author: "Liam Bakker",
-    text: "Formally ratify the results of the subteam lead elections held on 2026-08-30. All elected leads are listed in the attached election report.",
-  },
-  {
-    id: "p4",
-    title: "Adopt New Code of Conduct v2.1",
-    author: "Daan Mulder",
-    text: "Replace the current Code of Conduct (v1.4, 2022) with the updated v2.1 which adds explicit clauses on online conduct, AI-generated content attribution, and conflict-of-interest disclosures.",
-  },
-];
-
-const MOCK_SUGGESTED: SuggestedMotion[] = [
-  {
-    id: "s1",
-    title: "Increase Workshop Access Hours",
-    author: "Noah Smit",
-    text: "Propose extending workshop access from 18:00 to 22:00 on weekdays and full-day Saturday access to accommodate members with daytime commitments. Safety officer approval pending.",
-    timeLeft: "0:12",
-    urgent: false,
-    votesFor: 18,
-    votesAgainst: 6,
-  },
-  {
-    id: "s2",
-    title: "Purchase Shared 3D Printer Filament",
-    author: "Alex van den Berg",
-    text: "Bulk purchase of 10 kg PLA filament (mixed colours) at an estimated cost of €85. Current stock is depleted. Vendor quote attached.",
-    timeLeft: "2:32",
-    urgent: false,
-    votesFor: 31,
-    votesAgainst: 3,
-  },
-  {
-    id: "s3",
-    title: "Organise End-of-Year Team Event",
-    author: "Sophie Janssen",
-    text: "Allocate up to €300 from the social budget for an end-of-year dinner or activity. Date and venue to be decided by a poll after approval.",
-    timeLeft: "4:59",
-    urgent: false,
-    votesFor: 22,
-    votesAgainst: 11,
-  },
-  {
-    id: "s4",
-    title: "Review Social Media Policy",
-    author: "Emma de Vries",
-    text: "Current social media guidelines date from 2023 and do not address short-form video or AI-generated content. Propose forming a sub-committee to draft an updated policy within 60 days.",
-    timeLeft: "5:00",
-    urgent: true,
-    votesFor: 9,
-    votesAgainst: 19,
-  },
-];
 
 const SEAT_NAMES = [
   "Liam B.",
@@ -958,14 +879,12 @@ export function GMAPage({
 }: {
   organizationSlug?: string;
 } = {}) {
+  const { members } = useDashboardData();
   // ── GMA creation gate ──
   const [gmaCreated, setGmaCreated] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [showPwdModal, setShowPwdModal] = useState(false);
-  const [pwdInput, setPwdInput] = useState("");
-  const [pwdError, setPwdError] = useState(false);
 
   const votePath = organizationSlug
     ? `/dashboard/organization/${organizationSlug}/gma/vote`
@@ -978,11 +897,11 @@ export function GMAPage({
     }
   }, [votePath]);
 
-  const [active, setActive] = useState<Motion>(MOCK_ACTIVE);
-  const [pending, setPending] = useState<PendingMotion[]>(MOCK_PENDING);
+  const [active, setActive] = useState<Motion | null>(null);
+  const [pending, setPending] = useState<PendingMotion[]>([]);
   // Motions displaced from active are kept separately so pending is never mutated by additions
   const [returned, setReturned] = useState<PendingMotion[]>([]);
-  const [suggested, setSuggested] = useState<SuggestedMotion[]>(MOCK_SUGGESTED);
+  const [suggested, setSuggested] = useState<SuggestedMotion[]>([]);
   const [view, setView] = useState<"board" | "activevote">("board");
   const [showAdd, setShowAdd] = useState(false);
   const [showAddVote, setShowAddVote] = useState(false);
@@ -991,18 +910,17 @@ export function GMAPage({
   const [selectedPending, setSelectedPending] = useState<PendingMotion | null>(
     null
   );
-  const membersPresent = 46;
-  const totalMembers = 47;
+  const membersPresent = members.length;
+  const totalMembers = members.length;
 
   // Active motion must never appear in the pending list
   const allPending = [...returned, ...pending].filter(
-    (m) => m.id !== active.id
+    (m) => m.id !== active?.id
   );
 
-  const pct = Math.min(
-    (active.signaturesGot / active.signaturesNeeded) * 100,
-    100
-  );
+  const pct = active
+    ? Math.min((active.signaturesGot / active.signaturesNeeded) * 100, 100)
+    : 0;
 
   const fieldCls =
     "rounded-lg bg-[#1A1919] border border-[#3D3330] px-3 py-2 text-xs text-[#FFEDD1] placeholder:text-[#4A3F38] focus:outline-none focus:border-[#4A3F38] transition-colors";
@@ -1061,87 +979,18 @@ export function GMAPage({
               </label>
             </div>
             <button
-              onClick={() => setShowPwdModal(true)}
+              onClick={() => setGmaCreated(true)}
               className="shrink-0 flex items-center gap-2 px-6 py-2 rounded-xl border border-[#F0684D]/50 bg-[#F0684D]/10 text-[#F0684D] text-sm font-semibold hover:bg-[#F0684D]/20 transition-colors whitespace-nowrap"
             >
-              🔒 Create GMA
+              Create GMA
             </button>
           </div>
         </div>
-
-        {showPwdModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
-            onClick={() => {
-              setShowPwdModal(false);
-              setPwdError(false);
-              setPwdInput("");
-            }}
-          >
-            <div
-              className="bg-[#232120] rounded-2xl border border-[#3D3330] shadow-2xl p-6 max-w-xs w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-sm font-semibold text-[#FFEDD1] mb-1">
-                Administrator password
-              </h3>
-              <p className="text-[11px] text-[#7A6555] mb-4">
-                Enter the password to unlock and create this GMA session.
-              </p>
-              <input
-                type="password"
-                className={fieldCls + " w-full mb-2"}
-                placeholder="Password"
-                value={pwdInput}
-                onChange={(e) => {
-                  setPwdInput(e.target.value);
-                  setPwdError(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (pwdInput === "Password123") {
-                      setGmaCreated(true);
-                      setShowPwdModal(false);
-                    } else setPwdError(true);
-                  }
-                }}
-              />
-              {pwdError && (
-                <p className="text-[10px] text-[#F0684D] mb-2">
-                  Incorrect password. Try again.
-                </p>
-              )}
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => {
-                    setShowPwdModal(false);
-                    setPwdError(false);
-                    setPwdInput("");
-                  }}
-                  className="flex-1 py-2 rounded-xl text-xs border border-[#3D3330] text-[#9C8272] hover:text-[#FFEDD1] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (pwdInput === "Password123") {
-                      setGmaCreated(true);
-                      setShowPwdModal(false);
-                    } else setPwdError(true);
-                  }}
-                  className="flex-1 py-2 rounded-xl text-xs font-semibold border border-[#F0684D]/40 bg-[#F0684D]/10 text-[#F0684D] hover:bg-[#F0684D]/20 transition-colors"
-                >
-                  Unlock
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
 
-  if (view === "activevote") {
+  if (view === "activevote" && active) {
     return <ActiveVotePage motion={active} onBack={() => setView("board")} />;
   }
 
@@ -1177,18 +1026,27 @@ export function GMAPage({
                 </span>
               </div>
               <h2 className="text-base font-semibold text-[#FFEDD1] mb-1">
-                "{active.title}"{" "}
-                <span className="text-[#9C8272] font-normal">by</span> "
-                {active.author}"
+                {active ? (
+                  <>
+                    "{active.title}"{" "}
+                    <span className="text-[#9C8272] font-normal">by</span> "
+                    {active.author}"
+                  </>
+                ) : (
+                  "No active vote"
+                )}
               </h2>
               <p className="text-[11px] text-[#9C8272] leading-relaxed line-clamp-2">
-                {active.text}
+                {active
+                  ? active.text
+                  : "GMA voting is disabled until motions are backed by the database."}
               </p>
             </div>
             <div className="shrink-0 flex flex-col items-end gap-3">
               <button
                 onClick={() => setView("activevote")}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#10b981]/50 bg-[#10b981]/12 text-[#10b981] text-xs font-semibold hover:bg-[#10b981]/20 transition-colors whitespace-nowrap"
+                disabled={!active}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#10b981]/50 bg-[#10b981]/12 text-[#10b981] text-xs font-semibold hover:bg-[#10b981]/20 transition-colors whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Start vote
                 <svg
@@ -1207,9 +1065,9 @@ export function GMAPage({
                   Signatures
                 </p>
                 <p className="text-2xl font-bold font-mono text-[#10b981] leading-none">
-                  {active.signaturesGot}{" "}
+                  {active?.signaturesGot ?? 0}{" "}
                   <span className="text-[#4A3F38]">/</span>{" "}
-                  {active.signaturesNeeded}
+                  {active?.signaturesNeeded ?? 0}
                 </p>
               </div>
               <div className="w-32 h-1.5 rounded-full bg-[#3D3330] overflow-hidden">
@@ -1277,8 +1135,8 @@ export function GMAPage({
               {allPending.length}
             </span>
             <button
-              onClick={() => setShowAddVote(true)}
-              className="text-[9px] font-medium px-2 py-1 rounded-lg border border-[#3D3330] text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] transition-colors whitespace-nowrap"
+              disabled
+              className="text-[9px] font-medium px-2 py-1 rounded-lg border border-[#3D3330] text-[#9C8272] transition-colors whitespace-nowrap opacity-40 cursor-not-allowed"
             >
               + Add Vote
             </button>
@@ -1333,8 +1191,8 @@ export function GMAPage({
               {suggested.length}
             </span>
             <button
-              onClick={() => setShowAdd(true)}
-              className="text-[9px] font-medium px-2 py-1 rounded-lg border border-[#3D3330] text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] transition-colors whitespace-nowrap"
+              disabled
+              className="text-[9px] font-medium px-2 py-1 rounded-lg border border-[#3D3330] text-[#9C8272] transition-colors whitespace-nowrap opacity-40 cursor-not-allowed"
             >
               + Suggest
             </button>
@@ -1404,14 +1262,19 @@ export function GMAPage({
           motion={selectedPending}
           onClose={() => setSelectedPending(null)}
           onPushToActive={(m) => {
-            const displaced = {
-              id: crypto.randomUUID(),
-              title: active.title,
-              author: active.author,
-              text: active.text,
-            };
+            const displaced = active
+              ? {
+                  id: crypto.randomUUID(),
+                  title: active.title,
+                  author: active.author,
+                  text: active.text,
+                }
+              : null;
             setActive((a) => ({
-              ...a,
+              ...(a ?? {
+                signaturesNeeded: 0,
+                signaturesGot: 0,
+              }),
               id: m.id,
               title: m.title,
               author: m.author,
@@ -1419,7 +1282,12 @@ export function GMAPage({
             }));
             // Remove m from whichever list it lives in
             setPending((p) => p.filter((x) => x.id !== m.id));
-            setReturned((r) => [displaced, ...r.filter((x) => x.id !== m.id)]);
+            if (displaced) {
+              setReturned((r) => [
+                displaced,
+                ...r.filter((x) => x.id !== m.id),
+              ]);
+            }
             setSelectedPending(null);
           }}
         />

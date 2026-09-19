@@ -12,15 +12,9 @@
 // biome-ignore-all lint/style/noNestedTernary: Preserves the reference dashboard visual state expressions.
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
-import {
-  avatarBg,
-  DAY_FULL,
-  FILES,
-  MEMBERS,
-  MONTH_NAMES,
-  memberIdx,
-  parseDate,
-} from "./data";
+
+import { useDashboardData } from "./dashboard-data-context";
+import { avatarBg, DAY_FULL, MONTH_NAMES, parseDate } from "./data";
 import { ModalHeader, ModalShell } from "./shared";
 import type { CalEvent, InviteStatus } from "./types";
 
@@ -59,6 +53,7 @@ interface Props {
 }
 
 export function EventDetailModal({ event, onEdit, onClose }: Props) {
+  const { files, members } = useDashboardData();
   const typeColor = TYPE_COLOR[event.type];
 
   return (
@@ -123,11 +118,11 @@ export function EventDetailModal({ event, onEdit, onClose }: Props) {
             </div>
             <div className="flex flex-wrap gap-2">
               {event.invitees.map((inv) => {
-                const m = MEMBERS.find((x) => x.id === inv.memberId);
+                const m = members.find((x) => x.id === inv.memberId);
                 if (!m) {
                   return null;
                 }
-                const mi = memberIdx(m.id);
+                const mi = members.findIndex((member) => member.id === m.id);
                 return (
                   <div
                     className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${STATUS_CLS[inv.status]}`}
@@ -195,9 +190,9 @@ export function EventDetailModal({ event, onEdit, onClose }: Props) {
                               {dp.votes[g]
                                 .map(
                                   (id) =>
-                                    MEMBERS.find(
-                                      (m) => m.id === id
-                                    )?.name.split(" ")[0]
+                                    members
+                                      .find((m) => m.id === id)
+                                      ?.name.split(" ")[0]
                                 )
                                 .join(", ") || "—"}
                             </div>
@@ -220,7 +215,7 @@ export function EventDetailModal({ event, onEdit, onClose }: Props) {
             </div>
             <div className="space-y-1">
               {event.linkedFiles.map((fid) => {
-                const f = FILES.find((x) => x.id === fid);
+                const f = files.find((x) => x.id === fid);
                 if (!f) {
                   return null;
                 }

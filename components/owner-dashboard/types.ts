@@ -127,6 +127,13 @@ export interface OrderLineItem {
   name: string;
   qty: number;
   price: number;
+  link?: string;
+  orderType?: string;
+  urgency?: string;
+  comments?: string;
+  status?: string;
+  photoNeeded?: boolean;
+  photoUploaded?: boolean;
 }
 export interface Order {
   id: string;
@@ -134,6 +141,15 @@ export interface Order {
   startTime: string;
   endTime: string;
   title: string;
+  department: string;
+  submittedBy?: string;
+  approvedBy?: string;
+  status?: string;
+  ordered?: boolean;
+  delivered?: boolean;
+  finalized?: boolean;
+  canceled?: boolean;
+  accepted?: boolean;
   items: OrderLineItem[];
 }
 

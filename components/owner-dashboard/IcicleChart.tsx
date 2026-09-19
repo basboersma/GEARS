@@ -15,7 +15,7 @@
 // biome-ignore-all lint/style/useAtIndex: Keeps the chart access TypeScript-safe.
 import { ResponsiveIcicle } from "@nivo/icicle";
 import { useState } from "react";
-import { MONTHLY_SPEND } from "./data";
+import { useDashboardData } from "./dashboard-data-context";
 import type { BudgetData } from "./types";
 
 interface Props {
@@ -57,9 +57,20 @@ function smoothPath(pts: { x: number; y: number }[]): string {
   return d;
 }
 
-function SpendingChart({ name, color }: { name: string; color: string }) {
+function SpendingChart({
+  color,
+  monthlySpend,
+  name,
+}: {
+  color: string;
+  monthlySpend: Record<
+    string,
+    { month: string; budget: number; spent: number }[]
+  >;
+  name: string;
+}) {
   const [period, setPeriod] = useState<Period>("6M");
-  const allData = MONTHLY_SPEND[name] ?? MONTHLY_SPEND.Total;
+  const allData = monthlySpend[name] ?? monthlySpend.Total ?? [];
   const data = allData.slice(-PERIOD_MONTHS[period]);
   const maxY = Math.max(...data.map((d) => Math.max(d.budget, d.spent))) * 1.15;
   const W = 240,
@@ -276,6 +287,7 @@ export function IcicleChart({ data }: Props) {
     name: string;
     color: string;
   } | null>(null);
+  const { monthlySpend } = useDashboardData();
 
   const totalPct =
     data.total > 0 ? Math.round((data.spent / data.total) * 100) : 0;
@@ -417,6 +429,7 @@ export function IcicleChart({ data }: Props) {
               <div className="w-56 shrink-0 border-[#3D3330] border-l px-3 py-2">
                 <SpendingChart
                   color={selectedNode.color}
+                  monthlySpend={monthlySpend}
                   name={selectedNode.name}
                 />
               </div>

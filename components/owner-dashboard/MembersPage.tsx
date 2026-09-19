@@ -8,191 +8,15 @@ import { feature } from "topojson-client";
 // @ts-ignore – world-atlas ships plain JSON, no TS declarations
 import worldTopoRaw from "world-atlas/countries-110m.json";
 import { countryForIso, isoForCountry } from "@/lib/countries";
-import { avatarBg, DEPARTMENTS, DEPT_COLORS, MEMBERS } from "./data";
+import { avatarBg } from "./data";
 import type { Member, TeamAssignment, TeamHistorySnapshot } from "./types";
 
 const WORLD_FEATURES: any[] = (
   feature(worldTopoRaw as any, (worldTopoRaw as any).objects.countries) as any
 ).features;
 
-const DEMOGRAPHICS: Record<
-  string,
-  {
-    university: string;
-    gender: string;
-    study: string;
-    nationality: string;
-    iso: string;
-    joinMonth: string;
-  }
-> = {
-  m1: {
-    university: "TU Delft",
-    gender: "Male",
-    study: "Mechanical Engineering",
-    nationality: "Netherlands",
-    iso: "528",
-    joinMonth: "Oct '25",
-  },
-  m2: {
-    university: "UvA",
-    gender: "Female",
-    study: "Communication Science",
-    nationality: "Netherlands",
-    iso: "528",
-    joinMonth: "May '26",
-  },
-  m3: {
-    university: "TU Delft",
-    gender: "Male",
-    study: "Aerospace Engineering",
-    nationality: "Germany",
-    iso: "276",
-    joinMonth: "Dec '25",
-  },
-  m4: {
-    university: "TU/e",
-    gender: "Female",
-    study: "Industrial Design",
-    nationality: "Netherlands",
-    iso: "528",
-    joinMonth: "Apr '26",
-  },
-  m5: {
-    university: "TU Delft",
-    gender: "Male",
-    study: "Computer Science",
-    nationality: "Belgium",
-    iso: "056",
-    joinMonth: "Feb '26",
-  },
-  m6: {
-    university: "Leiden University",
-    gender: "Male",
-    study: "Electrical Engineering",
-    nationality: "Turkey",
-    iso: "792",
-    joinMonth: "Jan '26",
-  },
-};
-
-const HISTORY_MONTHS = [
-  "Oct '25",
-  "Nov '25",
-  "Dec '25",
-  "Jan '26",
-  "Feb '26",
-  "Mar '26",
-  "Apr '26",
-  "May '26",
-  "Jun '26",
-  "Jul '26",
-  "Aug '26",
-  "Sep '26",
-];
-const MEMBER_HISTORY: Record<string, Record<string, number>> = {
-  "Oct '25": {
-    total: 1,
-    PR: 0,
-    Board: 0,
-    Software: 0,
-    Finance: 0,
-    Design: 0,
-  },
-  "Nov '25": {
-    total: 2,
-    PR: 0,
-    Board: 1,
-    Software: 0,
-    Finance: 0,
-    Design: 0,
-  },
-  "Dec '25": {
-    total: 3,
-    PR: 0,
-    Board: 1,
-    Software: 0,
-    Finance: 0,
-    Design: 0,
-  },
-  "Jan '26": {
-    total: 4,
-    PR: 0,
-    Board: 1,
-    Software: 0,
-    Finance: 0,
-    Design: 0,
-  },
-  "Feb '26": {
-    total: 5,
-    PR: 0,
-    Board: 1,
-    Software: 1,
-    Finance: 0,
-    Design: 0,
-  },
-  "Mar '26": {
-    total: 5,
-    PR: 0,
-    Board: 1,
-    Software: 1,
-    Finance: 0,
-    Design: 0,
-  },
-  "Apr '26": {
-    total: 6,
-    PR: 0,
-    Board: 1,
-    Software: 1,
-    Finance: 1,
-    Design: 0,
-  },
-  "May '26": {
-    total: 7,
-    PR: 1,
-    Board: 1,
-    Software: 1,
-    Finance: 1,
-    Design: 0,
-  },
-  "Jun '26": {
-    total: 7,
-    PR: 1,
-    Board: 1,
-    Software: 1,
-    Finance: 1,
-    Design: 0,
-  },
-  "Jul '26": {
-    total: 7,
-    PR: 1,
-    Board: 1,
-    Software: 1,
-    Finance: 1,
-    Design: 0,
-  },
-  "Aug '26": {
-    total: 7,
-    PR: 1,
-    Board: 1,
-    Software: 1,
-    Finance: 1,
-    Design: 0,
-  },
-  "Sep '26": {
-    total: 6,
-    PR: 2,
-    Board: 1,
-    Software: 0,
-    Finance: 0,
-    Design: 0,
-  },
-};
-
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
-const PW = "admin";
-const checkPw = (pw: string) => pw === PW;
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 type DragTarget =
@@ -213,14 +37,26 @@ const PIE_COLORS = [
   "#f59e0b",
 ];
 
-// Determine if a member was present at a given snapshot month
-const isInSnapshot = (memberId: string, snapshot: string | null): boolean => {
+const avatarIndex = (memberId: string): number =>
+  Array.from(memberId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+
+// Determine if a member was present at a given snapshot time.
+const isInSnapshot = (
+  memberId: string,
+  snapshot: string | null,
+  history: TeamHistorySnapshot[]
+): boolean => {
   if (!snapshot) return true;
-  const d = DEMOGRAPHICS[memberId];
-  if (!d) return true;
-  return (
-    HISTORY_MONTHS.indexOf(d.joinMonth) <= HISTORY_MONTHS.indexOf(snapshot)
-  );
+  const lifecycleEvents = history
+    .filter(
+      (entry) =>
+        entry.memberId === memberId &&
+        entry.departmentId === null &&
+        entry.snapshotAt <= snapshot
+    )
+    .sort((a, b) => a.snapshotAt.localeCompare(b.snapshotAt));
+  const latestLifecycleEvent = lifecycleEvents.at(-1);
+  return latestLifecycleEvent ? !latestLifecycleEvent.removed : true;
 };
 
 // ─── SVG Pie chart ────────────────────────────────────────────────────────────
@@ -350,7 +186,7 @@ function PieStatsWidget({ members }: { members: Member[] }) {
   );
 }
 
-// ─── Members-over-time chart (ann 14: flex-1, dots update org tree) ───────────
+//  Members-over-time chart
 
 type HistoryRange = "1W" | "1M" | "3M" | "6M" | "1Y";
 
@@ -1101,7 +937,7 @@ function InvitePanel({
               className="flex items-center gap-2 p-2 rounded-xl bg-[#2A2724] border border-[#3D3330]"
             >
               <div
-                className={`w-7 h-7 rounded-full ${avatarBg(MEMBERS.indexOf(m))} flex items-center justify-center text-white text-xs font-bold shrink-0`}
+                className={`w-7 h-7 rounded-full ${avatarBg(members.findIndex((member) => member.id === m.id))} flex items-center justify-center text-white text-xs font-bold shrink-0`}
               >
                 {m.avatar}
               </div>
@@ -1216,24 +1052,23 @@ function PwModal({
   onConfirm,
   onClose,
 }: {
-  organizationId?: string;
+  organizationId: string;
   title: string;
   desc?: string;
-  onConfirm: (password?: string) => void;
+  onConfirm: (password: string) => void;
   onClose: () => void;
 }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(false);
   const attempt = async () => {
-    const valid = organizationId
-      ? (
-          (await fetch("/api/organization-password", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ organizationId, password: pw }),
-          }).then((response) => response.json())) as { valid?: boolean }
-        ).valid === true
-      : checkPw(pw);
+    const valid =
+      (
+        (await fetch("/api/organization-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ organizationId, password: pw }),
+        }).then((response) => response.json())) as { valid?: boolean }
+      ).valid === true;
     if (valid) {
       onConfirm(pw);
       onClose();
@@ -1673,7 +1508,6 @@ function Avatar({
   size?: "sm" | "md" | "lg";
   crossDept?: boolean;
 }) {
-  const idx = MEMBERS.findIndex((m) => m.id === member.id);
   const cls =
     size === "sm"
       ? "w-6 h-6 text-[9px]"
@@ -1682,7 +1516,7 @@ function Avatar({
         : "w-8 h-8 text-xs";
   return (
     <div
-      className={`${cls} rounded-full ${avatarBg(idx >= 0 ? idx : 0)} flex items-center justify-center text-white font-bold shrink-0 relative ${crossDept ? "ring-2 ring-[#FFD142]/60 ring-offset-1 ring-offset-[#2A2724]" : ""}`}
+      className={`${cls} rounded-full ${avatarBg(avatarIndex(member.id))} flex items-center justify-center text-white font-bold shrink-0 relative ${crossDept ? "ring-2 ring-[#FFD142]/60 ring-offset-1 ring-offset-[#2A2724]" : ""}`}
     >
       {member.avatar}
       {member.isSubLead && (
@@ -1813,11 +1647,13 @@ function DropSlot({
     <div
       onDragOver={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         onDragOver(e);
       }}
       onDragLeave={onDragLeave}
       onDrop={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         onDrop();
       }}
       className={`rounded-xl border-2 border-dashed transition-all min-h-[36px] p-1.5 ${active ? "border-[#F0684D] bg-[#F0684D]/10" : "border-[#3D3330]/50 hover:border-[#4A3F38]"}`}
@@ -1836,6 +1672,7 @@ function DropSlot({
 // ─── Dept column ──────────────────────────────────────────────────────────────
 
 function DeptColumn({
+  organizationId,
   dept,
   color,
   members,
@@ -1855,6 +1692,7 @@ function DeptColumn({
   onRemoveSubLead,
   onRemoveMemberFromDept,
 }: {
+  organizationId: string;
   dept: string;
   color: string;
   members: Member[];
@@ -1987,6 +1825,7 @@ function DeptColumn({
       </div>
       {showRemoveDept && (
         <PwModal
+          organizationId={organizationId}
           title={`Remove: ${dept}`}
           desc="Members will be unassigned from this department."
           onConfirm={() => onRemoveDept(dept)}
@@ -1995,6 +1834,7 @@ function DeptColumn({
       )}
       {showRemoveSublead && (
         <PwModal
+          organizationId={organizationId}
           title="Remove Sub-lead"
           desc={`Remove ${subLead?.name ?? ""} as sub-lead of ${dept}?`}
           onConfirm={() => {
@@ -2345,8 +2185,14 @@ export function MembersPage({
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [departments, setDepartments] = useState<string[]>(initialDepartments);
   const [teams, setTeams] = useState<TeamAssignment[]>(initialTeams);
-  const [deptColors, setDeptColors] =
-    useState<Record<string, string>>(DEPT_COLORS);
+  const [deptColors, setDeptColors] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      initialDepartments.map((department, index) => [
+        department,
+        PRESET_COLORS[index % PRESET_COLORS.length],
+      ])
+    )
+  );
   const [subLeads, setSubLeads] = useState<Record<string, string | null>>({});
   const [q, setQ] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -2371,7 +2217,7 @@ export function MembersPage({
 
   // When a snapshot is active, only show members who had joined by that month
   const visibleMembers = historySnapshot
-    ? members.filter((m) => isInSnapshot(m.id, historySnapshot))
+    ? members.filter((m) => isInSnapshot(m.id, historySnapshot, teamHistory))
     : members;
   const historicalTeams = historySnapshot
     ? (() => {
@@ -2889,6 +2735,7 @@ export function MembersPage({
                   <div key={dept} className="flex flex-col items-center">
                     <div className="w-px h-4 bg-[#3D3330]" />
                     <DeptColumn
+                      organizationId={initialOrganizationId}
                       dept={dept}
                       color={deptColors[dept] ?? "#888"}
                       members={membersByDept(dept)}

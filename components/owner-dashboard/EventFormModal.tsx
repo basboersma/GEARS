@@ -13,7 +13,8 @@
 // biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useState } from "react";
-import { avatarBg, FILES, formatDate, parseDate } from "./data";
+import { useDashboardData } from "./dashboard-data-context";
+import { avatarBg, formatDate, parseDate } from "./data";
 import { MiniCalPicker } from "./MiniCalPicker";
 import { Field, Inp, ModalHeader, ModalShell, Sel } from "./shared";
 import type {
@@ -49,6 +50,7 @@ export function EventFormModal({
   onSave,
   onClose,
 }: Props) {
+  const { files } = useDashboardData();
   const today = formatDate(new Date());
   const blank: CalEvent = {
     id: Date.now().toString(),
@@ -532,30 +534,32 @@ export function EventFormModal({
             value={fileSearch}
           />
           <div className="grid max-h-28 grid-cols-2 gap-1 overflow-auto">
-            {FILES.filter((f) =>
-              f.name.toLowerCase().includes(fileSearch.toLowerCase())
-            ).map((f) => (
-              <label
-                className="group flex cursor-pointer items-center gap-2 py-0.5"
-                key={f.id}
-              >
-                <input
-                  checked={ev.linkedFiles.includes(f.id)}
-                  className="shrink-0 accent-[#F0684D]"
-                  onChange={() =>
-                    set({
-                      linkedFiles: ev.linkedFiles.includes(f.id)
-                        ? ev.linkedFiles.filter((x) => x !== f.id)
-                        : [...ev.linkedFiles, f.id],
-                    })
-                  }
-                  type="checkbox"
-                />
-                <span className="truncate text-[#C4A882] text-xs transition-colors group-hover:text-[#FFEDD1]">
-                  {f.name}
-                </span>
-              </label>
-            ))}
+            {files
+              .filter((f) =>
+                f.name.toLowerCase().includes(fileSearch.toLowerCase())
+              )
+              .map((f) => (
+                <label
+                  className="group flex cursor-pointer items-center gap-2 py-0.5"
+                  key={f.id}
+                >
+                  <input
+                    checked={ev.linkedFiles.includes(f.id)}
+                    className="shrink-0 accent-[#F0684D]"
+                    onChange={() =>
+                      set({
+                        linkedFiles: ev.linkedFiles.includes(f.id)
+                          ? ev.linkedFiles.filter((x) => x !== f.id)
+                          : [...ev.linkedFiles, f.id],
+                      })
+                    }
+                    type="checkbox"
+                  />
+                  <span className="truncate text-[#C4A882] text-xs transition-colors group-hover:text-[#FFEDD1]">
+                    {f.name}
+                  </span>
+                </label>
+              ))}
           </div>
         </div>
 

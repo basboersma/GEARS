@@ -14,14 +14,7 @@
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboardData } from "./dashboard-data-context";
-import {
-  addDays,
-  DEPT_COLORS,
-  diffDays,
-  formatDate,
-  MONTH_NAMES,
-  parseDate,
-} from "./data";
+import { addDays, diffDays, formatDate, MONTH_NAMES, parseDate } from "./data";
 import { MiniCalPicker } from "./MiniCalPicker";
 import { Field, Inp, ModalHeader, ModalShell, Sel } from "./shared";
 import type { RoadmapItem } from "./types";
@@ -30,6 +23,21 @@ const DEPT_COL_W = 110;
 const ROW_H = 26;
 const ROW_GAP = 4;
 const HEADER_H = 32;
+const DEPARTMENT_COLORS = [
+  "#4f6ef7",
+  "#10b981",
+  "#f59e0b",
+  "#f43f5e",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#84cc16",
+];
+
+const departmentColor = (departments: string[], department: string): string => {
+  const index = Math.max(0, departments.indexOf(department));
+  return DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length];
+};
 
 type SpanLabel = "1M" | "3M" | "6M" | "1Y";
 const SPAN_MONTHS: Record<SpanLabel, number> = {
@@ -76,7 +84,7 @@ function RoadmapForm({
     department: departments[0] ?? "",
     startDate: today,
     endDate: today,
-    color: DEPT_COLORS[departments[0] ?? ""] ?? "#6b7280",
+    color: departmentColor(departments, departments[0] ?? ""),
     progress: 0,
   };
   const [item, setItem] = useState<RoadmapItem>(initial ?? blank);
@@ -110,7 +118,7 @@ function RoadmapForm({
             onChange={(v) =>
               set({
                 department: v,
-                color: DEPT_COLORS[v] ?? "#6b7280",
+                color: departmentColor(departments, v),
               })
             }
             value={item.department}
@@ -410,7 +418,7 @@ export function RoadmapBlock() {
 
   const deptItems = deptOrder.map((dept) => ({
     dept,
-    color: DEPT_COLORS[dept],
+    color: departmentColor(departments, dept),
     rows: assignRows(
       items.filter(
         (x) =>
@@ -543,7 +551,7 @@ export function RoadmapBlock() {
             >
               <span
                 className="h-2 w-2 rounded-sm"
-                style={{ background: DEPT_COLORS[d] }}
+                style={{ background: departmentColor(departments, d) }}
               />
               {d}
             </div>
