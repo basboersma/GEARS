@@ -1059,28 +1059,29 @@ function PwModal({
   onClose: () => void;
 }) {
   const [pw, setPw] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const attempt = async () => {
     setChecking(true);
-    setErr(false);
+    setErr(null);
     try {
       const response = await fetch("/api/organization-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ organizationId, password: pw }),
       });
-      const result = (await response.json()) as {
+      const result = (await response.json().catch(() => null)) as {
         valid?: boolean;
-      };
-      if (response.ok && result.valid) {
+        error?: string;
+      } | null;
+      if (response.ok && result?.valid === true) {
         onConfirm(pw);
         onClose();
         return;
       }
-      setErr(true);
+      setErr(result?.error ?? "Password verification failed.");
     } catch {
-      setErr(true);
+      setErr("Could not contact the password verification service.");
     } finally {
       setChecking(false);
     }
@@ -1109,16 +1110,14 @@ function PwModal({
           value={pw}
           onChange={(e) => {
             setPw(e.target.value);
-            setErr(false);
+            setErr(null);
           }}
           onKeyDown={(e) => e.key === "Enter" && attempt()}
           placeholder="Your password…"
           autoFocus
           className={`w-full mt-3 px-3 py-2 rounded-xl bg-[#232120] border text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none transition-colors ${err ? "border-rose-500" : "border-[#3D3330] focus:border-[#F0684D]"}`}
         />
-        {err && (
-          <p className="text-[10px] text-rose-400 mt-1">Incorrect password</p>
-        )}
+        {err && <p className="text-[10px] text-rose-400 mt-1">{err}</p>}
         <div className="flex gap-2 mt-4">
           <button
             onClick={onClose}
@@ -1301,7 +1300,7 @@ function MemberActionModal({
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [pw, setPw] = useState("");
-  const [pwErr, setPwErr] = useState(false);
+  const [pwErr, setPwErr] = useState<string | null>(null);
   const [pwChecking, setPwChecking] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const allMemberDepts = extraDepts;
@@ -1433,18 +1432,16 @@ function MemberActionModal({
                 value={pw}
                 onChange={(e) => {
                   setPw(e.target.value);
-                  setPwErr(false);
+                  setPwErr(null);
                 }}
                 placeholder="Your password…"
                 className={`w-full px-3 py-2 rounded-xl bg-[#232120] border text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none transition-colors ${pwErr ? "border-rose-500" : "border-[#3D3330] focus:border-[#F0684D]"}`}
               />
-              {pwErr && (
-                <p className="text-[10px] text-rose-400">Incorrect password</p>
-              )}
+              {pwErr && <p className="text-[10px] text-rose-400">{pwErr}</p>}
               <button
                 onClick={async () => {
                   setPwChecking(true);
-                  setPwErr(false);
+                  setPwErr(null);
                   try {
                     const response = await fetch("/api/organization-password", {
                       method: "POST",
@@ -1458,17 +1455,23 @@ function MemberActionModal({
                       .json()
                       .catch(() => null)) as {
                       valid?: boolean;
+                      error?: string;
                     } | null;
 
                     if (!response.ok || result?.valid !== true) {
-                      setPwErr(true);
+                      setPwErr(
+                        result?.error ??
+                          "Password verification failed. Check the server response."
+                      );
                       return;
                     }
 
                     await onRemove(pw);
                     onClose();
                   } catch {
-                    setPwErr(true);
+                    setPwErr(
+                      "Could not contact the password verification service."
+                    );
                   } finally {
                     setPwChecking(false);
                   }

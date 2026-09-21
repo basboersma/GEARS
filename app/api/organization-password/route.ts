@@ -5,7 +5,6 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { verifyMemberPassword } from "@/lib/organization-password";
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
@@ -96,7 +95,14 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      {
+        valid: false,
+        code: "AUTHENTICATION_REQUIRED",
+        error: "Your session has expired. Please sign in again.",
+      },
+      { status: 401 }
+    );
   }
 
   const parsed = z
@@ -107,7 +113,11 @@ export async function POST(request: Request) {
     .safeParse(await request.json());
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Password is required" },
+      {
+        valid: false,
+        code: "PASSWORD_REQUIRED",
+        error: "Enter a password before continuing.",
+      },
       { status: 400 }
     );
   }
@@ -118,18 +128,46 @@ export async function POST(request: Request) {
       eq(member.userId, session.user.id)
     ),
   });
-  if (
-    !membership ||
-    (membership.role !== "owner" && membership.role !== "admin")
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!membership) {
+    return NextResponse.json(
+      {
+        valid: false,
+        code: "MEMBERSHIP_NOT_FOUND",
+        error: "You are not a member of this organization.",
+      },
+      { status: 403 }
+    );
+  }
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    return NextResponse.json(
+      {
+        valid: false,
+        code: "INSUFFICIENT_ROLE",
+        error: "Not an owner nor admin.",
+      },
+      { status: 403 }
+    );
+  }
+  if (!membership.password) {
+    return NextResponse.json(
+      {
+        valid: false,
+        code: "PASSWORD_NOT_SET",
+        error: "No password is set for your membership in this organization.",
+      },
+      { status: 403 }
+    );
   }
 
-  const passwordMatches = await verifyMemberPassword(
-    parsed.data.organizationId,
-    session.user.id,
-    parsed.data.password
-  );
+  const passwordMatches = membership.password === parsed.data.password;
 
-  return NextResponse.json({ valid: passwordMatches });
+  return NextResponse.json({
+    valid: passwordMatches,
+    ...(passwordMatches
+      ? {}
+      : {
+          code: "PASSWORD_MISMATCH",
+          error: "Password does not match.",
+        }),
+  });
 }
