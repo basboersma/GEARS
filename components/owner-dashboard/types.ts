@@ -144,6 +144,11 @@ export interface Order {
   department: string;
   submittedBy?: string;
   approvedBy?: string;
+  link?: string;
+  recurring?: boolean;
+  recurringQuantity?: number | null;
+  recurringUnit?: string | null;
+  recurringEndAt?: string | null;
   status?: string;
   ordered?: boolean;
   delivered?: boolean;

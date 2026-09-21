@@ -23,6 +23,21 @@ const rowSchema = z.object({
     .string()
     .max(200, "Comments can be max 200 characters")
     .default(""),
+  recurringQuantity: z.coerce.number().int().positive().optional(),
+  recurringUnit: z.enum(["Days", "Weeks", "Months"]).optional(),
+  recurringEndAt: z.string().datetime().optional(),
+});
+
+const draftRowSchema = z.object({
+  description: z.string().trim().default(""),
+  pricePerPiece: z.coerce.number().nonnegative().default(0),
+  quantity: z.coerce.number().int().nonnegative().default(0),
+  orderType: z.enum(orderTypeEnum).default("Hardware"),
+  urgency: z.enum(urgencyEnum).default("7 days"),
+  comments: z.string().max(200).default(""),
+  recurringQuantity: z.coerce.number().int().positive().optional(),
+  recurringUnit: z.enum(["Days", "Weeks", "Months"]).optional(),
+  recurringEndAt: z.string().datetime().optional(),
 });
 
 const bodySchema = z.object({
@@ -30,6 +45,17 @@ const bodySchema = z.object({
   department: z.string().trim().min(1, "Department is required"),
   orderName: z.string().trim().min(1, "Order name is required").max(100),
   rows: z.array(rowSchema).min(1, "At least one row is required"),
+  mode: z.literal("submit").default("submit"),
+  recurring: z.boolean().default(false),
+});
+
+const draftBodySchema = z.object({
+  organizationId: z.string().min(1),
+  department: z.string().trim().default(""),
+  orderName: z.string().trim().max(100).default("Untitled order"),
+  rows: z.array(draftRowSchema).min(1, "At least one row is required"),
+  mode: z.literal("draft"),
+  recurring: z.boolean().default(false),
 });
 
 export async function POST(request: Request) {
@@ -42,7 +68,10 @@ export async function POST(request: Request) {
   }
 
   const payload = await request.json();
-  const parsed = bodySchema.safeParse(payload);
+  const parsed =
+    payload?.mode === "draft"
+      ? draftBodySchema.safeParse(payload)
+      : bodySchema.safeParse(payload);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -97,19 +126,39 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  const initialStatus: "owner_review" | "pending" =
-    submittingMembership.role === "sub_owner" ? "owner_review" : "pending";
+  const isDraft = parsed.data.mode === "draft";
+  let initialStatus: "draft" | "owner_review" | "pending" = "pending";
+  if (isDraft) {
+    initialStatus = "draft";
+  } else if (submittingMembership.role === "sub_owner") {
+    initialStatus = "owner_review";
+  }
 
   const rowsToInsert = parsed.data.rows.map((row) => {
     const total = row.pricePerPiece * row.quantity;
+    const recurringQuantity =
+      "recurringQuantity" in row ? row.recurringQuantity : undefined;
+    const recurringUnit =
+      "recurringUnit" in row ? row.recurringUnit : undefined;
+    const recurringEndAtValue =
+      "recurringEndAt" in row ? row.recurringEndAt : undefined;
+    const recurringEndAt = recurringEndAtValue
+      ? new Date(recurringEndAtValue)
+      : null;
 
     return {
       id: crypto.randomUUID(),
       organizationId: parsed.data.organizationId,
       userId: session.user.id,
+      submittedBy: session.user.name,
+      approvedBy:
+        isDraft || submittingMembership.role === "sub_owner"
+          ? ""
+          : session.user.name,
       department: parsed.data.department,
       orderName: parsed.data.orderName,
       description: row.description,
+      link: row.description,
       pricePerPiece: row.pricePerPiece.toFixed(2),
       amount: row.quantity,
       typeOfOrder: row.orderType,
@@ -127,6 +176,10 @@ export async function POST(request: Request) {
       photoUploaded: false,
       canceled: false,
       accepted: false,
+      recurring: parsed.data.recurring,
+      recurringQuantity: recurringQuantity ?? null,
+      recurringUnit: recurringUnit ?? null,
+      recurringEndAt,
       createdAt: now,
       updatedAt: now,
     };

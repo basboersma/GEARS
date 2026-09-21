@@ -139,6 +139,7 @@ export const orderRequestStatus = pgEnum("order_request_status", [
   "accepted",
   "declined",
   "pending",
+  "draft",
 ]);
 
 export const reimbursementStatus = pgEnum("reimbursement_status", [
@@ -341,9 +342,12 @@ export const orderRequest = pgTable("order_request", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  submittedBy: text("submitted_by").default("").notNull(),
+  approvedBy: text("approved_by").default("").notNull(),
   department: text("department").notNull(),
   orderName: text("order_name").default("Untitled order").notNull(),
   description: text("description").notNull(),
+  link: text("link").default("").notNull(),
   pricePerPiece: numeric("price_per_piece").notNull(),
   amount: integer("amount").notNull(),
   typeOfOrder: orderType("type_of_order").notNull(),
@@ -363,6 +367,10 @@ export const orderRequest = pgTable("order_request", {
   photoUploaded: boolean("photo_uploaded").default(false).notNull(),
   canceled: boolean("canceled").default(false).notNull(),
   accepted: boolean("accepted").default(false).notNull(),
+  recurring: boolean("recurring").default(false).notNull(),
+  recurringQuantity: integer("recurring_quantity"),
+  recurringUnit: text("recurring_unit"),
+  recurringEndAt: timestamp("recurring_end_at"),
   reimbursementStatus: reimbursementStatus("reimbursement_status")
     .default("not_requested")
     .notNull(),

@@ -2,13 +2,16 @@
 // biome-ignore-all lint: Preserves the imported ordering dashboard interaction and formatting conventions.
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useDashboardData } from "./dashboard-data-context";
 import type { BudgetData, Order } from "./types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Tab = "submit" | "overview" | "incoming" | "past" | "reimburse";
 type OrderStatus =
+  | "draft"
   | "pending"
   | "ordered"
   | "arrived"
@@ -97,6 +100,7 @@ const PERIOD_MONTHS: Record<Period, number> = { "1M": 1, "6M": 6, "1Y": 12 };
 const INIT_ROWS = 8;
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
+  draft: "#9C8272",
   pending: "#FFD142",
   ordered: "#4f6ef7",
   arrived: "#10b981",
@@ -104,6 +108,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   denied: "#f43f5e",
 };
 const STATUS_LABEL: Record<OrderStatus, string> = {
+  draft: "Draft",
   pending: "Pending",
   ordered: "Ordered",
   arrived: "Arrived",
@@ -172,6 +177,7 @@ const monthLabel = (date: string): string => {
 };
 
 const orderStatus = (order: Order): OrderStatus => {
+  if (order.status === "draft") return "draft";
   if (order.canceled || order.status === "declined") return "denied";
   if (order.finalized || order.delivered) return "arrived";
   if (order.ordered || order.accepted) return "ordered";
@@ -180,7 +186,7 @@ const orderStatus = (order: Order): OrderStatus => {
 
 const itemStatus = (order: Order): ItemStatus => {
   const status = orderStatus(order);
-  return status === "action_needed" ? "pending" : status;
+  return status === "action_needed" || status === "draft" ? "pending" : status;
 };
 
 const toOrderRecord = (order: Order): OrderRecord => ({
@@ -193,6 +199,12 @@ const toOrderRecord = (order: Order): OrderRecord => ({
   monthLabel: monthLabel(order.date),
   status: orderStatus(order),
   isPast: Boolean(order.finalized || order.delivered || order.canceled),
+  isRecurring: order.recurring,
+  recurInterval:
+    order.recurringQuantity && order.recurringUnit
+      ? `${order.recurringQuantity} ${order.recurringUnit}`
+      : undefined,
+  recurEndDate: order.recurringEndAt ?? undefined,
   items: order.items.map((item, index) => ({
     id: `${order.id}-${index}`,
     link: item.link ?? "",
@@ -805,8 +817,13 @@ function OrderForm({
   initialData?: OrderRecord;
   draftInitial?: Draft;
   incomingSubmitter?: string;
-  onSubmit?: () => void;
-  onSaveDraft?: (d: Draft) => void;
+  onSubmit?: (payload: {
+    orderName: string;
+    department: string;
+    rows: FormRow[];
+    recurring: boolean;
+  }) => void | Promise<void>;
+  onSaveDraft?: (d: Draft) => void | Promise<void>;
 }) {
   const { departments } = useDashboardData();
   const isIncoming = incomingSubmitter !== undefined;
@@ -839,8 +856,8 @@ function OrderForm({
   const [department, setDepartment] = useState(
     draftInitial?.department ?? initialData?.department ?? ""
   );
-  const [approvedBy, setApprovedBy] = useState(
-    draftInitial?.approvedBy ?? initialData?.approvedBy ?? ""
+  const [approvedBy] = useState(
+    draftInitial?.approvedBy ?? initialData?.approvedBy ?? "Current User"
   );
   const [submittedBy, setSubmittedBy] = useState(
     isIncoming ? (incomingSubmitter ?? "") : (draftInitial?.submittedBy ?? "")
@@ -870,6 +887,36 @@ function OrderForm({
     onDeptChange?.("");
   }
 
+  async function handleSubmit() {
+    const filledRows = rows.filter(rowHasContent);
+    if (!orderName.trim() || !department || !filledRows.length) return;
+    if (
+      filledRows.some(
+        (row) =>
+          !row.link.trim() ||
+          !/^https?:\/\//i.test(row.link.trim()) ||
+          !row.pricePerPiece ||
+          !row.quantity ||
+          !row.orderType ||
+          !row.urgency
+      )
+    )
+      return;
+    try {
+      await onSubmit?.({
+        orderName: orderName.trim(),
+        department,
+        rows: filledRows,
+        recurring: isRecurring,
+      });
+      handleClear();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to submit order"
+      );
+    }
+  }
+
   const total = rowsTotal(rows);
 
   return (
@@ -886,7 +933,6 @@ function OrderForm({
         <MetaFields
           approvedBy={approvedBy}
           submittedBy={isIncoming ? (incomingSubmitter ?? "") : submittedBy}
-          onApprovedByChange={setApprovedBy}
           onSubmittedByChange={isIncoming ? undefined : setSubmittedBy}
           submittedByReadOnly={isIncoming}
         />
@@ -1095,7 +1141,13 @@ function OrderForm({
                   savedAt: new Date().toISOString(),
                   isRecurring,
                 };
-                onSaveDraft?.(draft);
+                void Promise.resolve(onSaveDraft?.(draft)).catch((error) => {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to save draft"
+                  );
+                });
                 setDraftSaved(true);
                 setTimeout(() => setDraftSaved(false), 2500);
               }}
@@ -1109,7 +1161,7 @@ function OrderForm({
             </button>
           )}
           <button
-            onClick={onSubmit}
+            onClick={() => void handleSubmit()}
             className={`px-5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
               isRecurring
                 ? "border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#8b5cf6] hover:border-[#8b5cf6]/70 hover:bg-[#8b5cf6]/15"
@@ -2282,7 +2334,7 @@ function ReimbursementForm({
           </>
         ) : (
           <>
-            <span className="text-2xl text-[#4A3F38] shrink-0">🧾</span>
+            <span className="text-2xl text-[#4A3F38] shrink-0"></span>
             <div>
               <p className="text-xs text-[#9C8272]">
                 Drop invoice here or click to browse
@@ -2484,7 +2536,8 @@ function ReimbursementInvoicePopup({
 
 // ── Main export ────────────────────────────────────────────────────────────────
 export function OrdersPanel({ data }: { data: BudgetData }) {
-  const { monthlySpend, orders } = useDashboardData();
+  const router = useRouter();
+  const { monthlySpend, orders, organizationId } = useDashboardData();
   const [tab, setTab] = useState<Tab>("submit");
   const [formTotal, setFormTotal] = useState(0);
   const [formDept, setFormDept] = useState("");
@@ -2505,8 +2558,30 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
   const [submitKey, setSubmitKey] = useState(0);
 
   const orderRecords = orders.map(toOrderRecord);
+  const persistedDrafts: Draft[] = orderRecords
+    .filter((order) => order.status === "draft")
+    .map((order) => ({
+      id: order.id,
+      name: order.name,
+      department: order.department,
+      rows: order.items.map((item) => ({
+        id: item.id,
+        link: item.link,
+        pricePerPiece: String(item.pricePerPiece),
+        quantity: String(item.quantity),
+        orderType: item.orderType,
+        urgency: item.urgency,
+        comments: item.comments,
+      })),
+      approvedBy: order.approvedBy,
+      submittedBy: order.submittedBy,
+      savedAt: order.submittedAt,
+      isRecurring: order.isRecurring,
+    }));
   const allPastOrders = orderRecords.filter((o) => o.isPast);
-  const currentOrders = orderRecords.filter((o) => !o.isPast);
+  const currentOrders = orderRecords.filter(
+    (o) => !o.isPast && o.status !== "draft"
+  );
   const incomingOrders = currentOrders.filter((o) => o.status === "pending");
 
   // Filtered past orders for search
@@ -2549,8 +2624,74 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
     if (orders.length > 0) setClickedOrders(orders);
   }
 
-  function handleSaveDraft(draft: Draft) {
-    setDrafts((prev) => [draft, ...prev]);
+  async function handleSubmitOrder(payload: {
+    orderName: string;
+    department: string;
+    rows: FormRow[];
+    recurring: boolean;
+  }) {
+    const response = await fetch("/api/order-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId,
+        mode: "submit",
+        orderName: payload.orderName,
+        department: payload.department,
+        recurring: payload.recurring,
+        rows: payload.rows.map((row) => ({
+          description: row.link,
+          pricePerPiece: row.pricePerPiece,
+          quantity: row.quantity,
+          orderType: row.orderType,
+          urgency: row.urgency,
+          comments: row.comments,
+          recurringQuantity: row.recurTime || undefined,
+          recurringUnit: row.recurTimescale || undefined,
+          recurringEndAt: row.recurEndDate
+            ? new Date(`${row.recurEndDate}T00:00:00.000Z`).toISOString()
+            : undefined,
+        })),
+      }),
+    });
+    if (!response.ok) throw new Error("Failed to submit order");
+    setLoadedDraft(null);
+    setDrafts([]);
+    setOverviewSubTab("orders");
+    setTab("overview");
+    router.refresh();
+  }
+
+  async function handleSaveDraft(draft: Draft) {
+    const response = await fetch("/api/order-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId,
+        mode: "draft",
+        orderName: draft.name,
+        department: draft.department,
+        recurring: Boolean(draft.isRecurring),
+        rows: draft.rows.map((row) => ({
+          description: row.link,
+          pricePerPiece: row.pricePerPiece || 0,
+          quantity: row.quantity || 0,
+          orderType: row.orderType || undefined,
+          urgency: row.urgency || undefined,
+          comments: row.comments,
+          recurringQuantity: row.recurTime || undefined,
+          recurringUnit: row.recurTimescale || undefined,
+          recurringEndAt: row.recurEndDate
+            ? new Date(`${row.recurEndDate}T00:00:00.000Z`).toISOString()
+            : undefined,
+        })),
+      }),
+    });
+    if (!response.ok) throw new Error("Failed to save draft");
+    setDrafts([]);
+    setOverviewSubTab("drafts");
+    setTab("overview");
+    router.refresh();
   }
 
   function handleLoadDraft(draft: Draft) {
@@ -2639,6 +2780,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                 onDeptChange={setFormDept}
                 draftInitial={loadedDraft ?? undefined}
                 onSaveDraft={handleSaveDraft}
+                onSubmit={handleSubmitOrder}
               />
             )}
             {tab === "overview" && (
@@ -2718,7 +2860,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                   />
                 ) : overviewSubTab === "drafts" ? (
                   <DraftsList
-                    drafts={drafts}
+                    drafts={[...drafts, ...persistedDrafts]}
                     onLoad={handleLoadDraft}
                     onDelete={handleDeleteDraft}
                   />

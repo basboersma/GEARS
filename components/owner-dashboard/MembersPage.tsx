@@ -1964,7 +1964,11 @@ function LeadershipTree({
   onDragStart: (id: string) => void;
   onDropRole: (role: "advisor" | "treasurer") => void;
   onRoleClick: (member: Member, role: "advisor" | "treasurer") => void;
-  onReleaseRole: (memberId: string, role: "advisor" | "treasurer") => void;
+  onReleaseRole: (
+    memberId: string,
+    role: "advisor" | "treasurer",
+    removeBackingAssignment?: boolean
+  ) => void;
   setDragTarget: (target: DragTarget | null) => void;
 }) {
   const roleCard = (
@@ -2002,7 +2006,7 @@ function LeadershipTree({
             highlightedIso={null}
             onDragStart={() => onDragStart(member.id)}
             onClick={() => onRoleClick(member, role)}
-            onRemove={() => onReleaseRole(member.id, role)}
+            onRemove={() => onReleaseRole(member.id, role, true)}
             removeLabel={`Release ${member.name} as ${label.toLowerCase()}`}
           />
         ) : (
@@ -2305,8 +2309,12 @@ export function MembersPage({
       setTeamSaveError("Return to the current view before changing teams.");
       return;
     }
+    const currentDepartmentIds = new Set(Object.values(departmentIds));
+    const validTeams = nextTeams.filter((team) =>
+      currentDepartmentIds.has(team.departmentId)
+    );
     if (!password) {
-      setPendingTeamSave(nextTeams);
+      setPendingTeamSave(validTeams);
       return;
     }
     setTeamSaveError(null);
@@ -2316,7 +2324,7 @@ export function MembersPage({
       body: JSON.stringify({
         organizationId: initialOrganizationId,
         password,
-        assignments: nextTeams.map(
+        assignments: validTeams.map(
           ({ departmentId, memberId, isSubLead, isAdvisor, isTreasurer }) => ({
             departmentId,
             memberId,
@@ -2334,7 +2342,7 @@ export function MembersPage({
       setTeamSaveError(result?.error ?? "Unable to save member tree changes.");
       return;
     }
-    setTeams(nextTeams);
+    setTeams(validTeams);
     setPendingTeamSave(null);
   };
 
@@ -2641,6 +2649,9 @@ export function MembersPage({
       return;
     }
     setDepartments((current) => current.filter((item) => item !== department));
+    setTeams((current) =>
+      current.filter((team) => team.departmentId !== departmentId)
+    );
     setDepartmentIds((current) => {
       const next = { ...current };
       delete next[department];
