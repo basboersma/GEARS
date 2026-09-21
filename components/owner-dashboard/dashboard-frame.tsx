@@ -91,22 +91,31 @@ export function OwnerDashboardFrame({
   organizationName,
   organizationSlug,
   organizations,
+  showTreasurer,
   userEmail,
   userName,
 }: {
-  activePage: "dashboard" | "members" | "orders" | "inventory" | "gma";
+  activePage:
+    | "dashboard"
+    | "members"
+    | "orders"
+    | "inventory"
+    | "gma"
+    | "treasurer";
   children: React.ReactNode;
   organizationName: string;
   organizationSlug: string;
   organizations: Organization[];
   userEmail: string;
   userName: string;
+  showTreasurer?: boolean;
 }) {
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
   const membersHref = `${dashboardHref}/members`;
   const ordersHref = `${dashboardHref}/order-review`;
   const inventoryHref = `${dashboardHref}/inventory`;
   const gmaHref = `${dashboardHref}/gma`;
+  const treasurerHref = "/dashboard/treasurer";
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
 
@@ -175,6 +184,17 @@ export function OwnerDashboardFrame({
               />
               <span>GMA</span>
             </Link>
+            {showTreasurer && (
+              <Link
+                className={navClass(activePage === "treasurer")}
+                href={treasurerHref}
+              >
+                <span
+                  className={`h-1 w-1 shrink-0 rounded-full ${activePage === "treasurer" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
+                />
+                <span>Treasurer</span>
+              </Link>
+            )}
           </div>
         </nav>
 

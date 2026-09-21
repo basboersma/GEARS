@@ -59,6 +59,8 @@ interface OrderRecord {
   name: string;
   department: string;
   submittedBy: string;
+  submittedByRole?: string;
+  organizationName?: string;
   approvedBy: string;
   submittedAt: string;
   monthLabel: string;
@@ -1807,12 +1809,14 @@ function OrderOverviewList({
   hideHeader,
   onEditOrder,
   currentUserName,
+  showOrganization,
 }: {
   orders: OrderRecord[];
   isPast: boolean;
   hideHeader?: boolean;
   onEditOrder?: (order: OrderRecord) => void;
   currentUserName: string;
+  showOrganization?: boolean;
 }) {
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
   const approvedBy = currentUserName;
@@ -1863,6 +1867,11 @@ function OrderOverviewList({
         <span className="flex-1 text-xs font-medium text-[#FFEDD1] truncate">
           {order.name}
         </span>
+        {showOrganization && (
+          <span className="text-[10px] text-[#9C8272] shrink-0">
+            {order.organizationName ?? "Unknown organization"}
+          </span>
+        )}
         <span className="text-[10px] text-[#9C8272] shrink-0">
           {order.department}
         </span>
@@ -2563,13 +2572,16 @@ function ReimbursementInvoicePopup({
 export function OrdersPanel({
   data,
   userName,
+  mode = "owner",
 }: {
   data: BudgetData;
   userName: string;
+  mode?: "owner" | "treasurer";
 }) {
   const router = useRouter();
   const { monthlySpend, orders, organizationId } = useDashboardData();
-  const [tab, setTab] = useState<Tab>("submit");
+  const isTreasurer = mode === "treasurer";
+  const [tab, setTab] = useState<Tab>(isTreasurer ? "overview" : "submit");
   const [formTotal, setFormTotal] = useState(0);
   const [formDept, setFormDept] = useState("");
   const [chartPeriod, setChartPeriod] = useState<Period>("6M");
@@ -2613,10 +2625,11 @@ export function OrdersPanel({
   const currentOrders = orderRecords.filter(
     (o) => !o.isPast && o.status !== "draft"
   );
-  const incomingOrders = currentOrders.filter(
-    (o) =>
-      o.status === "owner_review" ||
-      (o.status === "pending" && o.submittedBy !== userName)
+  const incomingOrders = currentOrders.filter((o) =>
+    isTreasurer
+      ? o.status === "pending" && o.submittedByRole === "owner"
+      : o.status === "owner_review" ||
+        (o.status === "pending" && o.submittedBy !== userName)
   );
 
   // Filtered past orders for search
@@ -2773,11 +2786,11 @@ export function OrdersPanel({
   }
 
   const TABS: { id: Tab; label: string }[] = [
-    { id: "submit", label: "Submit" },
+    ...(!isTreasurer ? [{ id: "submit" as const, label: "Submit" }] : []),
     { id: "overview", label: "Overview" },
     { id: "incoming", label: "Incoming" },
     { id: "past", label: "Past Orders" },
-    { id: "reimburse", label: "Reimburse" },
+    ...(!isTreasurer ? [{ id: "reimburse" as const, label: "Reimburse" }] : []),
   ];
 
   return (
@@ -2856,7 +2869,10 @@ export function OrdersPanel({
                 {/* Sub-tabs + search */}
                 <div className="flex items-center gap-2 mb-4 sticky top-0 z-10 bg-[#232120] pb-3 border-b border-[#3D3330]">
                   <div className="flex items-center gap-1">
-                    {(["orders", "drafts", "reimburse"] as const).map((st) => (
+                    {(isTreasurer
+                      ? (["orders"] as const)
+                      : (["orders", "drafts", "reimburse"] as const)
+                    ).map((st) => (
                       <button
                         key={st}
                         onClick={() => setOverviewSubTab(st)}
@@ -2904,6 +2920,7 @@ export function OrdersPanel({
                     isPast={false}
                     hideHeader
                     currentUserName={userName}
+                    showOrganization
                     onEditOrder={(order) => {
                       setLoadedDraft({
                         id: order.id,
@@ -2985,11 +3002,78 @@ export function OrdersPanel({
             )}
             {tab === "past" && (
               <div>
-                <OrderOverviewList
-                  orders={filteredPastOrders}
-                  isPast
-                  currentUserName={userName}
-                />
+                {isTreasurer ? (
+                  <div className="space-y-5">
+                    {Object.entries(
+                      filteredPastOrders.reduce(
+                        (groups, order) => {
+                          const organization =
+                            order.organizationName ?? "Unknown organization";
+                          const year = new Date(
+                            order.submittedAt
+                          ).getFullYear();
+                          const key = `${organization}\u0000${year}`;
+                          if (!groups[key]) {
+                            groups[key] = {
+                              organization,
+                              year,
+                              orders: [],
+                            };
+                          }
+                          groups[key].orders.push(order);
+                          return groups;
+                        },
+                        {} as Record<
+                          string,
+                          {
+                            organization: string;
+                            year: number;
+                            orders: OrderRecord[];
+                          }
+                        >
+                      )
+                    )
+                      .sort(([, left], [, right]) => {
+                        const organizationOrder =
+                          left.organization.localeCompare(right.organization);
+                        return organizationOrder || right.year - left.year;
+                      })
+                      .map(([key, group]) => (
+                        <section key={key}>
+                          <div className="mb-2 flex items-center gap-2">
+                            <h3 className="text-[10px] font-semibold text-[#C4A882] uppercase tracking-widest">
+                              {group.organization}
+                            </h3>
+                            <span className="text-[#7A6555] text-[10px]">
+                              {group.year}
+                            </span>
+                            <div className="h-px flex-1 bg-[#3D3330]" />
+                          </div>
+                          <OrderOverviewList
+                            orders={group.orders}
+                            isPast
+                            hideHeader
+                            currentUserName={userName}
+                            showOrganization={false}
+                          />
+                        </section>
+                      ))}
+                    {filteredPastOrders.length === 0 && (
+                      <OrderOverviewList
+                        orders={[]}
+                        isPast
+                        currentUserName={userName}
+                        showOrganization
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <OrderOverviewList
+                    orders={filteredPastOrders}
+                    isPast
+                    currentUserName={userName}
+                  />
+                )}
                 {reimbursements.filter((r) => r.isPast).length > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center gap-2 mb-2">

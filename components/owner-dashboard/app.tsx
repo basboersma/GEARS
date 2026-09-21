@@ -202,12 +202,14 @@ function Sidebar({
   userName,
   userEmail,
   organizations,
+  isAdmin,
 }: {
   organizationName: string;
   organizationSlug: string;
   userName: string;
   userEmail: string;
   organizations: Organization[];
+  isAdmin: boolean;
 }) {
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
@@ -262,6 +264,15 @@ function Sidebar({
             <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
             <span>GMA</span>
           </Link>
+          {isAdmin && (
+            <Link
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
+              href="/dashboard/treasurer"
+            >
+              <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
+              <span>Treasurer</span>
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -314,6 +325,7 @@ export default function App({
   budget,
   dashboardData,
   organizations,
+  isAdmin,
 }: {
   organizationName: string;
   organizationSlug: string;
@@ -322,6 +334,7 @@ export default function App({
   budget: BudgetData;
   dashboardData: import("./dashboard-data-context").DashboardData;
   organizations: Organization[];
+  isAdmin: boolean;
 }) {
   return (
     <DashboardDataProvider
@@ -333,6 +346,7 @@ export default function App({
         style={{ fontFamily: "'Inter',sans-serif" }}
       >
         <Sidebar
+          isAdmin={isAdmin}
           organizationName={organizationName}
           organizationSlug={organizationSlug}
           organizations={organizations}

@@ -138,6 +138,8 @@ export interface OrderLineItem {
 }
 export interface Order {
   id: string;
+  organizationName?: string;
+  submittedByRole?: string;
   date: string;
   startTime: string;
   endTime: string;

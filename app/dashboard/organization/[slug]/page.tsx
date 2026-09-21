@@ -75,6 +75,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         <OwnerDashboard
           budget={budget}
           dashboardData={dashboardData}
+          isAdmin={isAdmin}
           organizationName={organization.name}
           organizationSlug={slug}
           organizations={organizations}
