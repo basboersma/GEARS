@@ -1,0 +1,1 @@
+ALTER TABLE "team" ALTER COLUMN "department_id" DROP NOT NULL;

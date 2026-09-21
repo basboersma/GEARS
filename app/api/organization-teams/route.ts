@@ -9,7 +9,7 @@ import { verifyMemberPassword } from "@/lib/organization-password";
 import { recordCurrentTeamSnapshot } from "@/server/membership-history";
 
 const assignmentSchema = z.object({
-  departmentId: z.string().min(1),
+  departmentId: z.string().min(1).nullable(),
   memberId: z.string().min(1),
   isSubLead: z.boolean().default(false),
   isAdvisor: z.boolean().default(false),
@@ -84,7 +84,8 @@ export async function PATCH(request: Request) {
     normalizedAssignments.some(
       (assignment) =>
         !(
-          departmentIds.has(assignment.departmentId) &&
+          (assignment.departmentId === null ||
+            departmentIds.has(assignment.departmentId)) &&
           memberIds.has(assignment.memberId)
         )
     )

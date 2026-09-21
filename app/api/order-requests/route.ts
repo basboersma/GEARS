@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   if (
     !(
       submittingMembership &&
-      ["owner", "sub_owner"].includes(submittingMembership.role)
+      ["owner", "admin", "sub_owner"].includes(submittingMembership.role)
     )
   ) {
     return NextResponse.json(
@@ -111,8 +111,9 @@ export async function POST(request: Request) {
       parsed.data.organizationId
     ),
   });
+  const isDraft = parsed.data.mode === "draft";
 
-  if (allowedDepartments.length > 0) {
+  if (allowedDepartments.length > 0 && !isDraft) {
     const isValidDepartment = allowedDepartments.some(
       (entry) => entry.name === parsed.data.department
     );
@@ -126,7 +127,6 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
-  const isDraft = parsed.data.mode === "draft";
   let initialStatus: "draft" | "owner_review" | "pending" = "pending";
   if (isDraft) {
     initialStatus = "draft";

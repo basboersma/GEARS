@@ -99,7 +99,7 @@ export interface Member {
 
 export interface TeamAssignment {
   id: string;
-  departmentId: string;
+  departmentId: string | null;
   memberId: string;
   isSubLead: boolean;
   isAdvisor: boolean;

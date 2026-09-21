@@ -2310,8 +2310,10 @@ export function MembersPage({
       return;
     }
     const currentDepartmentIds = new Set(Object.values(departmentIds));
-    const validTeams = nextTeams.filter((team) =>
-      currentDepartmentIds.has(team.departmentId)
+    const validTeams = nextTeams.filter(
+      (team) =>
+        team.departmentId === null ||
+        currentDepartmentIds.has(team.departmentId)
     );
     if (!password) {
       setPendingTeamSave(validTeams);
@@ -2365,21 +2367,28 @@ export function MembersPage({
         team.memberId === memberId && team.departmentId === departmentId
           ? {
               ...team,
-              [role === "advisor" ? "isAdvisor" : "isTreasurer"]: true,
+              [role === "advisor" ? "isAdvisor" : "isTreasurer"]: false,
             }
           : team
       );
-    const existing = nextTeams.find(
-      (team) => team.memberId === memberId && team.departmentId === departmentId
+    const roleOnlyAssignment = nextTeams.find(
+      (team) => team.memberId === memberId && team.departmentId === null
     );
     persistTeams(
-      existing
-        ? nextTeams
+      roleOnlyAssignment
+        ? nextTeams.map((team) =>
+            team.id === roleOnlyAssignment.id
+              ? {
+                  ...team,
+                  [role === "advisor" ? "isAdvisor" : "isTreasurer"]: true,
+                }
+              : team
+          )
         : [
             ...nextTeams,
             {
               id: crypto.randomUUID(),
-              departmentId,
+              departmentId: null,
               memberId,
               isSubLead: false,
               isAdvisor: role === "advisor",
@@ -2399,34 +2408,34 @@ export function MembersPage({
   const handleDropRole = (role: "advisor" | "treasurer") => {
     if (!draggingId) return;
     const memberId = draggingId;
-    const departmentId =
-      teams.find((team) => team.memberId === memberId)?.departmentId ??
-      Object.values(departmentIds)[0];
-    if (!departmentId) return;
     const roleKey = role === "advisor" ? "isAdvisor" : "isTreasurer";
     const nextTeams = teams
       .filter((team) => !(team[roleKey] && team.memberId !== memberId))
       .map((team) =>
-        team.memberId === memberId && team.departmentId === departmentId
-          ? { ...team, [roleKey]: true }
-          : team
+        team.memberId === memberId ? { ...team, [roleKey]: false } : team
       );
-    if (
-      !nextTeams.some(
-        (team) =>
-          team.memberId === memberId && team.departmentId === departmentId
-      )
-    ) {
+    const roleOnlyAssignment = nextTeams.find(
+      (team) => team.memberId === memberId && team.departmentId === null
+    );
+    if (roleOnlyAssignment) {
+      persistTeams(
+        nextTeams.map((team) =>
+          team.id === roleOnlyAssignment.id
+            ? { ...team, [roleKey]: true }
+            : team
+        )
+      ).catch(() => undefined);
+    } else {
       nextTeams.push({
         id: crypto.randomUUID(),
-        departmentId,
+        departmentId: null,
         memberId,
         isSubLead: false,
         isAdvisor: role === "advisor",
         isTreasurer: role === "treasurer",
       });
+      persistTeams(nextTeams).catch(() => undefined);
     }
-    persistTeams(nextTeams).catch(() => undefined);
     setDraggingId(null);
     setDragTarget(null);
   };

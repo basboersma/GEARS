@@ -103,7 +103,7 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
         userName={user.name}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <OrdersPanel data={budget} />
+          <OrdersPanel data={budget} userName={user.name} />
         </main>
       </OwnerDashboardFrame>
     </DashboardDataProvider>

@@ -755,13 +755,11 @@ function SpendingChart({
 function MetaFields({
   approvedBy,
   submittedBy,
-  onApprovedByChange,
   onSubmittedByChange,
   submittedByReadOnly,
 }: {
   approvedBy: string;
   submittedBy: string;
-  onApprovedByChange?: (v: string) => void;
   onSubmittedByChange?: (v: string) => void;
   submittedByReadOnly?: boolean;
 }) {
@@ -771,12 +769,9 @@ function MetaFields({
         <span className="font-mono text-[8.5px] text-[#7A6555] uppercase tracking-wider whitespace-nowrap">
           Approved by
         </span>
-        <input
-          className="h-6 w-40 rounded border border-[#3D3330] bg-[#1A1919] px-2 text-[10px] text-[#FFEDD1] outline-none transition-colors focus:border-[#FFD142]/60 placeholder:text-[#4A3F38]"
-          placeholder="—"
-          value={approvedBy}
-          onChange={(e) => onApprovedByChange?.(e.target.value)}
-        />
+        <span className="h-6 w-40 rounded border border-[#3D3330] bg-[#1A1919] px-2 py-1 text-right text-[10px] text-[#FFEDD1] truncate">
+          {approvedBy || "—"}
+        </span>
       </div>
       <div className="flex items-center gap-2">
         <span className="font-mono text-[8.5px] text-[#7A6555] uppercase tracking-wider whitespace-nowrap">
@@ -809,6 +804,7 @@ function OrderForm({
   initialData,
   draftInitial,
   incomingSubmitter,
+  currentUserName,
   onSubmit,
   onSaveDraft,
 }: {
@@ -817,6 +813,7 @@ function OrderForm({
   initialData?: OrderRecord;
   draftInitial?: Draft;
   incomingSubmitter?: string;
+  currentUserName: string;
   onSubmit?: (payload: {
     orderName: string;
     department: string;
@@ -856,9 +853,8 @@ function OrderForm({
   const [department, setDepartment] = useState(
     draftInitial?.department ?? initialData?.department ?? ""
   );
-  const [approvedBy] = useState(
-    draftInitial?.approvedBy ?? initialData?.approvedBy ?? "Current User"
-  );
+  const approvedBy =
+    draftInitial?.approvedBy || initialData?.approvedBy || currentUserName;
   const [submittedBy, setSubmittedBy] = useState(
     isIncoming ? (incomingSubmitter ?? "") : (draftInitial?.submittedBy ?? "")
   );
@@ -1185,10 +1181,12 @@ function IncomingPanel({
   orders,
   onTotalChange,
   onDeptChange,
+  currentUserName,
 }: {
   orders: OrderRecord[];
   onTotalChange: (n: number) => void;
   onDeptChange: (d: string) => void;
+  currentUserName: string;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(
     orders[0]?.id ?? null
@@ -1263,6 +1261,7 @@ function IncomingPanel({
                   onDeptChange={onDeptChange}
                   initialData={order}
                   incomingSubmitter={order.submittedBy}
+                  currentUserName={currentUserName}
                 />
               </div>
             )}
@@ -1782,14 +1781,16 @@ function OrderOverviewList({
   isPast,
   hideHeader,
   onEditOrder,
+  currentUserName,
 }: {
   orders: OrderRecord[];
   isPast: boolean;
   hideHeader?: boolean;
   onEditOrder?: (order: OrderRecord) => void;
+  currentUserName: string;
 }) {
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
-  const [approvedBy, setApprovedBy] = useState("Liam Bakker");
+  const approvedBy = currentUserName;
   const [submittedBy, setSubmittedBy] = useState("Admin user");
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [openIntervals, setOpenIntervals] = useState<Set<string>>(new Set());
@@ -1877,7 +1878,6 @@ function OrderOverviewList({
           <MetaFields
             approvedBy={approvedBy}
             submittedBy={submittedBy}
-            onApprovedByChange={setApprovedBy}
             onSubmittedByChange={setSubmittedBy}
           />
         </div>
@@ -2535,7 +2535,13 @@ function ReimbursementInvoicePopup({
 }
 
 // ── Main export ────────────────────────────────────────────────────────────────
-export function OrdersPanel({ data }: { data: BudgetData }) {
+export function OrdersPanel({
+  data,
+  userName,
+}: {
+  data: BudgetData;
+  userName: string;
+}) {
   const router = useRouter();
   const { monthlySpend, orders, organizationId } = useDashboardData();
   const [tab, setTab] = useState<Tab>("submit");
@@ -2654,7 +2660,12 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
         })),
       }),
     });
-    if (!response.ok) throw new Error("Failed to submit order");
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to submit order");
+    }
     setLoadedDraft(null);
     setDrafts([]);
     setOverviewSubTab("orders");
@@ -2687,7 +2698,12 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
         })),
       }),
     });
-    if (!response.ok) throw new Error("Failed to save draft");
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to save draft");
+    }
     setDrafts([]);
     setOverviewSubTab("drafts");
     setTab("overview");
@@ -2781,6 +2797,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                 draftInitial={loadedDraft ?? undefined}
                 onSaveDraft={handleSaveDraft}
                 onSubmit={handleSubmitOrder}
+                currentUserName={userName}
               />
             )}
             {tab === "overview" && (
@@ -2835,6 +2852,7 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                     )}
                     isPast={false}
                     hideHeader
+                    currentUserName={userName}
                     onEditOrder={(order) => {
                       setLoadedDraft({
                         id: order.id,
@@ -2909,11 +2927,16 @@ export function OrdersPanel({ data }: { data: BudgetData }) {
                 orders={incomingOrders}
                 onTotalChange={setFormTotal}
                 onDeptChange={setFormDept}
+                currentUserName={userName}
               />
             )}
             {tab === "past" && (
               <div>
-                <OrderOverviewList orders={filteredPastOrders} isPast />
+                <OrderOverviewList
+                  orders={filteredPastOrders}
+                  isPast
+                  currentUserName={userName}
+                />
                 {reimbursements.filter((r) => r.isPast).length > 0 && (
                   <div className="mt-4">
                     <div className="flex items-center gap-2 mb-2">

@@ -236,9 +236,10 @@ export const team = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    departmentId: text("department_id")
-      .notNull()
-      .references(() => organizationDepartment.id, { onDelete: "cascade" }),
+    departmentId: text("department_id").references(
+      () => organizationDepartment.id,
+      { onDelete: "cascade" }
+    ),
     memberId: text("member_id")
       .notNull()
       .references(() => member.id, { onDelete: "cascade" }),
