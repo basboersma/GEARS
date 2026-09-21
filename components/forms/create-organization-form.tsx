@@ -21,6 +21,7 @@ import { authClient } from "@/lib/auth-client";
 const formSchema = z.object({
   name: z.string().min(2).max(50),
   slug: z.string().min(2).max(50),
+  password: z.string().min(1, "Password is required"),
 });
 
 export function CreateOrganizationForm() {
@@ -31,16 +32,43 @@ export function CreateOrganizationForm() {
     defaultValues: {
       name: "",
       slug: "",
+      password: "",
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true);
-      await authClient.organization.create({
+      const result = await authClient.organization.create({
         name: values.name,
         slug: values.slug,
       });
+
+      if (result.error || !result.data?.id) {
+        throw new Error(
+          result.error?.message ?? "Failed to create organization"
+        );
+      }
+
+      const passwordResponse = await fetch("/api/organization-password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organizationId: result.data.id,
+          newPassword: values.password,
+        }),
+      });
+      if (!passwordResponse.ok) {
+        const passwordResult = (await passwordResponse
+          .json()
+          .catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(
+          passwordResult?.error ??
+            "Organization created, but password setup failed"
+        );
+      }
 
       toast.success("Organization created successfully");
     } catch (error) {
@@ -62,6 +90,20 @@ export function CreateOrganizationForm() {
               <FormLabel>Name</FormLabel>
               <FormControl>
                 <Input placeholder="My Organization" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
