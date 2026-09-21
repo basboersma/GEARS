@@ -157,7 +157,7 @@ export interface Order {
   delivered?: boolean;
   finalized?: boolean;
   canceled?: boolean;
-  accepted?: boolean;
+  accepted?: "neutral" | "accepted" | "denied";
   items: OrderLineItem[];
 }
 

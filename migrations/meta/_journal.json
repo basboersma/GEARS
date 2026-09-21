@@ -127,6 +127,13 @@
       "when": 1790017153082,
       "tag": "0017_short_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790022941825,
+      "tag": "0018_flat_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

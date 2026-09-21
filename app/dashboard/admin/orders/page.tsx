@@ -160,8 +160,12 @@ export default async function AdminOrdersPage({
                     { label: "Ordered", checked: row.ordered },
                     { label: "Delivered", checked: row.delivered },
                     { label: "Finalized", checked: row.finalized },
-                    { label: "Accepted", checked: row.accepted },
-                  ].map(({ label, checked }) => (
+                    {
+                      label: "Accepted",
+                      checked: row.accepted === "accepted",
+                      value: row.accepted,
+                    },
+                  ].map(({ label, checked, value }) => (
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
                         checked
@@ -170,8 +174,8 @@ export default async function AdminOrdersPage({
                       }`}
                       key={label}
                     >
-                      {checked ? "✓" : "○"}
-                      {label}
+                      {value ?? (checked ? "✓" : "○")}
+                      {value ? ` ${label}` : label}
                     </span>
                   ))}
                 </div>

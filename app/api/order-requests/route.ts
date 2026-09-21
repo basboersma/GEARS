@@ -211,7 +211,7 @@ export async function POST(request: Request) {
       photoNeeded: false,
       photoUploaded: false,
       canceled: false,
-      accepted: false,
+      accepted: "neutral" as const,
       recurring: parsed.data.recurring,
       recurringQuantity: recurringQuantity ?? null,
       recurringUnit: recurringUnit ?? null,

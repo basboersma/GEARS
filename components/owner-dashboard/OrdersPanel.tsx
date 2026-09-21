@@ -65,6 +65,7 @@ interface OrderRecord {
   submittedAt: string;
   monthLabel: string;
   status: OrderStatus;
+  accepted?: "neutral" | "accepted" | "denied";
   items: OrderItem[];
   isPast: boolean;
   isRecurring?: boolean;
@@ -184,9 +185,14 @@ const monthLabel = (date: string): string => {
 const orderStatus = (order: Order): OrderStatus => {
   if (order.status === "draft") return "draft";
   if (order.status === "owner_review") return "owner_review";
-  if (order.canceled || order.status === "declined") return "denied";
+  if (
+    order.canceled ||
+    order.status === "declined" ||
+    order.accepted === "denied"
+  )
+    return "denied";
   if (order.finalized || order.delivered) return "arrived";
-  if (order.ordered || order.accepted) return "ordered";
+  if (order.ordered || order.accepted === "accepted") return "ordered";
   return "pending";
 };
 
@@ -204,11 +210,20 @@ const toOrderRecord = (order: Order): OrderRecord => ({
   name: order.title,
   department: order.department,
   submittedBy: order.submittedBy ?? "",
+  submittedByRole: order.submittedByRole,
+  organizationName: order.organizationName,
   approvedBy: order.approvedBy ?? "",
   submittedAt: order.date,
   monthLabel: monthLabel(order.date),
   status: orderStatus(order),
-  isPast: Boolean(order.finalized || order.delivered || order.canceled),
+  accepted: order.accepted,
+  isPast: Boolean(
+    order.finalized ||
+      order.delivered ||
+      order.canceled ||
+      order.status === "declined" ||
+      order.accepted === "denied"
+  ),
   isRecurring: order.recurring,
   recurInterval:
     order.recurringQuantity && order.recurringUnit
@@ -817,6 +832,8 @@ function OrderForm({
   currentUserName,
   onSubmit,
   onDeny,
+  onOrdered,
+  treasurerIncoming,
   onSaveDraft,
 }: {
   onTotalChange: (n: number) => void;
@@ -832,6 +849,8 @@ function OrderForm({
     recurring: boolean;
   }) => void | Promise<void>;
   onDeny?: () => void | Promise<void>;
+  onOrdered?: () => void | Promise<void>;
+  treasurerIncoming?: boolean;
   onSaveDraft?: (d: Draft) => void | Promise<void>;
 }) {
   const { departments } = useDashboardData();
@@ -1170,25 +1189,29 @@ function OrderForm({
             </button>
           )}
           <button
-            onClick={() => void handleSubmit()}
+            onClick={() =>
+              treasurerIncoming ? void onOrdered?.() : void handleSubmit()
+            }
             className={`px-5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
               isRecurring
                 ? "border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#8b5cf6] hover:border-[#8b5cf6]/70 hover:bg-[#8b5cf6]/15"
                 : "border-[#FFD142]/40 bg-[#FFD142]/10 text-[#FFD142] hover:border-[#FFD142]/70 hover:bg-[#FFD142]/15"
             }`}
           >
-            {isIncoming
-              ? "Approve order"
-              : isRecurring
-                ? "Submit recurring"
-                : "Submit order"}
+            {treasurerIncoming
+              ? "Ordered"
+              : isIncoming
+                ? "Approve order"
+                : isRecurring
+                  ? "Submit recurring"
+                  : "Submit order"}
           </button>
           {isIncoming && (
             <button
               onClick={() => void onDeny?.()}
               className="px-5 py-1.5 rounded-lg border border-[#F0684D]/40 bg-[#F0684D]/10 text-[11px] font-semibold text-[#F0684D] hover:border-[#F0684D]/70 hover:bg-[#F0684D]/15 transition-colors"
             >
-              Deny Order
+              {treasurerIncoming ? "Denied" : "Deny Order"}
             </button>
           )}
         </div>
@@ -1205,6 +1228,7 @@ function IncomingPanel({
   currentUserName,
   onApprove,
   onDeny,
+  isTreasurer,
 }: {
   orders: OrderRecord[];
   onTotalChange: (n: number) => void;
@@ -1212,6 +1236,7 @@ function IncomingPanel({
   currentUserName: string;
   onApprove: (order: OrderRecord) => Promise<void>;
   onDeny: (order: OrderRecord) => Promise<void>;
+  isTreasurer: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(
     orders[0]?.id ?? null
@@ -1287,7 +1312,9 @@ function IncomingPanel({
                   initialData={order}
                   incomingSubmitter={order.submittedBy}
                   currentUserName={currentUserName}
+                  treasurerIncoming={isTreasurer}
                   onSubmit={() => onApprove(order)}
+                  onOrdered={() => onApprove(order)}
                   onDeny={() => onDeny(order)}
                 />
               </div>
@@ -2623,13 +2650,24 @@ export function OrdersPanel({
     }));
   const allPastOrders = orderRecords.filter((o) => o.isPast);
   const currentOrders = orderRecords.filter(
-    (o) => !o.isPast && o.status !== "draft"
+    (o) =>
+      !o.isPast &&
+      o.status !== "draft" &&
+      (!isTreasurer ||
+        !(
+          o.status === "pending" &&
+          o.submittedByRole === "owner" &&
+          o.accepted === "neutral"
+        ))
   );
-  const incomingOrders = currentOrders.filter((o) =>
+  const incomingOrders = orderRecords.filter((o) =>
     isTreasurer
-      ? o.status === "pending" && o.submittedByRole === "owner"
-      : o.status === "owner_review" ||
-        (o.status === "pending" && o.submittedBy !== userName)
+      ? o.status === "pending" &&
+        o.submittedByRole === "owner" &&
+        o.accepted === "neutral"
+      : !o.isPast &&
+        (o.status === "owner_review" ||
+          (o.status === "pending" && o.submittedBy !== userName))
   );
 
   // Filtered past orders for search
@@ -2761,7 +2799,12 @@ export function OrdersPanel({
         const response = await fetch(`/api/order-requests/${item.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
+          body: JSON.stringify({
+            status,
+            ...(isTreasurer
+              ? { accepted: status === "accepted" ? "accepted" : "denied" }
+              : {}),
+          }),
         });
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as {
@@ -2998,6 +3041,7 @@ export function OrdersPanel({
                 currentUserName={userName}
                 onApprove={(order) => updateIncomingOrder(order, "accepted")}
                 onDeny={(order) => updateIncomingOrder(order, "declined")}
+                isTreasurer={isTreasurer}
               />
             )}
             {tab === "past" && (

@@ -142,6 +142,12 @@ export const orderRequestStatus = pgEnum("order_request_status", [
   "draft",
 ]);
 
+export const orderAcceptanceStatus = pgEnum("order_acceptance_status", [
+  "neutral",
+  "accepted",
+  "denied",
+]);
+
 export const reimbursementStatus = pgEnum("reimbursement_status", [
   "not_requested",
   "pending",
@@ -367,7 +373,7 @@ export const orderRequest = pgTable("order_request", {
   photoNeeded: boolean("photo_needed").default(false).notNull(),
   photoUploaded: boolean("photo_uploaded").default(false).notNull(),
   canceled: boolean("canceled").default(false).notNull(),
-  accepted: boolean("accepted").default(false).notNull(),
+  accepted: orderAcceptanceStatus("accepted").default("neutral").notNull(),
   recurring: boolean("recurring").default(false).notNull(),
   recurringQuantity: integer("recurring_quantity"),
   recurringUnit: text("recurring_unit"),

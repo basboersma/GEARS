@@ -42,7 +42,7 @@ interface OrderItemSummary {
   delivered: boolean;
   ordered: boolean;
   finalized: boolean;
-  accepted: boolean;
+  accepted: "neutral" | "accepted" | "denied";
   photoNeeded: boolean;
   photoUploaded: boolean;
   status: string;

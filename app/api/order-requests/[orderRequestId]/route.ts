@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 
 const patchSchema = z.object({
   status: z.enum(["pending", "accepted", "declined"]).optional(),
+  accepted: z.enum(["neutral", "accepted", "denied"]).optional(),
   reimbursementStatus: z
     .enum(["not_requested", "pending", "successful", "failed"])
     .optional(),
@@ -71,6 +72,7 @@ export async function PATCH(
 
   if (
     parsed.data.status === undefined &&
+    parsed.data.accepted === undefined &&
     parsed.data.reimbursementStatus === undefined &&
     parsed.data.ordered === undefined &&
     parsed.data.photoNeeded === undefined &&
@@ -97,6 +99,7 @@ export async function PATCH(
     membership?.role === "owner" || membership?.role === "admin";
   const isApprovalStatus =
     parsed.data.status === "accepted" || parsed.data.status === "declined";
+  const isAcceptanceUpdate = parsed.data.accepted !== undefined;
   const hasReviewFields = [
     parsed.data.orderName,
     parsed.data.description,
@@ -112,6 +115,7 @@ export async function PATCH(
     membership?.role === "admin" &&
     item.status !== "owner_review" &&
     (isApprovalStatus ||
+      isAcceptanceUpdate ||
       parsed.data.ordered !== undefined ||
       parsed.data.photoNeeded !== undefined ||
       parsed.data.reimbursementStatus !== undefined);
@@ -124,6 +128,12 @@ export async function PATCH(
   }
 
   const nextStatus = parsed.data.status ?? item.status;
+  let nextAccepted = parsed.data.accepted ?? item.accepted;
+  if (parsed.data.status === "accepted") {
+    nextAccepted = "accepted";
+  } else if (parsed.data.status === "declined") {
+    nextAccepted = "denied";
+  }
   const nextOrdered = parsed.data.ordered ?? item.ordered;
   const nextPhotoNeeded = parsed.data.photoNeeded ?? item.photoNeeded;
   const nextPricePerPiece =
@@ -134,7 +144,7 @@ export async function PATCH(
     .update(orderRequest)
     .set({
       status: nextStatus,
-      accepted: nextStatus === "accepted",
+      accepted: nextAccepted,
       approvedBy: nextStatus === "accepted" ? user.name : item.approvedBy,
       reimbursementStatus:
         parsed.data.reimbursementStatus ?? item.reimbursementStatus,
