@@ -45,7 +45,7 @@ const fieldInput: CSSProperties = {
   height: 46,
   boxSizing: "border-box",
   padding: "0 14px",
-  background: "#FBF8F1",
+  background: "#FFFFFF",
   border: "1px solid #E3DACB",
   borderRadius: 11,
   fontFamily: "var(--font-open-sans), sans-serif",
