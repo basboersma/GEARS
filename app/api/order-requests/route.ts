@@ -3,7 +3,12 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, orderRequest, organizationDepartment } from "@/db/schema";
+import {
+  member,
+  orderRequest,
+  organizationDepartment,
+  team,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 const orderTypeEnum = ["Hardware", "Electronic", "Software", "Social"] as const;
@@ -89,17 +94,27 @@ export async function POST(request: Request) {
       eq(member.userId, session.user.id)
     ),
   });
+  const subleadAssignment = await db.query.team.findFirst({
+    where: and(
+      eq(team.organizationId, parsed.data.organizationId),
+      eq(team.memberId, submittingMembership?.id ?? ""),
+      eq(team.isSubLead, true)
+    ),
+  });
+  const isSublead = Boolean(subleadAssignment);
 
   if (
     !(
       submittingMembership &&
-      ["owner", "admin", "sub_owner"].includes(submittingMembership.role)
+      (submittingMembership.role === "owner" ||
+        submittingMembership.role === "admin" ||
+        isSublead)
     )
   ) {
     return NextResponse.json(
       {
         error:
-          "Only organization owners and sub-owners can submit order sheets",
+          "Only organization owners, admins, and department subleads can submit order sheets",
       },
       { status: 403 }
     );
@@ -126,11 +141,32 @@ export async function POST(request: Request) {
     }
   }
 
+  if (isSublead && !isDraft) {
+    if (!subleadAssignment?.departmentId) {
+      return NextResponse.json(
+        { error: "No sublead department is assigned to this member." },
+        { status: 403 }
+      );
+    }
+    const subleadDepartment = await db.query.organizationDepartment.findFirst({
+      where: and(
+        eq(organizationDepartment.id, subleadAssignment.departmentId),
+        eq(organizationDepartment.name, parsed.data.department)
+      ),
+    });
+    if (!subleadDepartment) {
+      return NextResponse.json(
+        { error: "You can only submit orders for your sublead departments." },
+        { status: 403 }
+      );
+    }
+  }
+
   const now = new Date();
   let initialStatus: "draft" | "owner_review" | "pending" = "pending";
   if (isDraft) {
     initialStatus = "draft";
-  } else if (submittingMembership.role === "sub_owner") {
+  } else if (isSublead) {
     initialStatus = "owner_review";
   }
 

@@ -12,6 +12,7 @@ import type { BudgetData, Order } from "./types";
 type Tab = "submit" | "overview" | "incoming" | "past" | "reimburse";
 type OrderStatus =
   | "draft"
+  | "owner_review"
   | "pending"
   | "ordered"
   | "arrived"
@@ -101,6 +102,7 @@ const INIT_ROWS = 8;
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   draft: "#9C8272",
+  owner_review: "#FFD142",
   pending: "#FFD142",
   ordered: "#4f6ef7",
   arrived: "#10b981",
@@ -109,6 +111,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 };
 const STATUS_LABEL: Record<OrderStatus, string> = {
   draft: "Draft",
+  owner_review: "Incoming",
   pending: "Pending",
   ordered: "Ordered",
   arrived: "Arrived",
@@ -178,6 +181,7 @@ const monthLabel = (date: string): string => {
 
 const orderStatus = (order: Order): OrderStatus => {
   if (order.status === "draft") return "draft";
+  if (order.status === "owner_review") return "owner_review";
   if (order.canceled || order.status === "declined") return "denied";
   if (order.finalized || order.delivered) return "arrived";
   if (order.ordered || order.accepted) return "ordered";
@@ -186,7 +190,11 @@ const orderStatus = (order: Order): OrderStatus => {
 
 const itemStatus = (order: Order): ItemStatus => {
   const status = orderStatus(order);
-  return status === "action_needed" || status === "draft" ? "pending" : status;
+  return status === "action_needed" ||
+    status === "draft" ||
+    status === "owner_review"
+    ? "pending"
+    : status;
 };
 
 const toOrderRecord = (order: Order): OrderRecord => ({
@@ -806,6 +814,7 @@ function OrderForm({
   incomingSubmitter,
   currentUserName,
   onSubmit,
+  onDeny,
   onSaveDraft,
 }: {
   onTotalChange: (n: number) => void;
@@ -820,6 +829,7 @@ function OrderForm({
     rows: FormRow[];
     recurring: boolean;
   }) => void | Promise<void>;
+  onDeny?: () => void | Promise<void>;
   onSaveDraft?: (d: Draft) => void | Promise<void>;
 }) {
   const { departments } = useDashboardData();
@@ -853,8 +863,9 @@ function OrderForm({
   const [department, setDepartment] = useState(
     draftInitial?.department ?? initialData?.department ?? ""
   );
-  const approvedBy =
-    draftInitial?.approvedBy || initialData?.approvedBy || currentUserName;
+  const approvedBy = isIncoming
+    ? (initialData?.approvedBy ?? "")
+    : draftInitial?.approvedBy || initialData?.approvedBy || currentUserName;
   const [submittedBy, setSubmittedBy] = useState(
     isIncoming ? (incomingSubmitter ?? "") : (draftInitial?.submittedBy ?? "")
   );
@@ -1170,6 +1181,14 @@ function OrderForm({
                 ? "Submit recurring"
                 : "Submit order"}
           </button>
+          {isIncoming && (
+            <button
+              onClick={() => void onDeny?.()}
+              className="px-5 py-1.5 rounded-lg border border-[#F0684D]/40 bg-[#F0684D]/10 text-[11px] font-semibold text-[#F0684D] hover:border-[#F0684D]/70 hover:bg-[#F0684D]/15 transition-colors"
+            >
+              Deny Order
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1182,11 +1201,15 @@ function IncomingPanel({
   onTotalChange,
   onDeptChange,
   currentUserName,
+  onApprove,
+  onDeny,
 }: {
   orders: OrderRecord[];
   onTotalChange: (n: number) => void;
   onDeptChange: (d: string) => void;
   currentUserName: string;
+  onApprove: (order: OrderRecord) => Promise<void>;
+  onDeny: (order: OrderRecord) => Promise<void>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(
     orders[0]?.id ?? null
@@ -1262,6 +1285,8 @@ function IncomingPanel({
                   initialData={order}
                   incomingSubmitter={order.submittedBy}
                   currentUserName={currentUserName}
+                  onSubmit={() => onApprove(order)}
+                  onDeny={() => onDeny(order)}
                 />
               </div>
             )}
@@ -2588,7 +2613,11 @@ export function OrdersPanel({
   const currentOrders = orderRecords.filter(
     (o) => !o.isPast && o.status !== "draft"
   );
-  const incomingOrders = currentOrders.filter((o) => o.status === "pending");
+  const incomingOrders = currentOrders.filter(
+    (o) =>
+      o.status === "owner_review" ||
+      (o.status === "pending" && o.submittedBy !== userName)
+  );
 
   // Filtered past orders for search
   const filteredPastOrders = allPastOrders.filter((o) =>
@@ -2707,6 +2736,28 @@ export function OrdersPanel({
     setDrafts([]);
     setOverviewSubTab("drafts");
     setTab("overview");
+    router.refresh();
+  }
+
+  async function updateIncomingOrder(
+    order: OrderRecord,
+    status: "accepted" | "declined"
+  ) {
+    await Promise.all(
+      order.items.map(async (item) => {
+        const response = await fetch(`/api/order-requests/${item.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(body?.error ?? "Failed to update incoming order");
+        }
+      })
+    );
     router.refresh();
   }
 
@@ -2928,6 +2979,8 @@ export function OrdersPanel({
                 onTotalChange={setFormTotal}
                 onDeptChange={setFormDept}
                 currentUserName={userName}
+                onApprove={(order) => updateIncomingOrder(order, "accepted")}
+                onDeny={(order) => updateIncomingOrder(order, "declined")}
               />
             )}
             {tab === "past" && (

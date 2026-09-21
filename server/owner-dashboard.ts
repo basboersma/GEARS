@@ -391,6 +391,7 @@ export async function getOwnerDashboardData(
       recurringEndAt: row.recurringEndAt?.toISOString() ?? null,
       items: [
         {
+          id: row.id,
           name: row.description,
           qty: row.amount,
           price: Number(row.pricePerPiece),

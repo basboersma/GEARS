@@ -124,6 +124,7 @@ export interface RoadmapItem {
 }
 
 export interface OrderLineItem {
+  id?: string;
   name: string;
   qty: number;
   price: number;

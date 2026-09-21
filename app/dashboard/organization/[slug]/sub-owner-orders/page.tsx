@@ -1,11 +1,16 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { OrderSheet } from "@/components/forms/order-sheet";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db/drizzle";
-import { member, organization, organizationDepartment } from "@/db/schema";
+import {
+  member,
+  organization,
+  organizationDepartment,
+  team,
+} from "@/db/schema";
 import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
@@ -29,8 +34,7 @@ export default async function SubOwnerOrdersPage({
   const membership = await db.query.member.findFirst({
     where: and(
       eq(member.userId, user.id),
-      eq(member.organizationId, selectedOrganization.id),
-      eq(member.role, "sub_owner")
+      eq(member.organizationId, selectedOrganization.id)
     ),
   });
 
@@ -38,12 +42,33 @@ export default async function SubOwnerOrdersPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
+  const assignments = await db.query.team.findMany({
+    where: and(
+      eq(team.organizationId, selectedOrganization.id),
+      eq(team.memberId, membership.id),
+      eq(team.isSubLead, true)
+    ),
+  });
   const departments = await db.query.organizationDepartment.findMany({
-    where: eq(organizationDepartment.organizationId, selectedOrganization.id),
+    where: and(
+      eq(organizationDepartment.organizationId, selectedOrganization.id),
+      assignments.length
+        ? inArray(
+            organizationDepartment.id,
+            assignments
+              .map((assignment) => assignment.departmentId)
+              .filter((id): id is string => Boolean(id))
+          )
+        : eq(organizationDepartment.id, "")
+    ),
     orderBy: (organizationDepartment, { asc }) => [
       asc(organizationDepartment.name),
     ],
   });
+
+  if (departments.length === 0) {
+    redirect(`/dashboard/organization/${slug}`);
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-10">

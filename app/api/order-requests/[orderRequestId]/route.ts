@@ -32,6 +32,7 @@ async function getSessionUser() {
   return session.user;
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Combines item validation with role-specific order processing permissions.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ orderRequestId: string }> }
@@ -92,21 +93,25 @@ export async function PATCH(
     ),
   });
 
+  const isOwnerOrAdmin =
+    membership?.role === "owner" || membership?.role === "admin";
+  const isApprovalStatus =
+    parsed.data.status === "accepted" || parsed.data.status === "declined";
+  const hasReviewFields = [
+    parsed.data.orderName,
+    parsed.data.description,
+    parsed.data.pricePerPiece,
+    parsed.data.amount,
+    parsed.data.comments,
+  ].some((value) => value !== undefined);
   const ownerCanReview =
-    membership?.role === "owner" &&
+    isOwnerOrAdmin &&
     item.status === "owner_review" &&
-    (parsed.data.status === "pending" ||
-      parsed.data.status === "declined" ||
-      parsed.data.orderName !== undefined ||
-      parsed.data.description !== undefined ||
-      parsed.data.pricePerPiece !== undefined ||
-      parsed.data.amount !== undefined ||
-      parsed.data.comments !== undefined);
+    (isApprovalStatus || hasReviewFields);
   const adminCanProcess =
     membership?.role === "admin" &&
     item.status !== "owner_review" &&
-    (parsed.data.status === "accepted" ||
-      parsed.data.status === "declined" ||
+    (isApprovalStatus ||
       parsed.data.ordered !== undefined ||
       parsed.data.photoNeeded !== undefined ||
       parsed.data.reimbursementStatus !== undefined);
@@ -130,6 +135,7 @@ export async function PATCH(
     .set({
       status: nextStatus,
       accepted: nextStatus === "accepted",
+      approvedBy: nextStatus === "accepted" ? user.name : item.approvedBy,
       reimbursementStatus:
         parsed.data.reimbursementStatus ?? item.reimbursementStatus,
       ordered: nextOrdered,

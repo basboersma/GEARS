@@ -1,8 +1,11 @@
+import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { OrganizationAgenda } from "@/components/organization-agenda";
 import OwnerDashboard from "@/components/owner-dashboard/app";
 import { Button } from "@/components/ui/button";
+import { db } from "@/db/drizzle";
+import { team } from "@/db/schema";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -25,6 +28,15 @@ export default async function OrganizationPage({ params }: { params: Params }) {
 
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
+  const hasSubleadAssignment = Boolean(
+    await db.query.team.findFirst({
+      where: and(
+        eq(team.organizationId, organization.id),
+        eq(team.memberId, membership.id),
+        eq(team.isSubLead, true)
+      ),
+    })
+  );
 
   if ((isOwner || isAdmin) && organization) {
     const dashboardData = await getOwnerDashboardData(organization.id);
@@ -97,7 +109,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         </div>
       ) : null}
 
-      {membership?.role === "sub_owner" ? (
+      {hasSubleadAssignment ? (
         <Button asChild className="w-fit" variant="outline">
           <Link href={`/dashboard/organization/${slug}/sub-owner-orders`}>
             Submit Order List
