@@ -54,6 +54,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     roadmap: [],
     orders: rows.map(({ order, organizationName, submittedByRole }) => ({
       id: order.id,
+      organizationId: order.organizationId,
       organizationName,
       submittedByRole,
       date: order.orderedDate.toISOString().slice(0, 10),

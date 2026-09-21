@@ -56,6 +56,7 @@ interface OrderItem {
 }
 interface OrderRecord {
   id: string;
+  organizationId?: string;
   name: string;
   department: string;
   submittedBy: string;
@@ -208,6 +209,7 @@ const itemStatus = (order: Order): ItemStatus => {
 
 const toOrderRecord = (order: Order): OrderRecord => ({
   id: order.id,
+  organizationId: order.organizationId,
   name: order.title,
   department: order.department,
   submittedBy: order.submittedBy ?? "",
@@ -349,6 +351,9 @@ function SpendingChart({
   onPeriodChange,
   searchQuery,
   onSearchChange,
+  organizationOptions,
+  selectedOrganization,
+  onOrganizationChange,
 }: {
   name: string;
   color: string;
@@ -365,6 +370,9 @@ function SpendingChart({
   onPeriodChange: (p: Period) => void;
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
+  organizationOptions?: { id: string; name: string }[];
+  selectedOrganization?: string;
+  onOrganizationChange?: (id: string) => void;
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
@@ -487,6 +495,20 @@ function SpendingChart({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {organizationOptions && onOrganizationChange && (
+            <select
+              className="h-7 max-w-44 rounded border border-[#3D3330] bg-[#1A1919] px-2 text-[10px] text-[#FFEDD1] outline-none focus:border-[#FFD142]/60"
+              value={selectedOrganization}
+              onChange={(event) => onOrganizationChange(event.target.value)}
+            >
+              <option value="all">All Organisations</option>
+              {organizationOptions.map((organization) => (
+                <option key={organization.id} value={organization.id}>
+                  {organization.name}
+                </option>
+              ))}
+            </select>
+          )}
           {onSearchChange !== undefined && (
             <div className="relative">
               <svg
@@ -875,7 +897,9 @@ function OrderForm({
         urgency: item.urgency,
         comments: item.comments,
       }));
-      for (let i = 0; i < 3; i++) filled.push(mkRow());
+      if (!treasurerIncoming) {
+        for (let i = 0; i < 3; i++) filled.push(mkRow());
+      }
       return filled;
     }
     return Array.from({ length: INIT_ROWS }, mkRow);
@@ -2614,6 +2638,7 @@ export function OrdersPanel({
   const [formTotal, setFormTotal] = useState(0);
   const [formDept, setFormDept] = useState("");
   const [chartPeriod, setChartPeriod] = useState<Period>("6M");
+  const [selectedOrganization, setSelectedOrganization] = useState("all");
   const [clickedOrders, setClickedOrders] = useState<OrderRecord[] | null>(
     null
   );
@@ -2668,9 +2693,53 @@ export function OrdersPanel({
   );
 
   // Filtered past orders for search
-  const filteredPastOrders = allPastOrders.filter((o) =>
-    matchesSearch(o, searchQuery)
+  const filteredPastOrders = allPastOrders.filter(
+    (o) =>
+      matchesSearch(o, searchQuery) &&
+      (!isTreasurer ||
+        selectedOrganization === "all" ||
+        o.organizationId === selectedOrganization)
   );
+
+  const organizationOptions = isTreasurer
+    ? Array.from(
+        new Map(
+          orderRecords
+            .filter((order) => order.organizationId && order.organizationName)
+            .map((order) => [
+              order.organizationId as string,
+              {
+                id: order.organizationId as string,
+                name: order.organizationName as string,
+              },
+            ])
+        ).values()
+      ).sort((left, right) => left.name.localeCompare(right.name))
+    : undefined;
+
+  const treasurerMonthlySpend = isTreasurer
+    ? Object.fromEntries(
+        Array.from({ length: 12 }, (_, monthIndex) => {
+          const spentBeforeMonth = orderRecords
+            .filter(
+              (order) =>
+                order.workflowStatus === "accepted" &&
+                (!selectedOrganization ||
+                  selectedOrganization === "all" ||
+                  order.organizationId === selectedOrganization) &&
+                new Date(order.submittedAt).getFullYear() === 2026 &&
+                new Date(order.submittedAt).getMonth() <= monthIndex
+            )
+            .reduce((sum, order) => sum + calcTotal(order.items), 0);
+          return [
+            new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+              new Date(2026, monthIndex, 1)
+            ),
+            spentBeforeMonth,
+          ];
+        })
+      )
+    : null;
 
   const showOrderOverlay = tab === "submit" || tab === "incoming";
 
@@ -2697,12 +2766,26 @@ export function OrdersPanel({
     .filter((o) => o.isRecurring && o.recurEnabled && !o.recurPaused)
     .reduce((s, o) => s + calcTotal(o.items), 0);
 
+  const graphMonthlySpend = isTreasurer
+    ? {
+        Total: Object.entries(treasurerMonthlySpend ?? {}).map(
+          ([month, spent]) => ({ month, budget: 0, spent })
+        ),
+      }
+    : monthlySpend;
+
   // ordersForMonth filtered by search (for chart tooltips in past tab)
   function filteredOrdersForMonth(month: string): OrderRecord[] {
-    return filteredPastOrders.filter(
+    const sourceOrders = isTreasurer
+      ? orderRecords.filter((order) => order.workflowStatus === "accepted")
+      : filteredPastOrders;
+    return sourceOrders.filter(
       (o) =>
         o.monthLabel === month &&
-        (!isTreasurer || o.workflowStatus !== "declined")
+        matchesSearch(o, searchQuery) &&
+        (!isTreasurer ||
+          selectedOrganization === "all" ||
+          o.organizationId === selectedOrganization)
     );
   }
 
@@ -2796,8 +2879,8 @@ export function OrdersPanel({
     status: "accepted" | "declined"
   ) {
     await Promise.all(
-      order.items.map(async (item) => {
-        const response = await fetch(`/api/order-requests/${item.id}`, {
+      order.items.map(async () => {
+        const response = await fetch(`/api/order-requests/${order.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -2874,7 +2957,7 @@ export function OrdersPanel({
           <SpendingChart
             name="Total"
             color="#F0684D"
-            monthlySpend={monthlySpend}
+            monthlySpend={graphMonthlySpend}
             pendingByMonth={pendingByMonth}
             recurringByMonth={recurringByMonth}
             onPointClick={handlePointClick}
@@ -2884,6 +2967,9 @@ export function OrdersPanel({
             onPeriodChange={setChartPeriod}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            organizationOptions={organizationOptions}
+            selectedOrganization={selectedOrganization}
+            onOrganizationChange={setSelectedOrganization}
           />
         </div>
       )}
