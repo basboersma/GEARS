@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -125,30 +125,41 @@ export async function POST(request: Request) {
   const membership = await db.query.member.findFirst({
     where: and(
       eq(member.organizationId, parsed.data.organizationId),
-      eq(member.userId, session.user.id)
+      eq(member.userId, session.user.id),
+      inArray(member.role, ["owner", "admin"]),
+      isNotNull(member.password)
     ),
   });
   if (!membership) {
-    return NextResponse.json(
-      {
-        valid: false,
-        code: "MEMBERSHIP_NOT_FOUND",
-        error: "You are not a member of this organization.",
-      },
-      { status: 403 }
-    );
-  }
-  if (membership.role !== "owner" && membership.role !== "admin") {
-    return NextResponse.json(
-      {
-        valid: false,
-        code: "INSUFFICIENT_ROLE",
-        error: "Not an owner nor admin.",
-      },
-      { status: 403 }
-    );
-  }
-  if (!membership.password) {
+    const userMembership = await db.query.member.findFirst({
+      where: and(
+        eq(member.organizationId, parsed.data.organizationId),
+        eq(member.userId, session.user.id)
+      ),
+    });
+
+    if (!userMembership) {
+      return NextResponse.json(
+        {
+          valid: false,
+          code: "MEMBERSHIP_NOT_FOUND",
+          error: "You are not a member of this organization.",
+        },
+        { status: 403 }
+      );
+    }
+
+    if (userMembership.role !== "owner" && userMembership.role !== "admin") {
+      return NextResponse.json(
+        {
+          valid: false,
+          code: "INSUFFICIENT_ROLE",
+          error: "Not an owner nor admin.",
+        },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
       {
         valid: false,
