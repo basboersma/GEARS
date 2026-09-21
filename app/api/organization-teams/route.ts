@@ -70,9 +70,18 @@ export async function PATCH(request: Request) {
     where: eq(member.organizationId, parsed.data.organizationId),
   });
   const memberIds = new Set(memberRows.map((entry) => entry.id));
+  const memberIdByUserId = new Map(
+    memberRows.map((entry) => [entry.userId, entry.id])
+  );
+  const normalizedAssignments = parsed.data.assignments.map((assignment) => ({
+    ...assignment,
+    memberId: memberIds.has(assignment.memberId)
+      ? assignment.memberId
+      : (memberIdByUserId.get(assignment.memberId) ?? assignment.memberId),
+  }));
 
   if (
-    parsed.data.assignments.some(
+    normalizedAssignments.some(
       (assignment) =>
         !(
           departmentIds.has(assignment.departmentId) &&
@@ -88,7 +97,7 @@ export async function PATCH(request: Request) {
 
   const uniqueAssignments = Array.from(
     new Map(
-      parsed.data.assignments.map((assignment) => [
+      normalizedAssignments.map((assignment) => [
         `${assignment.departmentId}:${assignment.memberId}`,
         assignment,
       ])

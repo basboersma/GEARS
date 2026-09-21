@@ -1152,53 +1152,20 @@ const PRESET_COLORS = [
 ];
 
 function AddDeptModal({
-  organizationSlug,
-  password,
-  onAdd,
+  onContinue,
   onClose,
 }: {
-  organizationSlug: string;
-  password: string;
-  onAdd: (department: { id: string; name: string }, color: string) => void;
+  onContinue: (name: string, color: string) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleAdd = async () => {
+  const handleContinue = () => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-
-    setIsSubmitting(true);
     setError(null);
-    try {
-      const response = await fetch(
-        `/api/organization-departments?slug=${encodeURIComponent(organizationSlug)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmedName, password }),
-        }
-      );
-      const result = (await response.json().catch(() => null)) as {
-        department?: { id: string; name: string };
-        error?: string;
-      } | null;
-
-      if (!response.ok || !result?.department) {
-        setError(result?.error ?? "Unable to add department.");
-        return;
-      }
-
-      onAdd(result.department, color);
-      onClose();
-    } catch {
-      setError("Unable to add department.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    onContinue(trimmedName, color);
   };
 
   return (
@@ -1234,7 +1201,7 @@ function AddDeptModal({
         <div className="flex flex-wrap gap-2 mb-4">
           {PRESET_COLORS.map((c) => (
             <button
-              disabled={isSubmitting}
+              disabled={false}
               key={c}
               onClick={() => setColor(c)}
               className="w-6 h-6 rounded-lg"
@@ -1249,18 +1216,18 @@ function AddDeptModal({
         {error && <p className="mb-3 text-rose-400 text-xs">{error}</p>}
         <div className="flex gap-2">
           <button
-            disabled={isSubmitting}
+            disabled={false}
             onClick={onClose}
             className="flex-1 py-2 rounded-xl text-sm bg-[#232120] border border-[#3D3330] text-[#C4A882]"
           >
             Cancel
           </button>
           <button
-            disabled={!name.trim() || isSubmitting}
-            onClick={() => handleAdd().catch(() => undefined)}
+            disabled={!name.trim()}
+            onClick={handleContinue}
             className="flex-1 py-2 rounded-xl text-sm bg-[#F0684D] text-white font-semibold disabled:opacity-40"
           >
-            {isSubmitting ? "Adding…" : "Add"}
+            Continue
           </button>
         </div>
       </div>
@@ -2259,9 +2226,10 @@ export function MembersPage({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const [addingDept, setAddingDept] = useState(false);
-  const [addingDeptPassword, setAddingDeptPassword] = useState<string | null>(
-    null
-  );
+  const [pendingDepartment, setPendingDepartment] = useState<{
+    name: string;
+    color: string;
+  } | null>(null);
   const [actionMember, setActionMember] = useState<Member | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [historySnapshot, setHistorySnapshot] = useState<string | null>(null);
@@ -2693,7 +2661,7 @@ export function MembersPage({
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3 shrink-0">
         <button
-          onClick={() => setAddingDeptPassword("")}
+          onClick={() => setAddingDept(true)}
           className="px-3 py-2 rounded-xl bg-[#2A2724] border border-[#3D3330] text-xs text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] transition-colors"
         >
           + Add Department
@@ -2891,35 +2859,60 @@ export function MembersPage({
 
       {addingDept && (
         <AddDeptModal
-          organizationSlug={organizationSlug}
-          password={addingDeptPassword ?? ""}
-          onAdd={(department, color) => {
-            setDepartments((current) => [...current, department.name]);
-            setDepartmentIds((current) => ({
-              ...current,
-              [department.name]: department.id,
-            }));
-            setDeptColors((current) => ({
-              ...current,
-              [department.name]: color,
-            }));
+          onContinue={(name, color) => {
+            setPendingDepartment({ name, color });
+            setAddingDept(false);
           }}
           onClose={() => {
             setAddingDept(false);
-            setAddingDeptPassword(null);
           }}
         />
       )}
-      {addingDeptPassword !== null && !addingDept && (
+      {pendingDepartment && (
         <PwModal
           organizationId={initialOrganizationId}
           title="Add Department"
           desc="Enter your password to add a department."
           onConfirm={(password) => {
-            setAddingDeptPassword(password);
-            setAddingDept(true);
+            fetch(
+              `/api/organization-departments?slug=${encodeURIComponent(organizationSlug)}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: pendingDepartment.name,
+                  password,
+                }),
+              }
+            )
+              .then(async (response) => {
+                const result = (await response.json().catch(() => null)) as {
+                  department?: { id: string; name: string };
+                  error?: string;
+                } | null;
+                if (!response.ok || !result?.department) {
+                  setTeamSaveError(
+                    result?.error ?? "Unable to add department."
+                  );
+                  return;
+                }
+                setDepartments((current) => [
+                  ...current,
+                  result.department!.name,
+                ]);
+                setDepartmentIds((current) => ({
+                  ...current,
+                  [result.department!.name]: result.department!.id,
+                }));
+                setDeptColors((current) => ({
+                  ...current,
+                  [result.department!.name]: pendingDepartment.color,
+                }));
+                setPendingDepartment(null);
+              })
+              .catch(() => setTeamSaveError("Unable to add department."));
           }}
-          onClose={() => setAddingDeptPassword(null)}
+          onClose={() => setPendingDepartment(null)}
         />
       )}
       {pendingTeamSave && (
