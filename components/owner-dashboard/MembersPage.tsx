@@ -1143,16 +1143,19 @@ const PRESET_COLORS = [
 ];
 
 function AddDeptModal({
+  organizationId,
   organizationSlug,
   onAdd,
   onClose,
 }: {
+  organizationId: string;
   organizationSlug: string;
   onAdd: (department: { id: string; name: string }, color: string) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -1168,7 +1171,11 @@ function AddDeptModal({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmedName }),
+          body: JSON.stringify({
+            name: trimmedName,
+            organizationId,
+            password,
+          }),
         }
       );
       const result = (await response.json().catch(() => null)) as {
@@ -1219,6 +1226,16 @@ function AddDeptModal({
           placeholder="Department name…"
           className="w-full px-3 py-2 rounded-xl bg-[#232120] border border-[#3D3330] text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none focus:border-[#F0684D] mb-3"
         />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError(null);
+          }}
+          placeholder="Organization password…"
+          className="w-full px-3 py-2 rounded-xl bg-[#232120] border border-[#3D3330] text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none focus:border-[#F0684D] mb-3"
+        />
         <p className="text-[10px] text-[#7A6555] mb-2">Color</p>
         <div className="flex flex-wrap gap-2 mb-4">
           {PRESET_COLORS.map((c) => (
@@ -1245,7 +1262,7 @@ function AddDeptModal({
             Cancel
           </button>
           <button
-            disabled={!name.trim() || isSubmitting}
+            disabled={!name.trim() || !password || isSubmitting}
             onClick={() => handleAdd().catch(() => undefined)}
             className="flex-1 py-2 rounded-xl text-sm bg-[#F0684D] text-white font-semibold disabled:opacity-40"
           >
@@ -2834,6 +2851,7 @@ export function MembersPage({
 
       {addingDept && (
         <AddDeptModal
+          organizationId={initialOrganizationId}
           organizationSlug={organizationSlug}
           onAdd={(department, color) => {
             setDepartments((current) => [...current, department.name]);

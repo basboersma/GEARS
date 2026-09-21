@@ -5,9 +5,12 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member, organization, organizationDepartment } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { verifyMemberPassword } from "@/lib/organization-password";
 
 const departmentSchema = z.object({
   name: z.string().trim().min(1, "Department name is required").max(80),
+  organizationId: z.string().min(1),
+  password: z.string().min(1),
 });
 
 async function getOrganizationForUser(slug: string, userId: string) {
@@ -91,6 +94,22 @@ export async function POST(request: Request) {
       { error: "Invalid department payload" },
       { status: 400 }
     );
+  }
+
+  if (parsed.data.organizationId !== org.id) {
+    return NextResponse.json(
+      { error: "Invalid organization" },
+      { status: 400 }
+    );
+  }
+
+  const passwordMatches = await verifyMemberPassword(
+    org.id,
+    session.user.id,
+    parsed.data.password
+  );
+  if (!passwordMatches) {
+    return NextResponse.json({ error: "Invalid password" }, { status: 403 });
   }
 
   const existing = await db.query.organizationDepartment.findFirst({
