@@ -266,11 +266,7 @@ export function LoginForm() {
             }}
             type="submit"
           >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              "Log in"
-            )}
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : "Log in"}
           </button>
         </form>
 
@@ -285,7 +281,9 @@ export function LoginForm() {
         >
           Don&apos;t have an account?{" "}
           <Link
-            href={invitationId ? `/signup?invitationId=${invitationId}` : "/signup"}
+            href={
+              invitationId ? `/signup?invitationId=${invitationId}` : "/signup"
+            }
             style={{ fontWeight: 600, color: "#E07056" }}
           >
             Sign up
@@ -304,11 +302,17 @@ export function LoginForm() {
         }}
       >
         By continuing you agree to our{" "}
-        <Link href="#" style={{ color: "#A29C90", textDecoration: "underline" }}>
+        <Link
+          href="#"
+          style={{ color: "#A29C90", textDecoration: "underline" }}
+        >
           Terms of Service
         </Link>{" "}
         and{" "}
-        <Link href="#" style={{ color: "#A29C90", textDecoration: "underline" }}>
+        <Link
+          href="#"
+          style={{ color: "#A29C90", textDecoration: "underline" }}
+        >
           Privacy Policy
         </Link>
         .

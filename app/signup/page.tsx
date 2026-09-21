@@ -29,7 +29,12 @@ export default function SignupPage() {
           {/*lockup*/}
           <Link className={styles.lockup} href="/">
             <span className={styles.brandBadge}>
-              <Image alt="GEARS" height={34} src="/gears-emblem.png" width={34} />
+              <Image
+                alt="GEARS"
+                height={34}
+                src="/gears-emblem.png"
+                width={34}
+              />
             </span>
             <span className={styles.wordmark}>GEARS</span>
           </Link>
@@ -51,7 +56,10 @@ export default function SignupPage() {
           styles.cream
         )}
       >
-        <Link className="flex items-center gap-2.5 self-center lg:hidden" href="/">
+        <Link
+          className="flex items-center gap-2.5 self-center lg:hidden"
+          href="/"
+        >
           <span className={styles.mobileBadge}>
             <Image alt="GEARS" height={24} src="/gears-emblem.png" width={24} />
           </span>

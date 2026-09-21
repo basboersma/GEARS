@@ -9,8 +9,7 @@ import { verifyMemberPassword } from "@/lib/organization-password";
 
 const departmentSchema = z.object({
   name: z.string().trim().min(1, "Department name is required").max(80),
-  organizationId: z.string().min(1),
-  password: z.string().min(1),
+  password: z.string().min(1, "Password is required"),
 });
 
 async function getOrganizationForUser(slug: string, userId: string) {
@@ -96,20 +95,13 @@ export async function POST(request: Request) {
     );
   }
 
-  if (parsed.data.organizationId !== org.id) {
-    return NextResponse.json(
-      { error: "Invalid organization" },
-      { status: 400 }
-    );
-  }
-
   const passwordMatches = await verifyMemberPassword(
     org.id,
     session.user.id,
     parsed.data.password
   );
   if (!passwordMatches) {
-    return NextResponse.json({ error: "Invalid password" }, { status: 403 });
+    return NextResponse.json({ error: "Incorrect password" }, { status: 403 });
   }
 
   const existing = await db.query.organizationDepartment.findFirst({
@@ -160,12 +152,27 @@ export async function DELETE(request: Request) {
 
   const payload = await request.json().catch(() => null);
   const departmentId = payload?.departmentId;
+  const password = payload?.password;
 
-  if (!departmentId || typeof departmentId !== "string") {
+  if (
+    !departmentId ||
+    typeof departmentId !== "string" ||
+    typeof password !== "string" ||
+    !password
+  ) {
     return NextResponse.json(
       { error: "Missing departmentId" },
       { status: 400 }
     );
+  }
+
+  const passwordMatches = await verifyMemberPassword(
+    org.id,
+    session.user.id,
+    password
+  );
+  if (!passwordMatches) {
+    return NextResponse.json({ error: "Incorrect password" }, { status: 403 });
   }
 
   const department = await db.query.organizationDepartment.findFirst({

@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Manrope, Open_Sans, Space_Grotesk } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Manrope,
+  Open_Sans,
+  Space_Grotesk,
+} from "next/font/google";
 import "./globals.css";
 import { InviteStatusToast } from "@/components/invite-status-toast";
 import { ThemeProvider } from "@/components/theme-provider";

@@ -1060,20 +1060,29 @@ function PwModal({
 }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(false);
+  const [checking, setChecking] = useState(false);
   const attempt = async () => {
-    const valid =
-      (
-        (await fetch("/api/organization-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ organizationId, password: pw }),
-        }).then((response) => response.json())) as { valid?: boolean }
-      ).valid === true;
-    if (valid) {
-      onConfirm(pw);
-      onClose();
-    } else {
+    setChecking(true);
+    setErr(false);
+    try {
+      const response = await fetch("/api/organization-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ organizationId, password: pw }),
+      });
+      const result = (await response.json()) as {
+        valid?: boolean;
+      };
+      if (response.ok && result.valid) {
+        onConfirm(pw);
+        onClose();
+        return;
+      }
       setErr(true);
+    } catch {
+      setErr(true);
+    } finally {
+      setChecking(false);
     }
   };
   return (
@@ -1118,10 +1127,11 @@ function PwModal({
             Cancel
           </button>
           <button
-            onClick={attempt}
+            disabled={checking || !pw}
+            onClick={() => attempt().catch(() => undefined)}
             className="flex-1 py-2 rounded-xl text-sm bg-[#F0684D] text-white font-semibold hover:bg-[#E05538]"
           >
-            Confirm
+            {checking ? "Checking…" : "Confirm"}
           </button>
         </div>
       </div>
@@ -1143,19 +1153,18 @@ const PRESET_COLORS = [
 ];
 
 function AddDeptModal({
-  organizationId,
   organizationSlug,
+  password,
   onAdd,
   onClose,
 }: {
-  organizationId: string;
   organizationSlug: string;
+  password: string;
   onAdd: (department: { id: string; name: string }, color: string) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -1171,11 +1180,7 @@ function AddDeptModal({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: trimmedName,
-            organizationId,
-            password,
-          }),
+          body: JSON.stringify({ name: trimmedName, password }),
         }
       );
       const result = (await response.json().catch(() => null)) as {
@@ -1226,16 +1231,6 @@ function AddDeptModal({
           placeholder="Department name…"
           className="w-full px-3 py-2 rounded-xl bg-[#232120] border border-[#3D3330] text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none focus:border-[#F0684D] mb-3"
         />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setError(null);
-          }}
-          placeholder="Organization password…"
-          className="w-full px-3 py-2 rounded-xl bg-[#232120] border border-[#3D3330] text-sm text-[#FFEDD1] placeholder:text-[#7A6555] focus:outline-none focus:border-[#F0684D] mb-3"
-        />
         <p className="text-[10px] text-[#7A6555] mb-2">Color</p>
         <div className="flex flex-wrap gap-2 mb-4">
           {PRESET_COLORS.map((c) => (
@@ -1262,7 +1257,7 @@ function AddDeptModal({
             Cancel
           </button>
           <button
-            disabled={!name.trim() || !password || isSubmitting}
+            disabled={!name.trim() || isSubmitting}
             onClick={() => handleAdd().catch(() => undefined)}
             className="flex-1 py-2 rounded-xl text-sm bg-[#F0684D] text-white font-semibold disabled:opacity-40"
           >
@@ -1754,7 +1749,7 @@ function DeptColumn({
   onDropSublead: (dept: string) => void;
   onDragStart: (id: string) => void;
   onMemberClick: (m: Member) => void;
-  onRemoveDept: (dept: string) => void;
+  onRemoveDept: (dept: string, password: string) => void;
   onRemoveSubLead: (memberId: string, dept: string) => void;
   onRemoveMemberFromDept: (memberId: string, dept: string) => void;
 }) {
@@ -1874,7 +1869,7 @@ function DeptColumn({
           organizationId={organizationId}
           title={`Remove: ${dept}`}
           desc="Members will be unassigned from this department."
-          onConfirm={() => onRemoveDept(dept)}
+          onConfirm={(password) => onRemoveDept(dept, password)}
           onClose={() => setShowRemoveDept(false)}
         />
       )}
@@ -2247,6 +2242,9 @@ export function MembersPage({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const [addingDept, setAddingDept] = useState(false);
+  const [addingDeptPassword, setAddingDeptPassword] = useState<string | null>(
+    null
+  );
   const [actionMember, setActionMember] = useState<Member | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [historySnapshot, setHistorySnapshot] = useState<string | null>(null);
@@ -2639,6 +2637,31 @@ export function MembersPage({
     setActionMember(null);
     setPendingMemberRemoval(null);
   };
+  const removeDepartment = async (department: string, password: string) => {
+    const departmentId = departmentIds[department];
+    if (!departmentId) return;
+    const response = await fetch(
+      `/api/organization-departments?slug=${encodeURIComponent(organizationSlug)}`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId, password }),
+      }
+    );
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setTeamSaveError(result?.error ?? "Unable to remove department.");
+      return;
+    }
+    setDepartments((current) => current.filter((item) => item !== department));
+    setDepartmentIds((current) => {
+      const next = { ...current };
+      delete next[department];
+      return next;
+    });
+  };
   const stopDrag = () => {
     setDraggingId(null);
     setDragTarget(null);
@@ -2653,7 +2676,7 @@ export function MembersPage({
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3 shrink-0">
         <button
-          onClick={() => setAddingDept(true)}
+          onClick={() => setAddingDeptPassword("")}
           className="px-3 py-2 rounded-xl bg-[#2A2724] border border-[#3D3330] text-xs text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] transition-colors"
         >
           + Add Department
@@ -2807,8 +2830,8 @@ export function MembersPage({
                       onDropSublead={handleDropSublead}
                       onDragStart={setDraggingId}
                       onMemberClick={setActionMember}
-                      onRemoveDept={(d) =>
-                        setDepartments((prev) => prev.filter((x) => x !== d))
+                      onRemoveDept={(d, password) =>
+                        removeDepartment(d, password).catch(() => undefined)
                       }
                       onRemoveSubLead={releaseSubLead}
                       onRemoveMemberFromDept={removeMemberFromDepartment}
@@ -2851,8 +2874,8 @@ export function MembersPage({
 
       {addingDept && (
         <AddDeptModal
-          organizationId={initialOrganizationId}
           organizationSlug={organizationSlug}
+          password={addingDeptPassword ?? ""}
           onAdd={(department, color) => {
             setDepartments((current) => [...current, department.name]);
             setDepartmentIds((current) => ({
@@ -2864,7 +2887,22 @@ export function MembersPage({
               [department.name]: color,
             }));
           }}
-          onClose={() => setAddingDept(false)}
+          onClose={() => {
+            setAddingDept(false);
+            setAddingDeptPassword(null);
+          }}
+        />
+      )}
+      {addingDeptPassword !== null && !addingDept && (
+        <PwModal
+          organizationId={initialOrganizationId}
+          title="Add Department"
+          desc="Enter your password to add a department."
+          onConfirm={(password) => {
+            setAddingDeptPassword(password);
+            setAddingDept(true);
+          }}
+          onClose={() => setAddingDeptPassword(null)}
         />
       )}
       {pendingTeamSave && (

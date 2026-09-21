@@ -9,12 +9,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -177,7 +172,11 @@ export function SignupForm({
                         <FormItem>
                           <FormLabel>Username</FormLabel>
                           <FormControl>
-                            <Input className="bg-white" placeholder="yourname" {...field} />
+                            <Input
+                              className="bg-white"
+                              placeholder="yourname"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -191,7 +190,11 @@ export function SignupForm({
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input className="bg-white" placeholder="email@example.com" {...field} />
+                            <Input
+                              className="bg-white"
+                              placeholder="email@example.com"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -226,7 +229,11 @@ export function SignupForm({
                       </Link>
                     </div>
                   </div>
-                  <Button className="w-full bg-gears text-white hover:bg-gears/90" disabled={isLoading} type="submit">
+                  <Button
+                    className="w-full bg-gears text-white hover:bg-gears/90"
+                    disabled={isLoading}
+                    type="submit"
+                  >
                     {isLoading ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (

@@ -45,7 +45,7 @@ export async function PATCH(request: Request) {
   });
   if (!manager) {
     return NextResponse.json(
-      { error: "Only owners and admins can update teams" },
+      { error: "Only owners can update teams" },
       { status: 403 }
     );
   }
