@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -115,14 +114,11 @@ export function SignupForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>
-            Sign up with your RUG or Hanze account
-          </CardDescription>
+      <Card className="border-none bg-transparent shadow-none">
+        <CardHeader className="px-0">
+          <CardTitle className="text-xl">Create your account</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0">
           <Form {...form}>
             <form className="space-y-8" onSubmit={form.handleSubmit(onSubmit)}>
               <div className="grid gap-6">
@@ -149,7 +145,7 @@ export function SignupForm({
                         fill="currentColor"
                       />
                     </svg>
-                    Signup with Google
+                    Continue with Google
                   </Button>
                   <Button
                     className="w-full"
@@ -164,12 +160,12 @@ export function SignupForm({
                       <path d="M1 12h10v10H1z" fill="#00a4ef" />
                       <path d="M12 12h10v10H12z" fill="#ffb900" />
                     </svg>
-                    Signup with Microsoft
+                    Continue with Microsoft
                   </Button>
                 </div>
                 <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-border after:border-t">
-                  <span className="relative z-10 bg-card px-2 text-muted-foreground">
-                    Or continue with
+                  <span className="relative z-10 bg-[#faf5ec] px-2 text-muted-foreground">
+                    Or sign up with email
                   </span>
                 </div>
                 <div className="grid gap-6">
@@ -181,7 +177,7 @@ export function SignupForm({
                         <FormItem>
                           <FormLabel>Username</FormLabel>
                           <FormControl>
-                            <Input placeholder="shadcn" {...field} />
+                            <Input className="bg-white" placeholder="yourname" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -195,7 +191,7 @@ export function SignupForm({
                         <FormItem>
                           <FormLabel>Email</FormLabel>
                           <FormControl>
-                            <Input placeholder="m@example.com" {...field} />
+                            <Input className="bg-white" placeholder="email@example.com" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -212,6 +208,7 @@ export function SignupForm({
                             <FormLabel>Password</FormLabel>
                             <FormControl>
                               <Input
+                                className="bg-white"
                                 placeholder="********"
                                 {...field}
                                 type="password"
@@ -222,14 +219,14 @@ export function SignupForm({
                         )}
                       />
                       <Link
-                        className="ml-auto text-sm underline-offset-4 hover:underline"
+                        className="ml-auto text-gears text-sm underline-offset-4 hover:underline"
                         href="/forgot-password"
                       >
                         Forgot your password?
                       </Link>
                     </div>
                   </div>
-                  <Button className="w-full" disabled={isLoading} type="submit">
+                  <Button className="w-full bg-gears text-white hover:bg-gears/90" disabled={isLoading} type="submit">
                     {isLoading ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
@@ -240,7 +237,7 @@ export function SignupForm({
                 <div className="text-center text-sm">
                   Already have an account?{" "}
                   <Link
-                    className="underline underline-offset-4"
+                    className="text-gears underline underline-offset-4"
                     href={loginHref}
                   >
                     Login

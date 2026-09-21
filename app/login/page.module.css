@@ -1,0 +1,92 @@
+.cream {
+  background: #faf5ec;
+}
+
+.brandPanel {
+  background: #2c2a27;
+}
+
+/* big faded emblem behind the brand panel */
+.watermark {
+  position: absolute;
+  left: -96px;
+  bottom: 48px;
+  width: 660px;
+  height: auto;
+  opacity: 0.3;
+}
+
+.panelInner {
+  position: relative;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lockup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brandBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  background: #f7ecd9;
+}
+
+.wordmark {
+  font-family: var(--font-open-sans), sans-serif;
+  font-weight: 700;
+  font-size: 27px;
+  letter-spacing: 7px;
+  color: #f7ecd9;
+  padding-left: 3px;
+}
+
+.headlineWrap {
+  position: relative;
+  margin-top: 64px;
+  max-width: 460px;
+}
+
+.accent {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--gears);
+  margin-bottom: 28px;
+}
+
+.headline {
+  margin: 0;
+  font-family: var(--font-open-sans), sans-serif;
+  font-weight: 600;
+  font-size: 44px;
+  line-height: 1.1;
+  color: #fbefdd;
+}
+
+.mobileBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #2c2a27;
+}
+
+.mobileWordmark {
+  font-family: var(--font-open-sans), sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 6px;
+  color: #2c2a27;
+}
