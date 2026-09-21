@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BitJsonQrCode } from "./BitJsonQrCode";
 import { useDashboardData } from "./dashboard-data-context";
 import type { BudgetData, Order } from "./types";
 
@@ -53,6 +54,7 @@ interface OrderItem {
   requiresInvoice: boolean;
   photoUploaded: boolean;
   invoiceUploaded: boolean;
+  invoiceAdded: boolean;
 }
 interface OrderRecord {
   id: string;
@@ -235,7 +237,7 @@ const toOrderRecord = (order: Order): OrderRecord => ({
       : undefined,
   recurEndDate: order.recurringEndAt ?? undefined,
   items: order.items.map((item, index) => ({
-    id: `${order.id}-${index}`,
+    id: item.id ?? `${order.id}-${index}`,
     link: item.link ?? "",
     description: item.name,
     pricePerPiece: item.price,
@@ -247,7 +249,8 @@ const toOrderRecord = (order: Order): OrderRecord => ({
     requiresPhoto: Boolean(item.photoNeeded),
     requiresInvoice: true,
     photoUploaded: Boolean(item.photoUploaded),
-    invoiceUploaded: false,
+    invoiceUploaded: Boolean(item.invoiceAdded),
+    invoiceAdded: Boolean(item.invoiceAdded),
   })),
 });
 
@@ -384,7 +387,7 @@ function SpendingChart({
   const maxY =
     Math.max(
       ...data.map((d, i) =>
-        Math.max(d.budget, d.spent + pendingAmt[i] + recurAmt[i])
+        Math.max(d.budget, d.spent, d.spent + pendingAmt[i], recurAmt[i])
       )
     ) * 1.2 || 1;
 
@@ -408,7 +411,7 @@ function SpendingChart({
   }));
   const recurPts = data.map((d, i) => ({
     x: toX(i),
-    y: toY(d.spent + pendingAmt[i] + recurAmt[i]),
+    y: toY(recurAmt[i]),
   }));
 
   const area = (pts: { x: number; y: number }[]) =>
@@ -1353,15 +1356,11 @@ function IncomingPanel({
 }
 
 // ── Upload buttons ─────────────────────────────────────────────────────────────
-function QRPopup({ onClose }: { onClose: () => void }) {
-  // Random-looking QR pattern using a seeded grid
-  const cells = Array.from({ length: 21 * 21 }, (_, i) => {
-    const x = i % 21;
-    const y = Math.floor(i / 21);
-    // finder patterns
-    if ((x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13)) return true;
-    return (x * 3 + y * 7 + i * 11) % 13 < 6;
-  });
+function QRPopup({ itemId, onClose }: { itemId: string; onClose: () => void }) {
+  const uploadUrl =
+    typeof window === "undefined"
+      ? `/order-photo/${itemId}`
+      : `${window.location.origin}/order-photo/${itemId}`;
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm"
@@ -1387,26 +1386,15 @@ function QRPopup({ onClose }: { onClose: () => void }) {
             ✕
           </button>
         </div>
-        <div className="bg-white p-3 rounded-xl inline-block mx-auto">
-          <svg
-            width="140"
-            height="140"
-            viewBox="0 0 21 21"
-            shapeRendering="crispEdges"
-          >
-            {cells.map((on, i) =>
-              on ? (
-                <rect
-                  key={i}
-                  x={i % 21}
-                  y={Math.floor(i / 21)}
-                  width="1"
-                  height="1"
-                  fill="#1A1919"
-                />
-              ) : null
-            )}
-          </svg>
+        <div className="inline-block rounded-xl bg-white p-3">
+          <BitJsonQrCode
+            contents={uploadUrl}
+            size={140}
+            backgroundColor="#FFFFFF"
+            moduleColor="#1A1919"
+            positionRingColor="#1A1919"
+            positionCenterColor="#1A1919"
+          />
         </div>
         <p className="text-center text-[10px] text-[#7A6555] mt-3">
           Scan to open upload link
@@ -1417,16 +1405,36 @@ function QRPopup({ onClose }: { onClose: () => void }) {
 }
 
 function InvoiceUploadPopup({
+  itemId,
   onClose,
   onUploaded,
 }: {
+  itemId: string;
   onClose: () => void;
   onUploaded: () => void;
 }) {
   const [drag, setDrag] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   function handleFile(f: File) {
     setFile(f);
+  }
+  async function upload() {
+    if (!file) return;
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    const response = await fetch(`/api/order-requests/${itemId}/attachments`, {
+      method: "POST",
+      body: form,
+    });
+    setUploading(false);
+    if (!response.ok) {
+      toast.error("Invoice upload failed");
+      return;
+    }
+    onUploaded();
+    onClose();
   }
   return (
     <div
@@ -1497,13 +1505,11 @@ function InvoiceUploadPopup({
         </div>
         {file && (
           <button
-            onClick={() => {
-              onUploaded();
-              onClose();
-            }}
+            onClick={() => void upload()}
+            disabled={uploading}
             className="mt-3 w-full py-2 rounded-xl text-sm font-medium border border-[#10b981]/40 text-[#10b981] hover:bg-[#10b981]/10 transition-colors"
           >
-            Confirm Upload
+            {uploading ? "Uploading..." : "Confirm Upload"}
           </button>
         )}
       </div>
@@ -1515,27 +1521,39 @@ function UploadButtons({
   item,
   onPhotoUploaded,
   onInvoiceUploaded,
+  onPhotoNeededChange,
 }: {
   item: OrderItem;
   onPhotoUploaded: () => void;
   onInvoiceUploaded: () => void;
+  onPhotoNeededChange: (needed: boolean) => void;
 }) {
   const [showQR, setShowQR] = useState(false);
   const [showInvoice, setShowInvoice] = useState(false);
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
+      <label className="flex items-center gap-1 text-[9px] text-[#9C8272] whitespace-nowrap">
+        <input
+          type="checkbox"
+          checked={item.requiresPhoto}
+          onChange={(event) => onPhotoNeededChange(event.target.checked)}
+        />
+        Request Photo
+      </label>
       {item.requiresPhoto && !item.photoUploaded && (
         <button
           onClick={() => setShowQR(true)}
-          className="px-2 py-1 rounded border border-[#3D3330] text-[9px] text-[#9C8272] hover:border-[#FFD142]/50 hover:text-[#FFD142] transition-colors whitespace-nowrap"
+          title="Open photo upload QR code"
+          className="text-[#FFD142] hover:text-[#FFEDD1]"
+          aria-label="Open photo upload QR code"
         >
-          📷 Photo Needed
+          ▣
         </button>
       )}
       {item.requiresPhoto && item.photoUploaded && (
         <span className="text-[9px] text-[#10b981]">✓ Photo</span>
       )}
-      {item.requiresInvoice && !item.invoiceUploaded && (
+      {item.requiresInvoice && !item.invoiceAdded && (
         <button
           onClick={() => setShowInvoice(true)}
           className="px-2 py-1 rounded border border-[#3D3330] text-[9px] text-[#9C8272] hover:border-[#FFD142]/50 hover:text-[#FFD142] transition-colors whitespace-nowrap"
@@ -1546,9 +1564,10 @@ function UploadButtons({
       {item.requiresInvoice && item.invoiceUploaded && (
         <span className="text-[9px] text-[#10b981]">✓ Invoice</span>
       )}
-      {showQR && <QRPopup onClose={() => setShowQR(false)} />}
+      {showQR && <QRPopup itemId={item.id} onClose={() => setShowQR(false)} />}
       {showInvoice && (
         <InvoiceUploadPopup
+          itemId={item.id}
           onClose={() => setShowInvoice(false)}
           onUploaded={onInvoiceUploaded}
         />
@@ -1581,6 +1600,20 @@ function OrderDetailView({
     setItems((prev) =>
       prev.map((it, i) => (i === idx ? { ...it, ...patch } : it))
     );
+  }
+
+  async function updatePhotoNeeded(idx: number, needed: boolean) {
+    const item = items[idx];
+    updateItem(idx, { requiresPhoto: needed });
+    const response = await fetch(`/api/order-requests/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoNeeded: needed }),
+    });
+    if (!response.ok) {
+      updateItem(idx, { requiresPhoto: !needed });
+      toast.error("Could not update photo request");
+    }
   }
 
   const total = calcTotal(items);
@@ -1761,6 +1794,9 @@ function OrderDetailView({
                   onInvoiceUploaded={() =>
                     updateItem(idx, { invoiceUploaded: true })
                   }
+                  onPhotoNeededChange={(needed) =>
+                    void updatePhotoNeeded(idx, needed)
+                  }
                 />
               </div>
             </div>
@@ -1828,6 +1864,9 @@ function OrderDetailView({
                       }
                       onInvoiceUploaded={() =>
                         updateItem(idx, { invoiceUploaded: true })
+                      }
+                      onPhotoNeededChange={(needed) =>
+                        void updatePhotoNeeded(idx, needed)
                       }
                     />
                   </div>
@@ -2755,12 +2794,24 @@ export function OrdersPanel({
     pendingByMonth["Sep"] = (pendingByMonth["Sep"] ?? 0) + formTotal;
 
   const recurringByMonth: Record<string, number> = {};
-  orderRecords
-    .filter((o) => o.isRecurring && o.recurEnabled && !o.recurPaused)
-    .forEach((o) => {
-      recurringByMonth[o.monthLabel] =
-        (recurringByMonth[o.monthLabel] ?? 0) + calcTotal(o.items);
-    });
+  for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    recurringByMonth[
+      new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+        new Date(2026, monthIndex, 1)
+      )
+    ] = orderRecords
+      .filter(
+        (order) =>
+          order.isRecurring &&
+          order.workflowStatus === "accepted" &&
+          (!isTreasurer ||
+            selectedOrganization === "all" ||
+            order.organizationId === selectedOrganization) &&
+          new Date(order.submittedAt).getFullYear() === 2026 &&
+          new Date(order.submittedAt).getMonth() <= monthIndex
+      )
+      .reduce((sum, order) => sum + calcTotal(order.items), 0);
+  }
 
   const activeRecurTotal = orderRecords
     .filter((o) => o.isRecurring && o.recurEnabled && !o.recurPaused)
@@ -2879,8 +2930,8 @@ export function OrdersPanel({
     status: "accepted" | "declined"
   ) {
     await Promise.all(
-      order.items.map(async () => {
-        const response = await fetch(`/api/order-requests/${order.id}`, {
+      order.items.map(async (item) => {
+        const response = await fetch(`/api/order-requests/${item.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

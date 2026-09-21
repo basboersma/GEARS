@@ -366,6 +366,7 @@ export const orderRequest = pgTable("order_request", {
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
   photoAdded: boolean("photo_added").default(false).notNull(),
+  invoiceAdded: boolean("invoice_added").default(false).notNull(),
   delivered: boolean("delivered").default(false).notNull(),
   ordered: boolean("ordered").default(false).notNull(),
   finalized: boolean("finalized").default(false).notNull(),

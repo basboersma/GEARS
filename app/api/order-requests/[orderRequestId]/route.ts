@@ -3,8 +3,9 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, orderRequest } from "@/db/schema";
+import { member, orderRequest, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { createOrderRequestFolder } from "@/lib/google-drive";
 
 const patchSchema = z.object({
   status: z.enum(["pending", "accepted", "declined"]).optional(),
@@ -139,6 +140,27 @@ export async function PATCH(
   const nextPricePerPiece =
     parsed.data.pricePerPiece ?? Number(item.pricePerPiece);
   const nextAmount = parsed.data.amount ?? item.amount;
+
+  if (parsed.data.status === "accepted" && item.status !== "accepted") {
+    const organizationRow = await db.query.organization.findFirst({
+      where: eq(organization.id, item.organizationId),
+    });
+    if (!organizationRow?.driveFolderId) {
+      return NextResponse.json(
+        { error: "This organization has no configured Google Drive folder." },
+        { status: 400 }
+      );
+    }
+    const folderResult = await createOrderRequestFolder({
+      organizationFolderId: organizationRow.driveFolderId,
+      orderTitle: item.orderName,
+      orderedDate: item.orderedDate,
+      itemLink: item.link || item.description,
+    });
+    if (!folderResult.success) {
+      return NextResponse.json({ error: folderResult.error }, { status: 502 });
+    }
+  }
 
   await db
     .update(orderRequest)

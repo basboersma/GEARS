@@ -336,11 +336,88 @@ async function findOrCreateFolder({
   if (id) {
     return id;
   }
+
   const created = await createFolder({ name, parentFolderId, drive });
   if (!created.id) {
     throw new Error("Google Drive did not return the new folder ID.");
   }
   return created.id;
+}
+
+function safeDriveName(value: string) {
+  return (
+    value
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .slice(0, 200) || "Untitled"
+  );
+}
+
+export async function createOrderRequestFolder({
+  organizationFolderId,
+  orderTitle,
+  orderedDate,
+  itemLink,
+}: {
+  organizationFolderId: string;
+  orderTitle: string;
+  orderedDate: Date;
+  itemLink: string;
+}) {
+  const clients = await getDriveClients();
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+
+  try {
+    const invoicesFolderId = await findOrCreateFolder({
+      name: "Invoices",
+      parentFolderId: organizationFolderId,
+      drive: clients.drive,
+    });
+    const orderFolderId = await findOrCreateFolder({
+      name: `${safeDriveName(orderTitle)} ${orderedDate.toISOString().slice(0, 10)}`,
+      parentFolderId: invoicesFolderId,
+      drive: clients.drive,
+    });
+    const folderId = await findOrCreateFolder({
+      name: safeDriveName(itemLink),
+      parentFolderId: orderFolderId,
+      drive: clients.drive,
+    });
+    return { success: true as const, folderId };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Order folder creation failed: ${message}`,
+    };
+  }
+}
+
+export async function uploadOrderRequestAttachment({
+  organizationFolderId,
+  orderTitle,
+  orderedDate,
+  itemLink,
+  file,
+}: {
+  organizationFolderId: string;
+  orderTitle: string;
+  orderedDate: Date;
+  itemLink: string;
+  file: File;
+}) {
+  const folder = await createOrderRequestFolder({
+    organizationFolderId,
+    orderTitle,
+    orderedDate,
+    itemLink,
+  });
+  if (!folder.success) {
+    return folder;
+  }
+  return uploadGoogleDriveFile({ folderId: folder.folderId, file });
 }
 
 export async function uploadTodoAttachments({

@@ -22,12 +22,31 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     .innerJoin(user, eq(orderRequest.userId, user.id))
     .orderBy(asc(orderRequest.orderedDate));
 
+  const uniqueRows = Array.from(
+    new Map(rows.map((row) => [row.order.id, row])).values()
+  );
+  const groupedRows = Array.from(
+    uniqueRows
+      .reduce((groups, row) => {
+        const key = [
+          row.order.organizationId,
+          row.order.userId,
+          row.order.orderName,
+          row.order.orderedDate.getTime(),
+        ].join("\u0000");
+        const group = groups.get(key) ?? [];
+        group.push(row);
+        groups.set(key, group);
+        return groups;
+      }, new Map<string, typeof uniqueRows>())
+      .values()
+  );
   const monthlySpend = Object.fromEntries(
     Array.from({ length: 12 }, (_, monthIndex) => [
       new Intl.DateTimeFormat("en-US", { month: "short" }).format(
         new Date(2026, monthIndex, 1)
       ),
-      rows
+      uniqueRows
         .filter(
           ({ order }) =>
             order.status === "accepted" &&
@@ -52,45 +71,47 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     events: [],
     todos: [],
     roadmap: [],
-    orders: rows.map(({ order, organizationName, submittedByRole }) => ({
-      id: order.id,
-      organizationId: order.organizationId,
-      organizationName,
-      submittedByRole,
-      date: order.orderedDate.toISOString().slice(0, 10),
-      startTime: order.orderedDate.toISOString().slice(11, 16),
-      endTime: order.orderedDate.toISOString().slice(11, 16),
-      title: order.orderName,
-      department: order.department,
-      submittedBy: order.submittedBy,
-      approvedBy: order.approvedBy,
-      status: order.status,
-      ordered: order.ordered,
-      delivered: order.delivered,
-      finalized: order.finalized,
-      canceled: order.canceled,
-      accepted: order.accepted,
-      link: order.link,
-      recurring: order.recurring,
-      recurringQuantity: order.recurringQuantity,
-      recurringUnit: order.recurringUnit,
-      recurringEndAt: order.recurringEndAt?.toISOString() ?? null,
-      items: [
-        {
-          id: order.id,
-          name: order.description,
-          qty: order.amount,
-          price: Number(order.pricePerPiece),
-          link: order.link,
-          orderType: order.typeOfOrder,
-          urgency: order.urgency,
-          comments: order.comments,
-          status: order.status,
-          photoNeeded: order.photoNeeded,
-          photoUploaded: order.photoUploaded,
-        },
-      ],
-    })),
+    orders: groupedRows.map((group) => {
+      const first = group[0];
+      const order = first.order;
+      return {
+        id: order.id,
+        organizationId: order.organizationId,
+        organizationName: first.organizationName,
+        submittedByRole: first.submittedByRole,
+        date: order.orderedDate.toISOString().slice(0, 10),
+        startTime: order.orderedDate.toISOString().slice(11, 16),
+        endTime: order.orderedDate.toISOString().slice(11, 16),
+        title: order.orderName,
+        department: order.department,
+        submittedBy: order.submittedBy,
+        approvedBy: order.approvedBy,
+        status: order.status,
+        ordered: order.ordered,
+        delivered: order.delivered,
+        finalized: order.finalized,
+        canceled: order.canceled,
+        accepted: order.accepted,
+        link: order.link,
+        recurring: order.recurring,
+        recurringQuantity: order.recurringQuantity,
+        recurringUnit: order.recurringUnit,
+        recurringEndAt: order.recurringEndAt?.toISOString() ?? null,
+        items: group.map(({ order: item }) => ({
+          id: item.id,
+          name: item.description,
+          qty: item.amount,
+          price: Number(item.pricePerPiece),
+          link: item.link,
+          orderType: item.typeOfOrder,
+          urgency: item.urgency,
+          comments: item.comments,
+          status: item.status,
+          photoNeeded: item.photoNeeded,
+          photoUploaded: item.photoUploaded,
+        })),
+      };
+    }),
     notifications: [],
     monthlySpend: {
       Total: Object.entries(monthlySpend).map(([month, spent]) => ({

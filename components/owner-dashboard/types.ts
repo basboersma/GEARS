@@ -135,6 +135,7 @@ export interface OrderLineItem {
   status?: string;
   photoNeeded?: boolean;
   photoUploaded?: boolean;
+  invoiceAdded?: boolean;
 }
 export interface Order {
   id: string;

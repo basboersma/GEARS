@@ -402,6 +402,7 @@ export async function getOwnerDashboardData(
           status: row.status,
           photoNeeded: row.photoNeeded,
           photoUploaded: row.photoUploaded,
+          invoiceAdded: row.invoiceAdded,
         },
       ],
     })),

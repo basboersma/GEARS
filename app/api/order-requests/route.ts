@@ -204,6 +204,7 @@ export async function POST(request: Request) {
       totalCosts: total.toFixed(2),
       orderedDate: now,
       photoAdded: false,
+      invoiceAdded: false,
       delivered: false,
       ordered: false,
       finalized: false,
