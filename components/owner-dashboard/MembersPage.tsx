@@ -1444,22 +1444,36 @@ function MemberActionModal({
               <button
                 onClick={async () => {
                   setPwChecking(true);
-                  const result = (await fetch("/api/organization-password", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ organizationId, password: pw }),
-                  })
-                    .then((response) => response.json())
-                    .catch(() => null)) as { valid?: boolean } | null;
-                  setPwChecking(false);
-                  if (result?.valid) {
+                  setPwErr(false);
+                  try {
+                    const response = await fetch("/api/organization-password", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        organizationId,
+                        password: pw,
+                      }),
+                    });
+                    const result = (await response
+                      .json()
+                      .catch(() => null)) as {
+                      valid?: boolean;
+                    } | null;
+
+                    if (!response.ok || result?.valid !== true) {
+                      setPwErr(true);
+                      return;
+                    }
+
                     await onRemove(pw);
                     onClose();
-                  } else {
+                  } catch {
                     setPwErr(true);
+                  } finally {
+                    setPwChecking(false);
                   }
                 }}
-                disabled={pwChecking}
+                disabled={pwChecking || !pw}
                 className="w-full py-2 rounded-xl text-sm bg-rose-600 text-white hover:bg-rose-700 font-semibold disabled:opacity-50"
               >
                 {pwChecking ? "Checking…" : "Remove from Team"}
