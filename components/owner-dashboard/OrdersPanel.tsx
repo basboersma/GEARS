@@ -65,6 +65,7 @@ interface OrderRecord {
   submittedAt: string;
   monthLabel: string;
   status: OrderStatus;
+  workflowStatus?: string;
   accepted?: "neutral" | "accepted" | "denied";
   items: OrderItem[];
   isPast: boolean;
@@ -216,6 +217,7 @@ const toOrderRecord = (order: Order): OrderRecord => ({
   submittedAt: order.date,
   monthLabel: monthLabel(order.date),
   status: orderStatus(order),
+  workflowStatus: order.status,
   accepted: order.accepted,
   isPast: Boolean(
     order.finalized ||
@@ -1199,7 +1201,7 @@ function OrderForm({
             }`}
           >
             {treasurerIncoming
-              ? "Ordered"
+              ? "Accepted"
               : isIncoming
                 ? "Approve order"
                 : isRecurring
@@ -1211,7 +1213,7 @@ function OrderForm({
               onClick={() => void onDeny?.()}
               className="px-5 py-1.5 rounded-lg border border-[#F0684D]/40 bg-[#F0684D]/10 text-[11px] font-semibold text-[#F0684D] hover:border-[#F0684D]/70 hover:bg-[#F0684D]/15 transition-colors"
             >
-              {treasurerIncoming ? "Denied" : "Deny Order"}
+              {treasurerIncoming ? "Declined" : "Deny Order"}
             </button>
           )}
         </div>
@@ -2653,18 +2655,13 @@ export function OrdersPanel({
     (o) =>
       !o.isPast &&
       o.status !== "draft" &&
-      (!isTreasurer ||
-        !(
-          o.status === "pending" &&
-          o.submittedByRole === "owner" &&
-          o.accepted === "neutral"
-        ))
+      (!isTreasurer || o.workflowStatus === "accepted")
   );
   const incomingOrders = orderRecords.filter((o) =>
     isTreasurer
-      ? o.status === "pending" &&
-        o.submittedByRole === "owner" &&
-        o.accepted === "neutral"
+      ? !o.isPast &&
+        o.workflowStatus === "pending" &&
+        o.submittedByRole === "owner"
       : !o.isPast &&
         (o.status === "owner_review" ||
           (o.status === "pending" && o.submittedBy !== userName))
@@ -2702,7 +2699,11 @@ export function OrdersPanel({
 
   // ordersForMonth filtered by search (for chart tooltips in past tab)
   function filteredOrdersForMonth(month: string): OrderRecord[] {
-    return filteredPastOrders.filter((o) => o.monthLabel === month);
+    return filteredPastOrders.filter(
+      (o) =>
+        o.monthLabel === month &&
+        (!isTreasurer || o.workflowStatus !== "declined")
+    );
   }
 
   function handlePointClick(month: string) {

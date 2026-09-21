@@ -22,6 +22,22 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     .innerJoin(user, eq(orderRequest.userId, user.id))
     .orderBy(asc(orderRequest.orderedDate));
 
+  const monthlySpend = Object.fromEntries(
+    Array.from({ length: 12 }, (_, monthIndex) => [
+      new Intl.DateTimeFormat("en-US", { month: "short" }).format(
+        new Date(2026, monthIndex, 1)
+      ),
+      rows
+        .filter(
+          ({ order }) =>
+            order.status === "accepted" &&
+            !order.canceled &&
+            order.orderedDate.getMonth() === monthIndex
+        )
+        .reduce((sum, { order }) => sum + Number(order.totalCosts), 0),
+    ])
+  );
+
   return {
     organizationId: "treasurer",
     driveFolderId: null,
@@ -75,6 +91,12 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
       ],
     })),
     notifications: [],
-    monthlySpend: {},
+    monthlySpend: {
+      Total: Object.entries(monthlySpend).map(([month, spent]) => ({
+        month,
+        budget: 0,
+        spent,
+      })),
+    },
   };
 }
