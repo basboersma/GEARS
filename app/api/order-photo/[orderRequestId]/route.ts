@@ -4,6 +4,23 @@ import { db } from "@/db/drizzle";
 import { orderRequest, organization } from "@/db/schema";
 import { uploadOrderRequestAttachment } from "@/lib/google-drive";
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ orderRequestId: string }> }
+) {
+  const { orderRequestId } = await params;
+  const item = await db.query.orderRequest.findFirst({
+    where: eq(orderRequest.id, orderRequestId),
+  });
+  if (!item) {
+    return NextResponse.json(
+      { error: "Order item not found" },
+      { status: 404 }
+    );
+  }
+  return NextResponse.json({ photoUploaded: item.photoUploaded });
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ orderRequestId: string }> }

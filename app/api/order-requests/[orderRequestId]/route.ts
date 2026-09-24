@@ -16,7 +16,8 @@ const patchSchema = z.object({
   ordered: z.boolean().optional(),
   photoNeeded: z.boolean().optional(),
   orderName: z.string().trim().min(1).max(100).optional(),
-  description: z.string().trim().url().optional(),
+  description: z.string().trim().min(1).max(500).optional(),
+  link: z.string().trim().url().optional(),
   pricePerPiece: z.coerce.number().positive().optional(),
   amount: z.coerce.number().int().positive().optional(),
   comments: z.string().max(200).optional(),
@@ -79,6 +80,7 @@ export async function PATCH(
     parsed.data.photoNeeded === undefined &&
     parsed.data.orderName === undefined &&
     parsed.data.description === undefined &&
+    parsed.data.link === undefined &&
     parsed.data.pricePerPiece === undefined &&
     parsed.data.amount === undefined &&
     parsed.data.comments === undefined
@@ -104,6 +106,7 @@ export async function PATCH(
   const hasReviewFields = [
     parsed.data.orderName,
     parsed.data.description,
+    parsed.data.link,
     parsed.data.pricePerPiece,
     parsed.data.amount,
     parsed.data.comments,
@@ -174,6 +177,7 @@ export async function PATCH(
       photoNeeded: nextPhotoNeeded,
       orderName: parsed.data.orderName ?? item.orderName,
       description: parsed.data.description ?? item.description,
+      link: parsed.data.link ?? item.link,
       pricePerPiece: nextPricePerPiece.toFixed(2),
       amount: nextAmount,
       totalCosts: (nextPricePerPiece * nextAmount).toFixed(2),

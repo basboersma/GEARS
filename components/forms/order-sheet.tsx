@@ -24,6 +24,7 @@ const CONTACT_EMAIL = "orders@company.com";
 interface Row {
   id: string;
   description: string;
+  link: string;
   pricePerPiece: string;
   quantity: string;
   orderType: string;
@@ -34,6 +35,7 @@ interface Row {
 const createEmptyRow = (): Row => ({
   id: crypto.randomUUID(),
   description: "",
+  link: "",
   pricePerPiece: "",
   quantity: "",
   orderType: "",
@@ -42,7 +44,7 @@ const createEmptyRow = (): Row => ({
 });
 
 const GRID =
-  "grid grid-cols-[2.25rem_minmax(11rem,1.5fr)_5.5rem_4.5rem_8rem_6.5rem_minmax(9rem,1fr)] gap-2";
+  "grid grid-cols-[2.25rem_minmax(11rem,1.25fr)_minmax(11rem,1.25fr)_5.5rem_4.5rem_8rem_6.5rem_minmax(9rem,1fr)] gap-2";
 const URL_PATTERN = /^https?:\/\//i;
 
 const fieldClass =
@@ -85,7 +87,9 @@ export function OrderSheet({
       return;
     }
 
-    const filled = rows.filter((row) => row.description.trim() !== "");
+    const filled = rows.filter(
+      (row) => row.description.trim() !== "" || row.link.trim() !== ""
+    );
 
     if (filled.length === 0) {
       setSubmitted(0);
@@ -95,9 +99,9 @@ export function OrderSheet({
 
     const hasInvalid = filled.some(
       (row) =>
-        row.description === "" ||
         row.description.trim() === "" ||
-        !URL_PATTERN.test(row.description.trim()) ||
+        row.link.trim() === "" ||
+        !URL_PATTERN.test(row.link.trim()) ||
         row.pricePerPiece === "" ||
         row.quantity === "" ||
         row.orderType === "" ||
@@ -123,6 +127,7 @@ export function OrderSheet({
           department,
           rows: filled.map((row) => ({
             description: row.description,
+            link: row.link,
             pricePerPiece: row.pricePerPiece,
             quantity: row.quantity,
             orderType: row.orderType,
@@ -215,6 +220,7 @@ export function OrderSheet({
             className={`${GRID} border-[#FFD142] border-b pb-2 font-mono text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]`}
           >
             <span>#</span>
+            <span>Description</span>
             <span>Link</span>
             <span>Price / pc</span>
             <span>Qty</span>
@@ -236,14 +242,24 @@ export function OrderSheet({
                 </span>
 
                 <input
-                  aria-label={`Link, line ${index + 1}`}
+                  aria-label={`Description, line ${index + 1}`}
                   className={fieldClass}
                   onChange={(event) =>
                     updateRow(index, { description: event.target.value })
                   }
+                  placeholder="Item description"
+                  value={row.description}
+                />
+
+                <input
+                  aria-label={`Link, line ${index + 1}`}
+                  className={fieldClass}
+                  onChange={(event) =>
+                    updateRow(index, { link: event.target.value })
+                  }
                   placeholder="https://example.com"
                   type="url"
-                  value={row.description}
+                  value={row.link}
                 />
 
                 <input

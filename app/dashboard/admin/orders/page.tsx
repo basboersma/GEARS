@@ -151,6 +151,14 @@ export default async function AdminOrdersPage({
                 <p className="mt-3 text-muted-foreground text-sm">
                   {row.description}
                 </p>
+                <a
+                  className="mt-1 block text-muted-foreground text-xs underline"
+                  href={row.link}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {row.link}
+                </a>
 
                 <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.12em]">
                   {[

@@ -48,6 +48,7 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
       orderName: true,
       department: true,
       description: true,
+      link: true,
       amount: true,
       pricePerPiece: true,
       totalCosts: true,

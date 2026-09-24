@@ -100,6 +100,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         items: group.map(({ order: item }) => ({
           id: item.id,
           name: item.description,
+          description: item.description,
           qty: item.amount,
           price: Number(item.pricePerPiece),
           link: item.link,

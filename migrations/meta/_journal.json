@@ -134,6 +134,13 @@
       "when": 1790022941825,
       "tag": "0018_flat_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790029447465,
+      "tag": "0019_silly_blur",
+      "breakpoints": true
     }
   ]
 }

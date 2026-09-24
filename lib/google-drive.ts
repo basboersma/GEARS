@@ -140,6 +140,7 @@ export interface GoogleDriveTreeNode {
   size?: string;
   modifiedTime?: string;
   webViewLink?: string;
+  thumbnailLink?: string;
   children?: GoogleDriveTreeNode[];
 }
 
@@ -157,7 +158,8 @@ export async function listGoogleDriveTree(folderId: string) {
   ): Promise<GoogleDriveTreeNode[]> => {
     const response = await clients.drive.files.list({
       q: `'${parentId}' in parents and trashed = false`,
-      fields: "files(id,name,mimeType,size,modifiedTime,webViewLink)",
+      fields:
+        "files(id,name,mimeType,size,modifiedTime,webViewLink,thumbnailLink)",
       orderBy: "folder,name",
       pageSize: 1000,
       supportsAllDrives: true,
@@ -186,6 +188,7 @@ export async function listGoogleDriveTree(folderId: string) {
             size: file.size ?? undefined,
             modifiedTime: file.modifiedTime ?? undefined,
             webViewLink: file.webViewLink ?? undefined,
+            thumbnailLink: file.thumbnailLink ?? undefined,
           };
         }
       )

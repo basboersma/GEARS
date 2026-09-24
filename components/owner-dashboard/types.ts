@@ -67,6 +67,7 @@ export interface DriveFile {
   size: string;
   modified: string;
   url: string;
+  thumbnailUrl?: string;
 }
 
 export type FileTreeNode =
@@ -79,6 +80,7 @@ export type FileTreeNode =
       size: string;
       modified: string;
       url: string;
+      thumbnailUrl?: string;
     };
 
 export interface Member {
@@ -126,6 +128,7 @@ export interface RoadmapItem {
 export interface OrderLineItem {
   id?: string;
   name: string;
+  description?: string;
   qty: number;
   price: number;
   link?: string;
@@ -194,4 +197,5 @@ export interface AppNotification {
   body: string;
   time: string;
   read: boolean;
+  orderRequestId?: string;
 }

@@ -12,6 +12,7 @@ interface OrderItem {
   orderName: string;
   department: string;
   description: string;
+  link: string;
   amount: number;
   pricePerPiece: string;
   totalCosts: string;
@@ -58,7 +59,13 @@ export function OwnerOrdersWorkspace({
       const matchesFilter = filter === "all" || item.status === filter;
       const matchesQuery =
         !normalizedQuery ||
-        [item.orderName, item.department, item.description, item.typeOfOrder]
+        [
+          item.orderName,
+          item.department,
+          item.description,
+          item.link,
+          item.typeOfOrder,
+        ]
           .join(" ")
           .toLowerCase()
           .includes(normalizedQuery);
@@ -190,11 +197,11 @@ export function OwnerOrdersWorkspace({
                 <p className="truncate font-medium text-sm">{item.orderName}</p>
                 <a
                   className="mt-1 flex max-w-fit items-center gap-1 truncate text-[#9C8272] text-xs hover:text-[#FFD142]"
-                  href={item.description}
+                  href={item.link}
                   rel="noreferrer"
                   target="_blank"
                 >
-                  View item <ExternalLink className="size-3" />
+                  {item.description} <ExternalLink className="size-3" />
                 </a>
               </div>
               <p className="text-[#C4A882] text-xs">{item.department}</p>

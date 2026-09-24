@@ -80,6 +80,7 @@ interface OrderRecord {
 }
 interface FormRow {
   id: string;
+  description: string;
   link: string;
   pricePerPiece: string;
   quantity: string;
@@ -145,6 +146,7 @@ const rowsTotal = (rows: FormRow[]) =>
   );
 const mkRow = (): FormRow => ({
   id: crypto.randomUUID(),
+  description: "",
   link: "",
   pricePerPiece: "",
   quantity: "",
@@ -158,6 +160,7 @@ const mkRow = (): FormRow => ({
 const rowHasContent = (r: FormRow) =>
   !!(
     r.link ||
+    r.description ||
     r.pricePerPiece ||
     r.quantity ||
     r.orderType ||
@@ -239,7 +242,7 @@ const toOrderRecord = (order: Order): OrderRecord => ({
   items: order.items.map((item, index) => ({
     id: item.id ?? `${order.id}-${index}`,
     link: item.link ?? "",
-    description: item.name,
+    description: item.description ?? item.name,
     pricePerPiece: item.price,
     quantity: item.qty,
     orderType: item.orderType ?? "",
@@ -848,7 +851,7 @@ function MetaFields({
 
 // ── Order Form ─────────────────────────────────────────────────────────────────
 const FORM_GRID =
-  "grid grid-cols-[1.75rem_minmax(9rem,1.5fr)_4.5rem_3.5rem_6.5rem_5.5rem_minmax(7rem,1fr)] gap-1.5";
+  "grid grid-cols-[1.75rem_minmax(9rem,1.25fr)_minmax(9rem,1.25fr)_4.5rem_3.5rem_6.5rem_5.5rem_minmax(7rem,1fr)] gap-1.5";
 
 function OrderForm({
   onTotalChange,
@@ -893,8 +896,9 @@ function OrderForm({
     if (initialData) {
       const filled = initialData.items.map((item) => ({
         id: item.id,
+        description: item.description,
         link: item.link,
-        pricePerPiece: String(item.pricePerPiece),
+        pricePerPiece: String(item.pricePerPiece || 0),
         quantity: String(item.quantity),
         orderType: item.orderType,
         urgency: item.urgency,
@@ -952,6 +956,7 @@ function OrderForm({
         (row) =>
           !row.link.trim() ||
           !/^https?:\/\//i.test(row.link.trim()) ||
+          !row.description.trim() ||
           !row.pricePerPiece ||
           !row.quantity ||
           !row.orderType ||
@@ -1049,6 +1054,7 @@ function OrderForm({
         className={`${FORM_GRID} sticky top-0 z-10 bg-[#232120] border-b border-[#3D3330] pb-1.5 pt-1 mb-0.5 font-mono text-[8px] text-[#7A6555] uppercase tracking-widest`}
       >
         <span>#</span>
+        <span>Description</span>
         <span>Link / URL</span>
         <span>Price / pc</span>
         <span>Qty</span>
@@ -1067,6 +1073,12 @@ function OrderForm({
               <span className="font-mono text-[#7A6555] text-[9px]">
                 {String(i + 1).padStart(2, "0")}
               </span>
+              <input
+                className={fieldCls}
+                placeholder="Item description"
+                value={row.description}
+                onChange={(e) => updateRow(i, { description: e.target.value })}
+              />
               <input
                 className={fieldCls}
                 placeholder="https://…"
@@ -1578,7 +1590,7 @@ function UploadButtons({
 
 // ── Order detail view ──────────────────────────────────────────────────────────
 const DETAIL_GRID =
-  "grid grid-cols-[1.75rem_minmax(9rem,1.5fr)_4.5rem_3.5rem_6.5rem_5.5rem_minmax(7rem,1fr)] gap-1.5";
+  "grid grid-cols-[1.75rem_minmax(9rem,1.25fr)_minmax(9rem,1.25fr)_4.5rem_3.5rem_6.5rem_5.5rem_minmax(7rem,1fr)] gap-1.5";
 
 function OrderDetailView({
   order,
@@ -1698,6 +1710,7 @@ function OrderDetailView({
           className={`${DETAIL_GRID} sticky top-[3.25rem] z-10 bg-[#232120] border-b border-[#3D3330] pb-1.5 pt-1 mb-0.5 font-mono text-[8px] text-[#7A6555] uppercase tracking-widest`}
         >
           <span>#</span>
+          <span>Description</span>
           <span>Link / URL</span>
           <span>Price/pc</span>
           <span>Qty</span>
@@ -1715,6 +1728,14 @@ function OrderDetailView({
                 <span className="font-mono text-[#7A6555] text-[9px]">
                   {String(idx + 1).padStart(2, "0")}
                 </span>
+                <input
+                  className={fieldCls}
+                  placeholder="Item description"
+                  value={item.description}
+                  onChange={(e) =>
+                    updateItem(idx, { description: e.target.value })
+                  }
+                />
                 <input
                   className={fieldCls}
                   type="url"
@@ -2362,6 +2383,7 @@ function ReimbursementForm({
       department,
       rows: filledRows.map((r) => ({
         id: r.id,
+        description: r.name,
         link: r.link,
         pricePerPiece: r.pricePerPiece,
         quantity: r.quantity,
@@ -2702,6 +2724,7 @@ export function OrdersPanel({
       department: order.department,
       rows: order.items.map((item) => ({
         id: item.id,
+        description: item.description,
         link: item.link,
         pricePerPiece: String(item.pricePerPiece),
         quantity: String(item.quantity),
@@ -2861,7 +2884,8 @@ export function OrdersPanel({
         department: payload.department,
         recurring: payload.recurring,
         rows: payload.rows.map((row) => ({
-          description: row.link,
+          description: row.description,
+          link: row.link,
           pricePerPiece: row.pricePerPiece,
           quantity: row.quantity,
           orderType: row.orderType,
@@ -2899,7 +2923,8 @@ export function OrdersPanel({
         department: draft.department,
         recurring: Boolean(draft.isRecurring),
         rows: draft.rows.map((row) => ({
-          description: row.link,
+          description: row.description,
+          link: row.link,
           pricePerPiece: row.pricePerPiece || 0,
           quantity: row.quantity || 0,
           orderType: row.orderType || undefined,
@@ -3109,6 +3134,7 @@ export function OrdersPanel({
                         department: order.department,
                         rows: order.items.map((item) => ({
                           id: item.id,
+                          description: item.description,
                           link: item.link,
                           pricePerPiece: String(item.pricePerPiece),
                           quantity: String(item.quantity),

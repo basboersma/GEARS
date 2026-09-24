@@ -240,6 +240,7 @@ export async function getOwnerDashboardData(
           url:
             node.webViewLink ??
             `https://drive.google.com/file/d/${node.id}/view`,
+          thumbnailUrl: node.thumbnailLink,
         };
       })
     : buildFileTree(fileRows);
@@ -393,6 +394,7 @@ export async function getOwnerDashboardData(
         {
           id: row.id,
           name: row.description,
+          description: row.description,
           qty: row.amount,
           price: Number(row.pricePerPiece),
           link: row.link,
@@ -406,17 +408,33 @@ export async function getOwnerDashboardData(
         },
       ],
     })),
-    notifications: notificationRows.map((row) => ({
-      id: row.id,
-      type: row.type as DashboardData["notifications"][number]["type"],
-      title: row.title,
-      body: row.body,
-      time: row.createdAt.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
-      read: row.read,
-    })),
+    notifications: [
+      ...notificationRows.map((row) => ({
+        id: row.id,
+        type: row.type as DashboardData["notifications"][number]["type"],
+        title: row.title,
+        body: row.body,
+        time: row.createdAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        }),
+        read: row.read,
+      })),
+      ...orderRows
+        .filter((row) => row.photoNeeded && !row.photoUploaded)
+        .map((row) => ({
+          id: `photo-needed:${row.id}`,
+          type: "order" as const,
+          title: "Photo needed",
+          body: `${row.orderName}: ${row.link || row.description}`,
+          time: row.orderedDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          read: false,
+          orderRequestId: row.id,
+        })),
+    ],
     monthlySpend: Object.fromEntries(
       ["Total", ...departments].map((name) => [
         name,

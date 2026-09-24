@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import type { Organization } from "@/db/schema";
+import { BitJsonQrCode } from "./BitJsonQrCode";
 import { CalendarBlock } from "./CalendarBlock";
 import {
   DashboardDataProvider,
@@ -39,9 +40,83 @@ const NOTIF_TYPE_COLOR: Record<AppNotification["type"], string> = {
   budget: "#F0684D",
 };
 
+function PhotoNotificationPopup({
+  orderRequestId,
+  onClose,
+  onUploaded,
+}: {
+  orderRequestId: string;
+  onClose: () => void;
+  onUploaded: () => void;
+}) {
+  useEffect(() => {
+    const checkUpload = async () => {
+      const response = await fetch(`/api/order-photo/${orderRequestId}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json().catch(() => null)) as {
+        photoUploaded?: boolean;
+      } | null;
+      if (data?.photoUploaded) {
+        onUploaded();
+      }
+    };
+    checkUpload().catch(() => undefined);
+    const interval = window.setInterval(() => {
+      checkUpload().catch(() => undefined);
+    }, 1500);
+    return () => window.clearInterval(interval);
+  }, [onUploaded, orderRequestId]);
+
+  const uploadUrl =
+    typeof window === "undefined"
+      ? `/order-photo/${orderRequestId}`
+      : `${window.location.origin}/order-photo/${orderRequestId}`;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xs rounded-2xl border border-[#3D3330] bg-[#232120] p-5 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-[#FFEDD1] text-sm">
+              Photo needed
+            </h3>
+            <p className="mt-0.5 text-[#7A6555] text-[10px]">
+              Scan this code to take and upload the photo.
+            </p>
+          </div>
+          <button
+            aria-label="Close photo upload popup"
+            className="text-[#9C8272] text-lg leading-none hover:text-[#FFEDD1]"
+            onClick={onClose}
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+        <div className="mx-auto w-fit rounded-xl bg-white p-3">
+          <BitJsonQrCode
+            backgroundColor="#FFFFFF"
+            contents={uploadUrl}
+            moduleColor="#1A1919"
+            positionCenterColor="#1A1919"
+            positionRingColor="#1A1919"
+            size={190}
+          />
+        </div>
+        <p className="mt-3 text-center text-[#7A6555] text-[10px]">
+          This popup closes after the photo is uploaded.
+        </p>
+      </div>
+    </div>
+  );
+}
 function NotificationsBlock() {
   const { dismissNotification, notifications } = useDashboardData();
   const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [photoNotificationId, setPhotoNotificationId] = useState<string | null>(
+    null
+  );
   useEffect(() => {
     if (!dismissingId) {
       return;
@@ -65,6 +140,9 @@ function NotificationsBlock() {
       setDismissingId(id);
     }
   };
+  const photoNotification = notifications.find(
+    (notification) => notification.id === photoNotificationId
+  );
   const unread = notifications.filter(
     (notification) => !notification.read
   ).length;
@@ -87,7 +165,13 @@ function NotificationsBlock() {
               <button
                 className="relative flex w-full items-start gap-2.5 overflow-hidden rounded-xl border border-[#3D3330] bg-[#2A2724] p-2.5 text-left transition-all hover:border-[#4A3F38]"
                 key={n.id}
-                onClick={() => markRead(n.id)}
+                onClick={() => {
+                  if (n.orderRequestId) {
+                    setPhotoNotificationId(n.id);
+                    return;
+                  }
+                  markRead(n.id).catch(() => undefined);
+                }}
               >
                 <span
                   className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
@@ -121,6 +205,16 @@ function NotificationsBlock() {
           </div>
         )}
       </div>
+      {photoNotification?.orderRequestId && (
+        <PhotoNotificationPopup
+          onClose={() => setPhotoNotificationId(null)}
+          onUploaded={() => {
+            dismissNotification(photoNotification.id);
+            setPhotoNotificationId(null);
+          }}
+          orderRequestId={photoNotification.orderRequestId}
+        />
+      )}
     </div>
   );
 }

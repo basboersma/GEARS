@@ -15,7 +15,8 @@ const orderTypeEnum = ["Hardware", "Electronic", "Software", "Social"] as const;
 const urgencyEnum = ["1 day", "2 days", "3 days", "7 days"] as const;
 
 const rowSchema = z.object({
-  description: z
+  description: z.string().trim().min(1, "Description is required").max(500),
+  link: z
     .string()
     .trim()
     .url("Link must be a valid URL")
@@ -34,7 +35,8 @@ const rowSchema = z.object({
 });
 
 const draftRowSchema = z.object({
-  description: z.string().trim().default(""),
+  description: z.string().trim().max(500).default(""),
+  link: z.string().trim().default(""),
   pricePerPiece: z.coerce.number().nonnegative().default(0),
   quantity: z.coerce.number().int().nonnegative().default(0),
   orderType: z.enum(orderTypeEnum).default("Hardware"),
@@ -194,7 +196,7 @@ export async function POST(request: Request) {
       department: parsed.data.department,
       orderName: parsed.data.orderName,
       description: row.description,
-      link: row.description,
+      link: row.link,
       pricePerPiece: row.pricePerPiece.toFixed(2),
       amount: row.quantity,
       typeOfOrder: row.orderType,

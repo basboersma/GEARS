@@ -1,0 +1,1 @@
+ALTER TABLE "order_request" ADD COLUMN "invoice_added" boolean DEFAULT false NOT NULL;

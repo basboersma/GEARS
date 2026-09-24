@@ -9,6 +9,7 @@ interface OrderItem {
   orderName: string;
   department: string;
   description: string;
+  link: string;
   amount: number;
   pricePerPiece: string;
   totalCosts: string;
@@ -34,6 +35,7 @@ export function OwnerOrderReview({ items }: { items: OrderItem[] }) {
         body: JSON.stringify({
           orderName: item.orderName,
           description: item.description,
+          link: item.link,
           pricePerPiece: Number(item.pricePerPiece),
           amount: item.amount,
           comments: item.comments,
@@ -120,6 +122,15 @@ export function OwnerOrderReview({ items }: { items: OrderItem[] }) {
               updateItem(item.id, { description: event.target.value })
             }
             value={item.description}
+          />
+          <input
+            className="mt-2 w-full rounded-md border bg-background px-2 py-1 text-sm"
+            onChange={(event) =>
+              updateItem(item.id, { link: event.target.value })
+            }
+            placeholder="Link / URL"
+            type="url"
+            value={item.link}
           />
           <div className="mt-2 flex flex-wrap gap-2">
             <input
