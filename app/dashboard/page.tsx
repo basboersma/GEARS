@@ -12,7 +12,7 @@ export default async function Dashboard() {
   });
 
   if (memberships.some((membership) => membership.role === "admin")) {
-    redirect("https://www.gearsnl.org/dashboard/organization/GEARS");
+    redirect("/dashboard/organization/GEARS");
   }
 
   const organizationIds = memberships.map(
