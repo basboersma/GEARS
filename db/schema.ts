@@ -370,6 +370,7 @@ export const orderRequest = pgTable("order_request", {
   delivered: boolean("delivered").default(false).notNull(),
   ordered: boolean("ordered").default(false).notNull(),
   finalized: boolean("finalized").default(false).notNull(),
+  state: text("state").default("Functional").notNull(),
   status: orderRequestStatus("status").default("pending").notNull(),
   photoNeeded: boolean("photo_needed").default(false).notNull(),
   photoUploaded: boolean("photo_uploaded").default(false).notNull(),
@@ -382,6 +383,32 @@ export const orderRequest = pgTable("order_request", {
   reimbursementStatus: reimbursementStatus("reimbursement_status")
     .default("not_requested")
     .notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const reimbursementRequest = pgTable("reimbursement_request", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  department: text("department").notNull().default(""),
+  submittedBy: text("submitted_by").notNull(),
+  link: text("link").notNull().default(""),
+  pricePerPiece: numeric("price_per_piece").notNull(),
+  quantity: integer("quantity").notNull(),
+  orderType: text("order_type").notNull(),
+  urgency: text("urgency").notNull(),
+  comments: varchar("comments", { length: 200 }).notNull().default(""),
+  status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
@@ -560,6 +587,7 @@ export const schema = {
   invitation,
   departmentInvitation,
   orderRequest,
+  reimbursementRequest,
   agendaEvent,
   agendaDiscussionPoint,
   agendaDiscussionPointVote,

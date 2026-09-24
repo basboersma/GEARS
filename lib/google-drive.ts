@@ -423,6 +423,97 @@ export async function uploadOrderRequestAttachment({
   return uploadGoogleDriveFile({ folderId: folder.folderId, file });
 }
 
+export async function replaceOrderRequestPhoto({
+  organizationFolderId,
+  orderTitle,
+  orderedDate,
+  itemLink,
+  file,
+}: {
+  organizationFolderId: string;
+  orderTitle: string;
+  orderedDate: Date;
+  itemLink: string;
+  file: File;
+}) {
+  const clients = await getDriveClients();
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+
+  const folder = await createOrderRequestFolder({
+    organizationFolderId,
+    orderTitle,
+    orderedDate,
+    itemLink,
+  });
+  if (!folder.success) {
+    return folder;
+  }
+
+  try {
+    const existing = await clients.drive.files.list({
+      q: `'${folder.folderId}' in parents and trashed = false`,
+      fields: "files(id,mimeType)",
+      pageSize: 100,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    await Promise.all(
+      (existing.data.files ?? [])
+        .filter((entry) => entry.id && entry.mimeType?.startsWith("image/"))
+        .map((entry) =>
+          clients.drive.files.delete({
+            fileId: entry.id as string,
+            supportsAllDrives: true,
+          })
+        )
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Existing photo replacement failed: ${message}`,
+    };
+  }
+
+  return uploadGoogleDriveFile({ folderId: folder.folderId, file });
+}
+
+export async function uploadReimbursementAttachment({
+  organizationFolderId,
+  orderName,
+  file,
+}: {
+  organizationFolderId: string;
+  orderName: string;
+  file: File;
+}) {
+  const clients = await getDriveClients();
+  if ("error" in clients) {
+    return { success: false as const, error: clients.error };
+  }
+  try {
+    const reimbursementsFolderId = await findOrCreateFolder({
+      name: "Reimbursements",
+      parentFolderId: organizationFolderId,
+      drive: clients.drive,
+    });
+    const orderFolderId = await findOrCreateFolder({
+      name: safeDriveName(orderName),
+      parentFolderId: reimbursementsFolderId,
+      drive: clients.drive,
+    });
+    return uploadGoogleDriveFile({ folderId: orderFolderId, file });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false as const,
+      error: `Reimbursement folder creation failed: ${message}`,
+    };
+  }
+}
+
 export async function uploadTodoAttachments({
   organizationFolderId,
   todoTitle,
@@ -480,6 +571,7 @@ const ORGANIZATION_SUBFOLDER_NAMES = [
   "Meetings",
   "Items",
   "Invoices",
+  "Reimbursements",
 ] as const;
 
 export async function createOrganizationDriveFolders({

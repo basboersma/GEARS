@@ -1,0 +1,1 @@
+ALTER TABLE "order_request" ADD COLUMN IF NOT EXISTS "state" text DEFAULT 'Functional' NOT NULL;

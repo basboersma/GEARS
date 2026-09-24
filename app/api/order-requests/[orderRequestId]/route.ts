@@ -14,7 +14,9 @@ const patchSchema = z.object({
     .enum(["not_requested", "pending", "successful", "failed"])
     .optional(),
   ordered: z.boolean().optional(),
+  invoiceAdded: z.boolean().optional(),
   photoNeeded: z.boolean().optional(),
+  state: z.enum(["Functional", "Broken", "Discarded"]).optional(),
   orderName: z.string().trim().min(1).max(100).optional(),
   description: z.string().trim().min(1).max(500).optional(),
   link: z.string().trim().url().optional(),
@@ -77,7 +79,9 @@ export async function PATCH(
     parsed.data.accepted === undefined &&
     parsed.data.reimbursementStatus === undefined &&
     parsed.data.ordered === undefined &&
+    parsed.data.invoiceAdded === undefined &&
     parsed.data.photoNeeded === undefined &&
+    parsed.data.state === undefined &&
     parsed.data.orderName === undefined &&
     parsed.data.description === undefined &&
     parsed.data.link === undefined &&
@@ -121,10 +125,13 @@ export async function PATCH(
     (isApprovalStatus ||
       isAcceptanceUpdate ||
       parsed.data.ordered !== undefined ||
+      parsed.data.invoiceAdded !== undefined ||
       parsed.data.photoNeeded !== undefined ||
+      parsed.data.state !== undefined ||
       parsed.data.reimbursementStatus !== undefined);
 
-  if (!(ownerCanReview || adminCanProcess)) {
+  const canUpdateState = isOwnerOrAdmin && parsed.data.state !== undefined;
+  if (!(ownerCanReview || adminCanProcess || canUpdateState)) {
     return NextResponse.json(
       { error: "You are not authorized to update this order item" },
       { status: 403 }
@@ -139,7 +146,11 @@ export async function PATCH(
     nextAccepted = "denied";
   }
   const nextOrdered = parsed.data.ordered ?? item.ordered;
+  const nextInvoiceAdded = parsed.data.invoiceAdded ?? item.invoiceAdded;
   const nextPhotoNeeded = parsed.data.photoNeeded ?? item.photoNeeded;
+  const nextPhotoUploaded = item.photoUploaded;
+  const nextFinalized =
+    nextOrdered && nextInvoiceAdded && (!nextPhotoNeeded || nextPhotoUploaded);
   const nextPricePerPiece =
     parsed.data.pricePerPiece ?? Number(item.pricePerPiece);
   const nextAmount = parsed.data.amount ?? item.amount;
@@ -174,7 +185,10 @@ export async function PATCH(
       reimbursementStatus:
         parsed.data.reimbursementStatus ?? item.reimbursementStatus,
       ordered: nextOrdered,
+      invoiceAdded: nextInvoiceAdded,
+      finalized: nextFinalized,
       photoNeeded: nextPhotoNeeded,
+      state: parsed.data.state ?? item.state,
       orderName: parsed.data.orderName ?? item.orderName,
       description: parsed.data.description ?? item.description,
       link: parsed.data.link ?? item.link,

@@ -14,6 +14,7 @@ import {
   orderRequest,
   organization,
   organizationDepartment,
+  reimbursementRequest,
   studentProfile,
   team,
   teamHistory,
@@ -82,7 +83,6 @@ function buildFileTree(
         url: row.url ?? "#",
       };
     });
-
   return mapRows(null);
 }
 
@@ -115,7 +115,8 @@ function formatFileSize(value?: string): string {
 }
 
 export async function getOwnerDashboardData(
-  organizationId: string
+  organizationId: string,
+  viewer?: { userId: string; role: string }
 ): Promise<DashboardData> {
   const [
     departmentRows,
@@ -128,6 +129,7 @@ export async function getOwnerDashboardData(
     notificationRows,
     eventRows,
     orderRows,
+    reimbursementRows,
   ] = await Promise.all([
     db.query.organizationDepartment.findMany({
       where: eq(organizationDepartment.organizationId, organizationId),
@@ -176,6 +178,10 @@ export async function getOwnerDashboardData(
     db.query.orderRequest.findMany({
       where: eq(orderRequest.organizationId, organizationId),
       orderBy: [asc(orderRequest.orderedDate)],
+    }),
+    db.query.reimbursementRequest.findMany({
+      where: eq(reimbursementRequest.organizationId, organizationId),
+      orderBy: [asc(reimbursementRequest.createdAt)],
     }),
   ]);
   const organizationRow = await db.query.organization.findFirst({
@@ -383,6 +389,7 @@ export async function getOwnerDashboardData(
       ordered: row.ordered,
       delivered: row.delivered,
       finalized: row.finalized,
+      state: row.state as "Functional" | "Broken" | "Discarded",
       canceled: row.canceled,
       accepted: row.accepted,
       link: row.link,
@@ -434,7 +441,40 @@ export async function getOwnerDashboardData(
           read: false,
           orderRequestId: row.id,
         })),
+      ...orderRows
+        .filter(
+          (row) =>
+            row.ordered &&
+            (viewer?.role === "owner" || row.userId === viewer?.userId)
+        )
+        .map((row) => ({
+          id: `order-ordered:${row.id}`,
+          type: "order" as const,
+          title: "Order placed",
+          body: `${row.orderName}: ${row.description}`,
+          time: row.orderedDate.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+          read: false,
+          orderRequestId: row.id,
+        })),
     ],
+    reimbursements: reimbursementRows.map((row) => ({
+      id: row.id,
+      organizationId: row.organizationId,
+      name: row.name,
+      department: row.department,
+      submittedBy: row.submittedBy,
+      link: row.link,
+      pricePerPiece: Number(row.pricePerPiece),
+      quantity: row.quantity,
+      orderType: row.orderType,
+      urgency: row.urgency,
+      comments: row.comments,
+      status: row.status,
+      submittedAt: row.createdAt.toISOString(),
+    })),
     monthlySpend: Object.fromEntries(
       ["Total", ...departments].map((name) => [
         name,

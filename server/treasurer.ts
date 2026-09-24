@@ -1,7 +1,13 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { DashboardData } from "@/components/owner-dashboard/dashboard-data-context";
 import { db } from "@/db/drizzle";
-import { member, orderRequest, organization, user } from "@/db/schema";
+import {
+  member,
+  orderRequest,
+  organization,
+  reimbursementRequest,
+  user,
+} from "@/db/schema";
 
 export async function getTreasurerDashboardData(): Promise<DashboardData> {
   const rows = await db
@@ -21,6 +27,10 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     )
     .innerJoin(user, eq(orderRequest.userId, user.id))
     .orderBy(asc(orderRequest.orderedDate));
+  const reimbursements = await db.query.reimbursementRequest.findMany({
+    where: eq(reimbursementRequest.status, "accepted"),
+    orderBy: [asc(reimbursementRequest.createdAt)],
+  });
 
   const uniqueRows = Array.from(
     new Map(rows.map((row) => [row.order.id, row])).values()
@@ -113,7 +123,34 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         })),
       };
     }),
-    notifications: [],
+    notifications: uniqueRows
+      .filter(({ order }) => order.ordered)
+      .map(({ order }) => ({
+        id: `order-ordered:${order.id}`,
+        type: "order" as const,
+        title: "Order placed",
+        body: `${order.orderName}: ${order.description}`,
+        time: order.orderedDate.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        }),
+        read: false,
+      })),
+    reimbursements: reimbursements.map((row) => ({
+      id: row.id,
+      organizationId: row.organizationId,
+      name: row.name,
+      department: row.department,
+      submittedBy: row.submittedBy,
+      link: row.link,
+      pricePerPiece: Number(row.pricePerPiece),
+      quantity: row.quantity,
+      orderType: row.orderType,
+      urgency: row.urgency,
+      comments: row.comments,
+      status: row.status,
+      submittedAt: row.createdAt.toISOString(),
+    })),
     monthlySpend: {
       Total: Object.entries(monthlySpend).map(([month, spent]) => ({
         month,

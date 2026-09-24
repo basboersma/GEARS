@@ -19,6 +19,8 @@ interface InventoryItem {
   owner: string;
   location: string;
   createdAt: string;
+  approvedBy: string;
+  state: "Functional" | "Broken" | "Discarded";
 }
 
 const formatCurrency = (value: number) =>
@@ -81,7 +83,7 @@ function toInventoryItem(
   const photo = findPhoto(fileTree, order);
   return {
     id: order.id,
-    name: order.title,
+    name: line?.description?.trim() || order.title,
     description: line?.name ?? "",
     imageUrl: photo?.imageUrl ?? null,
     photoDriveUrl: photo?.driveUrl ?? null,
@@ -91,6 +93,8 @@ function toInventoryItem(
     owner: order.submittedBy ?? "",
     location: order.department,
     createdAt: order.date,
+    approvedBy: order.approvedBy ?? "",
+    state: order.state ?? "Functional",
   };
 }
 
@@ -171,19 +175,15 @@ function ItemDetail({
       >
         ← Back to Inventory
       </button>
-      <div className="mb-4 overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
-        {item.imageUrl ? (
+      {item.imageUrl && (
+        <div className="mb-4 overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
           <img
             src={item.imageUrl}
             alt={item.name}
             className="h-52 w-full object-contain"
           />
-        ) : (
-          <div className="flex h-52 items-center justify-center text-4xl text-[#4A3F38]">
-            □
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-[#FFEDD1]">{item.name}</h2>
@@ -201,14 +201,15 @@ function ItemDetail({
             </a>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setShowPhoto(true)}
-          disabled={!item.photoDriveUrl && !item.imageUrl}
-          className="shrink-0 rounded-lg border border-[#F0684D]/40 px-3 py-2 text-[10px] font-medium text-[#F0684D] hover:bg-[#F0684D]/10 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          View photo
-        </button>
+        {item.imageUrl && (
+          <button
+            type="button"
+            onClick={() => setShowPhoto(true)}
+            className="shrink-0 rounded-lg border border-[#F0684D]/40 px-3 py-2 text-[10px] font-medium text-[#F0684D] hover:bg-[#F0684D]/10"
+          >
+            View photo
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {[
@@ -240,30 +241,63 @@ function ItemDetail({
 export function InventoryPage({ onBack }: { onBack?: () => void }) {
   const { departments, fileTree, orders } = useDashboardData();
   const [query, setQuery] = useState("");
+  const [queries, setQueries] = useState<string[]>([]);
   const [department, setDepartment] = useState("All");
   const [selected, setSelected] = useState<InventoryItem | null>(null);
   const [photoItem, setPhotoItem] = useState<InventoryItem | null>(null);
+  const [stateById, setStateById] = useState<
+    Record<string, InventoryItem["state"]>
+  >({});
   const items = orders
     .filter((order) => order.finalized)
     .map((order) => toInventoryItem(order, fileTree));
   const filtered = items.filter((item) => {
-    const matchesQuery = [
+    const searchable = [
       item.name,
       item.description,
       item.owner,
+      item.approvedBy,
       item.location,
+      item.createdAt,
+      formatDate(item.createdAt),
+      String(item.pricePerPiece),
+      formatCurrency(item.pricePerPiece),
+      String(item.pricePerPiece * item.quantity),
+      formatCurrency(item.pricePerPiece * item.quantity),
+      stateById[item.id] ?? item.state,
     ]
       .join(" ")
-      .toLowerCase()
-      .includes(query.toLowerCase());
+      .toLowerCase();
+    const matchesQuery = [...queries, query.trim()]
+      .filter(Boolean)
+      .every((term) => searchable.includes(term.toLowerCase()));
     return (
       matchesQuery && (department === "All" || item.location === department)
     );
   });
   const totalValue = items.reduce(
-    (sum, item) => sum + item.pricePerPiece * item.quantity,
+    (sum, item) =>
+      (stateById[item.id] ?? item.state) === "Functional"
+        ? sum + item.pricePerPiece * item.quantity
+        : sum,
     0
   );
+
+  async function updateState(
+    item: InventoryItem,
+    nextState: InventoryItem["state"]
+  ) {
+    const previousState = stateById[item.id] ?? item.state;
+    setStateById((current) => ({ ...current, [item.id]: nextState }));
+    const response = await fetch(`/api/order-requests/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state: nextState }),
+    });
+    if (!response.ok) {
+      setStateById((current) => ({ ...current, [item.id]: previousState }));
+    }
+  }
 
   if (selected)
     return (
@@ -300,6 +334,12 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
           placeholder="Search inventory…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || !query.trim()) return;
+            event.preventDefault();
+            setQueries((current) => [...current, query.trim()]);
+            setQuery("");
+          }}
         />
         <select
           value={department}
@@ -314,6 +354,28 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
           ))}
         </select>
       </div>
+      {queries.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {queries.map((term, index) => (
+            <span
+              className="inline-flex items-center gap-1 rounded-md border border-[#4A3F38] bg-[#2A2724] px-2 py-1 text-[10px] text-[#C4A882]"
+              key={`${term}-${index}`}
+            >
+              {term}
+              <button
+                type="button"
+                aria-label={`Remove search constraint ${term}`}
+                className="text-[#9C8272] hover:text-[#FFEDD1]"
+                onClick={() =>
+                  setQueries((current) => current.filter((_, i) => i !== index))
+                }
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-[#3D3330] bg-[#232120]">
         <div className="grid grid-cols-[2.5rem_1fr_5rem_3.5rem_5.5rem_6rem_6rem_4rem_5rem] gap-2 border-b border-[#3D3330] px-4 py-2.5 font-mono text-[8px] uppercase tracking-widest text-[#7A6555]">
           <span />
@@ -344,9 +406,7 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
                       alt=""
                       className="h-full w-full object-cover"
                     />
-                  ) : (
-                    <span className="text-sm text-[#4A3F38]">□</span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="min-w-0">
                   <span className="block truncate text-xs font-medium text-[#FFEDD1]">
@@ -375,14 +435,32 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
                   {formatDate(item.createdAt).replace(/\s\d{4}$/, "")}
                 </span>
               </button>
-              <button
-                type="button"
-                onClick={() => setPhotoItem(item)}
-                disabled={!item.photoDriveUrl && !item.imageUrl}
-                className="rounded-lg border border-[#3D3330] px-2 py-1 text-[10px] text-[#F0684D] hover:bg-[#F0684D]/10 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                Photo
-              </button>
+              <div className="flex items-center justify-end gap-1">
+                <select
+                  aria-label={`State for ${item.name}`}
+                  className="h-7 rounded-lg border border-[#3D3330] bg-[#1A1919] px-1 text-[9px] text-[#C4A882]"
+                  value={stateById[item.id] ?? item.state}
+                  onChange={(event) =>
+                    updateState(
+                      item,
+                      event.target.value as InventoryItem["state"]
+                    ).catch(() => undefined)
+                  }
+                >
+                  <option value="Functional">State: Functional</option>
+                  <option value="Broken">State: Broken</option>
+                  <option value="Discarded">State: Discarded</option>
+                </select>
+                {item.imageUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => setPhotoItem(item)}
+                    className="rounded-lg border border-[#3D3330] px-2 py-1 text-[10px] text-[#F0684D] hover:bg-[#F0684D]/10"
+                  >
+                    Photo
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
           {filtered.length === 0 && (

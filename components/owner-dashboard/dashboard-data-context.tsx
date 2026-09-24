@@ -8,6 +8,7 @@ import type {
   FileTreeNode,
   Member,
   Order,
+  ReimbursementRequest,
   RoadmapItem,
   TeamAssignment,
   TeamHistorySnapshot,
@@ -30,6 +31,7 @@ export interface DashboardData {
   roadmap: RoadmapItem[];
   orders: Order[];
   notifications: AppNotification[];
+  reimbursements: ReimbursementRequest[];
   monthlySpend: Record<
     string,
     { month: string; budget: number; spent: number }[]

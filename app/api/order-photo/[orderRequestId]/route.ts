@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db/drizzle";
 import { orderRequest, organization } from "@/db/schema";
-import { uploadOrderRequestAttachment } from "@/lib/google-drive";
+import { replaceOrderRequestPhoto } from "@/lib/google-drive";
 
 export async function GET(
   _request: Request,
@@ -48,7 +48,7 @@ export async function POST(
       { status: 400 }
     );
   }
-  const result = await uploadOrderRequestAttachment({
+  const result = await replaceOrderRequestPhoto({
     organizationFolderId: organizationRow.driveFolderId,
     orderTitle: item.orderName,
     orderedDate: item.orderedDate,
@@ -58,9 +58,15 @@ export async function POST(
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
+  const finalized = item.ordered && item.invoiceAdded;
   await db
     .update(orderRequest)
-    .set({ photoAdded: true, photoUploaded: true, updatedAt: new Date() })
+    .set({
+      photoAdded: true,
+      photoUploaded: true,
+      finalized,
+      updatedAt: new Date(),
+    })
     .where(eq(orderRequest.id, item.id));
   return NextResponse.json({ success: true });
 }

@@ -163,6 +163,7 @@ export interface Order {
   finalized?: boolean;
   canceled?: boolean;
   accepted?: "neutral" | "accepted" | "denied";
+  state?: "Functional" | "Broken" | "Discarded";
   items: OrderLineItem[];
 }
 
@@ -198,4 +199,20 @@ export interface AppNotification {
   time: string;
   read: boolean;
   orderRequestId?: string;
+}
+
+export interface ReimbursementRequest {
+  id: string;
+  organizationId: string;
+  name: string;
+  department: string;
+  submittedBy: string;
+  link: string;
+  pricePerPiece: number;
+  quantity: number;
+  orderType: string;
+  urgency: string;
+  comments: string;
+  status: string;
+  submittedAt: string;
 }

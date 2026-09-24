@@ -39,7 +39,10 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   );
 
   if ((isOwner || isAdmin) && organization) {
-    const dashboardData = await getOwnerDashboardData(organization.id);
+    const dashboardData = await getOwnerDashboardData(organization.id, {
+      userId: user.id,
+      role: membership.role,
+    });
     const organizations = await getOrganizations();
     const spent = dashboardData.monthlySpend.Total.reduce(
       (sum, month) => sum + month.spent,
@@ -117,6 +120,12 @@ export default async function OrganizationPage({ params }: { params: Params }) {
           </Link>
         </Button>
       ) : null}
+
+      <Button asChild className="w-fit" variant="outline">
+        <Link href={`/dashboard/organization/${slug}/reimburse`}>
+          Submit Reimbursement
+        </Link>
+      </Button>
 
       {isAdmin && organization?.id ? (
         <OrganizationAgenda

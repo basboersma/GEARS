@@ -59,9 +59,10 @@ export async function POST(
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
+  const finalized = item.ordered && (!item.photoNeeded || item.photoUploaded);
   await db
     .update(orderRequest)
-    .set({ invoiceAdded: true, updatedAt: new Date() })
+    .set({ invoiceAdded: true, finalized, updatedAt: new Date() })
     .where(eq(orderRequest.id, item.id));
   return NextResponse.json({ success: true });
 }

@@ -35,6 +35,7 @@ interface Reimbursement {
   orderType: string;
   urgency: string;
   comments: string;
+  status: string;
   invoiceFile: File | null;
   invoiceDataUrl: string | null;
   isPast: boolean;
@@ -198,7 +199,7 @@ const orderStatus = (order: Order): OrderStatus => {
     order.accepted === "denied"
   )
     return "denied";
-  if (order.finalized || order.delivered) return "arrived";
+  if (order.finalized) return "arrived";
   if (order.ordered || order.accepted === "accepted") return "ordered";
   return "pending";
 };
@@ -228,7 +229,6 @@ const toOrderRecord = (order: Order): OrderRecord => ({
   accepted: order.accepted,
   isPast: Boolean(
     order.finalized ||
-      order.delivered ||
       order.canceled ||
       order.status === "declined" ||
       order.accepted === "denied"
@@ -2307,7 +2307,7 @@ function ReimbursementForm({
   onSubmit,
   onSaveDraft,
 }: {
-  onSubmit: (r: Reimbursement) => void;
+  onSubmit: (r: Reimbursement, file: File) => void | Promise<void>;
   onSaveDraft?: (draft: Draft) => void;
 }) {
   const { departments } = useDashboardData();
@@ -2337,13 +2337,13 @@ function ReimbursementForm({
     setRows(next);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const filledRows = rows.filter(reimbRowHasContent);
     if (!filledRows.length || !file) return;
     const now = new Date();
     // submit each filled row as a separate reimbursement
-    filledRows.forEach((row) => {
-      onSubmit({
+    for (const row of filledRows) {
+      const reimbursement = {
         id: crypto.randomUUID(),
         name: row.name || "Unnamed",
         department,
@@ -2359,11 +2359,13 @@ function ReimbursementForm({
         orderType: row.orderType,
         urgency: row.urgency,
         comments: row.comments,
+        status: "pending" as const,
         invoiceFile: file,
         invoiceDataUrl: dataUrl,
         isPast: false,
-      });
-    });
+      };
+      await onSubmit(reimbursement, file);
+    }
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
@@ -2693,7 +2695,12 @@ export function OrdersPanel({
   mode?: "owner" | "treasurer";
 }) {
   const router = useRouter();
-  const { monthlySpend, orders, organizationId } = useDashboardData();
+  const {
+    monthlySpend,
+    orders,
+    organizationId,
+    reimbursements: persistedReimbursements,
+  } = useDashboardData();
   const isTreasurer = mode === "treasurer";
   const [tab, setTab] = useState<Tab>(isTreasurer ? "overview" : "submit");
   const [formTotal, setFormTotal] = useState(0);
@@ -2705,7 +2712,18 @@ export function OrdersPanel({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [reimbursements, setReimbursements] = useState<Reimbursement[]>([]);
+  const [reimbursements, setReimbursements] = useState<Reimbursement[]>(() =>
+    persistedReimbursements.map((reimbursement) => ({
+      ...reimbursement,
+      submittedAt: reimbursement.submittedAt,
+      monthLabel: new Date(reimbursement.submittedAt).toLocaleString("en-GB", {
+        month: "short",
+      }),
+      invoiceFile: null,
+      invoiceDataUrl: null,
+      isPast: reimbursement.status !== "pending",
+    }))
+  );
   const [overviewSubTab, setOverviewSubTab] = useState<
     "orders" | "drafts" | "reimburse"
   >("orders");
@@ -2753,6 +2771,65 @@ export function OrdersPanel({
         (o.status === "owner_review" ||
           (o.status === "pending" && o.submittedBy !== userName))
   );
+  const incomingReimbursements = reimbursements.filter(
+    (reimbursement) =>
+      (isTreasurer && reimbursement.status === "accepted") ||
+      (!isTreasurer && reimbursement.status === "pending")
+  );
+
+  async function submitReimbursement(reimbursement: Reimbursement, file: File) {
+    const form = new FormData();
+    form.append("organizationId", organizationId);
+    form.append("name", reimbursement.name);
+    form.append("department", reimbursement.department);
+    form.append("link", reimbursement.link);
+    form.append("pricePerPiece", String(reimbursement.pricePerPiece));
+    form.append("quantity", String(reimbursement.quantity));
+    form.append("orderType", reimbursement.orderType);
+    form.append("urgency", reimbursement.urgency);
+    form.append("comments", reimbursement.comments);
+    form.append("file", file);
+    const response = await fetch("/api/reimbursements", {
+      method: "POST",
+      body: form,
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to submit reimbursement");
+    }
+    const created = (await response.json()) as {
+      reimbursement?: { id?: string; submittedAt?: Date | string };
+    };
+    setReimbursements((current) => [
+      {
+        ...reimbursement,
+        id: created.reimbursement?.id ?? reimbursement.id,
+        submittedAt:
+          created.reimbursement?.submittedAt?.toString() ??
+          reimbursement.submittedAt,
+      },
+      ...current,
+    ]);
+  }
+
+  async function updateReimbursement(
+    reimbursement: Reimbursement,
+    status: "accepted" | "declined" | "successful"
+  ) {
+    const response = await fetch(`/api/reimbursements/${reimbursement.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) return;
+    setReimbursements((current) =>
+      current.map((item) =>
+        item.id === reimbursement.id ? { ...item, status, isPast: true } : item
+      )
+    );
+  }
 
   // Filtered past orders for search
   const filteredPastOrders = allPastOrders.filter(
@@ -3198,15 +3275,73 @@ export function OrdersPanel({
               </div>
             )}
             {tab === "incoming" && (
-              <IncomingPanel
-                orders={incomingOrders}
-                onTotalChange={setFormTotal}
-                onDeptChange={setFormDept}
-                currentUserName={userName}
-                onApprove={(order) => updateIncomingOrder(order, "accepted")}
-                onDeny={(order) => updateIncomingOrder(order, "declined")}
-                isTreasurer={isTreasurer}
-              />
+              <div className="space-y-4">
+                <IncomingPanel
+                  orders={incomingOrders}
+                  onTotalChange={setFormTotal}
+                  onDeptChange={setFormDept}
+                  currentUserName={userName}
+                  onApprove={(order) => updateIncomingOrder(order, "accepted")}
+                  onDeny={(order) => updateIncomingOrder(order, "declined")}
+                  isTreasurer={isTreasurer}
+                />
+                {incomingReimbursements.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="font-mono text-[9px] uppercase tracking-widest text-[#7A6555]">
+                      Reimbursements
+                    </p>
+                    {incomingReimbursements.map((reimbursement) => (
+                      <div
+                        className="flex items-center gap-3 rounded-xl border border-[#3D3330] bg-[#1A1919] px-3 py-2.5"
+                        key={reimbursement.id}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium text-[#FFEDD1]">
+                            {reimbursement.name}
+                          </p>
+                          <p className="text-[10px] text-[#9C8272]">
+                            {reimbursement.submittedBy} ·{" "}
+                            {reimbursement.department}
+                          </p>
+                        </div>
+                        <span className="font-mono text-[11px] text-[#C4A882]">
+                          {fmt(
+                            reimbursement.pricePerPiece * reimbursement.quantity
+                          )}
+                        </span>
+                        {!isTreasurer && (
+                          <button
+                            className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
+                            onClick={() =>
+                              updateReimbursement(
+                                reimbursement,
+                                "accepted"
+                              ).catch(() => undefined)
+                            }
+                            type="button"
+                          >
+                            Accept
+                          </button>
+                        )}
+                        {isTreasurer && (
+                          <button
+                            className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
+                            onClick={() =>
+                              updateReimbursement(
+                                reimbursement,
+                                "successful"
+                              ).catch(() => undefined)
+                            }
+                            type="button"
+                          >
+                            Mark paid
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {tab === "past" && (
               <div>
@@ -3321,7 +3456,7 @@ export function OrdersPanel({
             )}
             {tab === "reimburse" && (
               <ReimbursementForm
-                onSubmit={(r) => setReimbursements((prev) => [r, ...prev])}
+                onSubmit={submitReimbursement}
                 onSaveDraft={handleSaveDraft}
               />
             )}
