@@ -43,6 +43,11 @@ export const metadata: Metadata = {
   title: "GEARS",
   description:
     "GEARS connects student organisations through community, activities, and membership.",
+  icons: {
+    icon: "/gears-emblem.png",
+    shortcut: "/gears-emblem.png",
+    apple: "/gears-emblem.png",
+  },
 };
 
 export default function RootLayout({
