@@ -31,6 +31,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     where: eq(reimbursementRequest.status, "accepted"),
     orderBy: [asc(reimbursementRequest.createdAt)],
   });
+  const gmaCreated = Boolean(await db.query.gmaSession.findFirst());
 
   const uniqueRows = Array.from(
     new Map(rows.map((row) => [row.order.id, row])).values()
@@ -69,6 +70,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
 
   return {
     organizationId: "treasurer",
+    gmaCreated,
     driveFolderId: null,
     departments: [],
     departmentIds: {},

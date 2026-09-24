@@ -28,7 +28,6 @@ const sessionSchema = z.object({
   startDate: z.string().min(1),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
-  boardPasswords: z.array(z.string()).min(1),
 });
 const voteSchema = z.object({
   action: z.literal("vote"),
@@ -210,14 +209,11 @@ export async function POST(request: Request) {
         { error: "Admin access required" },
         { status: 403 }
       );
-    const lock = await boardLock(
-      parsed.data.organizationId,
-      parsed.data.boardPasswords
-    );
+    const lock = await boardLock(parsed.data.organizationId);
     if (!lock.unlocked) {
       return NextResponse.json(
         {
-          error: `Enter ${lock.requirements.requiredPasswords} different board member passwords to create the GMA.`,
+          error: `Get approval from ${lock.requirements.requiredPasswords} board members to create the GMA.`,
           boardLock: lock.requirements,
         },
         { status: 403 }

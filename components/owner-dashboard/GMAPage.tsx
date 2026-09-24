@@ -51,6 +51,14 @@ interface BoardLockRequirements {
   boardMemberCount: number;
   requiredPasswords: number;
   configuredBoardMemberCount: number;
+  approvedCount: number;
+  decisions: BoardDecision[];
+}
+
+interface BoardDecision {
+  memberId: string;
+  position: string;
+  approval: boolean;
 }
 
 const SEAT_NAMES = [
@@ -920,6 +928,9 @@ export function GMAPage({
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [boardPasswords, setBoardPasswords] = useState<string[]>([]);
+  const [verifiedBoardDecisions, setVerifiedBoardDecisions] = useState<
+    Array<BoardDecision | null>
+  >([]);
   const [boardLockRequirements, setBoardLockRequirements] =
     useState<BoardLockRequirements | null>(null);
 
@@ -973,6 +984,11 @@ export function GMAPage({
         (_, index) => current[index] ?? ""
       )
     );
+    setVerifiedBoardDecisions(
+      data.boardLock.decisions
+        .filter((decision) => decision.approval)
+        .slice(0, data.boardLock.requiredPasswords)
+    );
     setGmaCreated(Boolean(data.session));
     if (!data.session) {
       setLoading(false);
@@ -1021,6 +1037,58 @@ export function GMAPage({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, organizationId, motionId }),
     });
+    await syncState();
+  };
+
+  const verifyBoardPassword = async (index: number) => {
+    const password = boardPasswords[index];
+    if (!password || verifiedBoardDecisions[index]) return;
+    const response = await fetch("/api/board-decisions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verify", organizationId, password }),
+    });
+    const data = (await response.json().catch(() => null)) as {
+      valid?: boolean;
+      error?: string;
+      memberId?: string;
+      position?: string;
+    } | null;
+    if (!response.ok || !data?.valid || !data.memberId || !data.position) {
+      setCreateError(data?.error ?? "That password is not valid.");
+      return;
+    }
+    setVerifiedBoardDecisions((current) => {
+      const next = [...current];
+      next[index] = {
+        memberId: data.memberId as string,
+        position: data.position as string,
+        approval: true,
+      };
+      return next;
+    });
+    setCreateError(null);
+    await syncState();
+  };
+
+  const toggleBoardDecision = async (index: number) => {
+    const decision = verifiedBoardDecisions[index];
+    if (!decision) return;
+    await fetch("/api/board-decisions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "toggle",
+        organizationId,
+        memberId: decision.memberId,
+      }),
+    });
+    setVerifiedBoardDecisions((current) =>
+      current.map((entry, entryIndex) => (entryIndex === index ? null : entry))
+    );
+    setBoardPasswords((current) =>
+      current.map((entry, entryIndex) => (entryIndex === index ? "" : entry))
+    );
     await syncState();
   };
 
@@ -1105,9 +1173,12 @@ export function GMAPage({
                   setCreateError("Assign board members before creating a GMA.");
                   return;
                 }
-                if (boardPasswords.some((password) => !password)) {
+                if (
+                  verifiedBoardDecisions.filter(Boolean).length <
+                  boardLockRequirements.requiredPasswords
+                ) {
                   setCreateError(
-                    `Fill in all ${boardPasswords.length} board password fields.`
+                    `Get approval from ${boardLockRequirements.requiredPasswords} board members first.`
                   );
                   return;
                 }
@@ -1124,7 +1195,6 @@ export function GMAPage({
                       startDate,
                       startTime,
                       endTime,
-                      boardPasswords,
                     }),
                   });
                   if (!response.ok) {
@@ -1170,31 +1240,61 @@ export function GMAPage({
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                {boardPasswords.map((password, index) => (
-                  <label className="relative" key={`board-password-${index}`}>
-                    <span className="sr-only">Board password {index + 1}</span>
-                    <input
-                      className={fieldCls + " w-full pr-8"}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setBoardPasswords((current) =>
-                          current.map((entry, entryIndex) =>
-                            entryIndex === index ? value : entry
-                          )
-                        );
-                        setCreateError(null);
-                      }}
-                      placeholder={`Password ${index + 1}`}
-                      type="password"
-                      value={password}
-                    />
-                    {password && (
-                      <span className="absolute top-1/2 right-2 -translate-y-1/2 text-[#10b981] text-sm">
-                        ✓
-                      </span>
-                    )}
-                  </label>
-                ))}
+                {Array.from(
+                  { length: boardLockRequirements.requiredPasswords },
+                  (_, index) => {
+                    const decision = verifiedBoardDecisions[index];
+                    const password = boardPasswords[index] ?? "";
+                    return (
+                      <label
+                        className="relative"
+                        key={`board-password-${index}`}
+                      >
+                        {decision ? (
+                          <button
+                            className="flex min-h-10 w-full flex-col items-center justify-center rounded-lg border border-[#10b981]/50 bg-[#10b981]/10 text-[#10b981]"
+                            onClick={() => void toggleBoardDecision(index)}
+                            title="Revoke this approval"
+                            type="button"
+                          >
+                            <span className="text-lg leading-4">✓</span>
+                            <span className="font-mono text-[8px] uppercase tracking-widest">
+                              {decision.position}
+                            </span>
+                          </button>
+                        ) : (
+                          <>
+                            <span className="sr-only">
+                              Board password {index + 1}
+                            </span>
+                            <input
+                              className={fieldCls + " w-full pr-8"}
+                              onBlur={() => void verifyBoardPassword(index)}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setBoardPasswords((current) =>
+                                  current.map((entry, entryIndex) =>
+                                    entryIndex === index ? value : entry
+                                  )
+                                );
+                                setCreateError(null);
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  void verifyBoardPassword(index);
+                                }
+                              }}
+                              placeholder={`Password ${index + 1}`}
+                              type="password"
+                              value={password}
+                            />
+                          </>
+                        )}
+                      </label>
+                    );
+                  }
+                )}
               </div>
             </div>
           )}

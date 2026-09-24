@@ -25,8 +25,7 @@ export default async function GMARoute({ params }: { params: Params }) {
   const membership = await db.query.member.findFirst({
     where: and(
       eq(member.userId, user.id),
-      eq(member.organizationId, selectedOrganization.id),
-      eq(member.role, "owner")
+      eq(member.organizationId, selectedOrganization.id)
     ),
   });
 
@@ -48,6 +47,7 @@ export default async function GMARoute({ params }: { params: Params }) {
         organizations={organizations}
         userEmail={user.email}
         userName={user.name}
+        viewerRole="owner"
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <GMAPage organizationSlug={slug} />

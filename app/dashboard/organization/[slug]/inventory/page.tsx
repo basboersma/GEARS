@@ -48,6 +48,7 @@ export default async function InventoryRoute({ params }: { params: Params }) {
         organizations={organizations}
         userEmail={user.email}
         userName={user.name}
+        viewerRole="owner"
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <InventoryPage />

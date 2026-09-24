@@ -10,6 +10,7 @@ import {
   dashboardNotification,
   dashboardRoadmapItem,
   dashboardTodo,
+  gmaSession,
   member,
   orderRequest,
   organization,
@@ -150,6 +151,7 @@ export async function getOwnerDashboardData(
     eventRows,
     orderRows,
     reimbursementRows,
+    gmaSessionRow,
   ] = await Promise.all([
     db.query.organizationDepartment.findMany({
       where: eq(organizationDepartment.organizationId, organizationId),
@@ -202,6 +204,10 @@ export async function getOwnerDashboardData(
     db.query.reimbursementRequest.findMany({
       where: eq(reimbursementRequest.organizationId, organizationId),
       orderBy: [asc(reimbursementRequest.createdAt)],
+    }),
+    db.query.gmaSession.findFirst({
+      where: eq(gmaSession.organizationId, organizationId),
+      orderBy: (session, { desc }) => [desc(session.createdAt)],
     }),
   ]);
   const organizationRow = await db.query.organization.findFirst({
@@ -281,6 +287,7 @@ export async function getOwnerDashboardData(
 
   return {
     organizationId,
+    gmaCreated: Boolean(gmaSessionRow),
     driveFolderId: organizationRow?.driveFolderId ?? null,
     departments,
     departmentIds: Object.fromEntries(

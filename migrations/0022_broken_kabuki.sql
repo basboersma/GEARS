@@ -1,0 +1,1 @@
+ALTER TABLE "invitation" ADD COLUMN "board_position" "board_position";

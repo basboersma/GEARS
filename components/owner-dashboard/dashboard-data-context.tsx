@@ -17,6 +17,7 @@ import type {
 
 export interface DashboardData {
   organizationId: string;
+  gmaCreated: boolean;
   driveFolderId: string | null;
   departments: string[];
   departmentIds: Record<string, string>;

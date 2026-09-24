@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { avatarBg } from "./data";
-import { MembersOverTimeChart, PieStatsWidget } from "./MembersPage";
+import {
+  ChoroplethMap,
+  MembersOverTimeChart,
+  PieStatsWidget,
+} from "./MembersPage";
 import type {
   BoardMember,
   BoardPosition,
@@ -134,12 +138,57 @@ export function BoardMembersPage({
   const [boardMembers, setBoardMembers] = useState(initialBoardMembers);
   const [showInvite, setShowInvite] = useState(false);
   const [historySnapshot, setHistorySnapshot] = useState<string | null>(null);
+  const [selectedCountryIso, setSelectedCountryIso] = useState<string | null>(
+    null
+  );
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const boardMemberFor = (position: BoardPosition) =>
     boardMembers.find((entry) => entry.position === position);
+  const boardMembersOnly = initialMembers.filter((member) =>
+    boardMembers.some((entry) => entry.memberId === member.id)
+  );
+  const boardMemberCard = (position: BoardPosition) => {
+    const assignment = boardMemberFor(position);
+    const member = initialMembers.find(
+      (entry) => entry.id === assignment?.memberId
+    );
+    return (
+      <div
+        className="flex min-w-[150px] flex-1 items-center gap-2 rounded-xl border border-[#3D3330] bg-[#232120] p-2.5"
+        key={position}
+      >
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${member ? avatarBg(initialMembers.indexOf(member)) : "bg-[#3D3330]"} font-bold text-white text-xs`}
+        >
+          {member?.avatar ?? "?"}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-[#F0684D] text-[9px] uppercase tracking-wider">
+            {position}
+          </div>
+          <div className="truncate text-[#FFEDD1] text-xs">
+            {member?.name ?? "Open position"}
+          </div>
+        </div>
+        <select
+          aria-label={`Assign ${position}`}
+          className="w-5 shrink-0 appearance-none rounded border border-[#3D3330] bg-[#2A2724] text-transparent outline-none"
+          onChange={(event) => savePosition(position, event.target.value)}
+          value={assignment?.memberId ?? ""}
+        >
+          <option value="">Open position</option>
+          {initialMembers.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  };
 
-  const savePosition = async (position: BoardPosition, memberId: string) => {
+  async function savePosition(position: BoardPosition, memberId: string) {
     setSaveError(null);
     const response = memberId
       ? await fetch("/api/board-members", {
@@ -173,7 +222,7 @@ export function BoardMembersPage({
         ? [...withoutPosition, result.boardMember]
         : withoutPosition;
     });
-  };
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
@@ -184,16 +233,12 @@ export function BoardMembersPage({
             style={{ height: 286 }}
           >
             <div className="flex w-[218px] shrink-0 flex-col rounded-xl border border-[#3D3330] bg-[#232120] p-3">
-              <PieStatsWidget
-                members={initialMembers.filter((member) =>
-                  boardMembers.some((entry) => entry.memberId === member.id)
-                )}
-              />
+              <PieStatsWidget members={boardMembersOnly} />
             </div>
             <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-[#3D3330] bg-[#232120] p-3">
               <MembersOverTimeChart
                 activeSnapshot={historySnapshot}
-                boardMemberCount={boardMembers.length}
+                boardHistory={boardMembers}
                 departmentIds={initialDepartmentIds}
                 departments={initialDepartments}
                 deptColors={Object.fromEntries(
@@ -204,6 +249,13 @@ export function BoardMembersPage({
                 )}
                 history={teamHistory}
                 onSnapshotChange={setHistorySnapshot}
+              />
+            </div>
+            <div className="flex w-[312px] shrink-0 flex-col rounded-xl border border-[#3D3330] bg-[#232120] p-3">
+              <ChoroplethMap
+                members={boardMembersOnly}
+                onCountryClick={setSelectedCountryIso}
+                selectedIso={selectedCountryIso}
               />
             </div>
           </div>
@@ -230,49 +282,15 @@ export function BoardMembersPage({
               {saveError}
             </div>
           )}
-          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-auto p-4 md:grid-cols-3 xl:grid-cols-6">
-            {BOARD_POSITIONS.map((position) => {
-              const assignment = boardMemberFor(position);
-              const selectedMember = initialMembers.find(
-                (member) => member.id === assignment?.memberId
-              );
-              return (
-                <div
-                  className="flex min-h-36 flex-col rounded-xl border border-[#3D3330] bg-[#232120] p-3"
-                  key={position}
-                >
-                  <div className="mb-3 font-semibold text-[#F0684D] text-[10px] uppercase tracking-wider">
-                    {position}
-                  </div>
-                  {selectedMember && (
-                    <div className="mb-3 flex items-center gap-2">
-                      <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${avatarBg(initialMembers.indexOf(selectedMember))} font-bold text-white text-xs`}
-                      >
-                        {selectedMember.avatar}
-                      </div>
-                      <div className="min-w-0 truncate text-[#FFEDD1] text-xs">
-                        {selectedMember.name}
-                      </div>
-                    </div>
-                  )}
-                  <select
-                    className="mt-auto w-full rounded-lg border border-[#3D3330] bg-[#2A2724] px-2 py-2 text-[#C4A882] text-xs outline-none focus:border-[#F0684D]/60"
-                    onChange={(event) =>
-                      savePosition(position, event.target.value)
-                    }
-                    value={assignment?.memberId ?? ""}
-                  >
-                    <option value="">Open position</option>
-                    {initialMembers.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              );
-            })}
+          <div className="min-h-0 flex-1 overflow-auto p-4">
+            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3">
+              <div className="w-full max-w-sm">{boardMemberCard("Chair")}</div>
+              <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3">
+                {BOARD_POSITIONS.filter((position) => position !== "Chair").map(
+                  boardMemberCard
+                )}
+              </div>
+            </div>
           </div>
         </div>
         {showInvite && (

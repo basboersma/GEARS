@@ -26,6 +26,7 @@ import {
   DashboardDataProvider,
   useDashboardData,
 } from "./dashboard-data-context";
+import { getDashboardNavigation } from "./dashboard-navigation";
 import { FilesBlock } from "./FilesBlock";
 import { IcicleChart } from "./IcicleChart";
 import { TodoBlock } from "./TodoBlock";
@@ -297,6 +298,7 @@ function Sidebar({
   userEmail,
   organizations,
   isAdmin,
+  gmaCreated,
 }: {
   organizationName: string;
   organizationSlug: string;
@@ -304,6 +306,7 @@ function Sidebar({
   userEmail: string;
   organizations: Organization[];
   isAdmin: boolean;
+  gmaCreated: boolean;
 }) {
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
@@ -330,52 +333,22 @@ function Sidebar({
         </button>
         <div className="space-y-0.5 pt-1">
           <SubteamsNav />
-          <Link
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-            href={`/dashboard/organization/${organizationSlug}/members`}
-          >
-            <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
-            <span>Manage members</span>
-          </Link>
-          <Link
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-            href={`/dashboard/organization/${organizationSlug}/order-review`}
-          >
-            <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
-            <span>Manage orders</span>
-          </Link>
-          <Link
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-            href={`/dashboard/organization/${organizationSlug}/inventory`}
-          >
-            <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
-            <span>Inventory</span>
-          </Link>
-          <Link
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-            href={`/dashboard/organization/${organizationSlug}/gma`}
-          >
-            <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
-            <span>GMA</span>
-          </Link>
-          {isAdmin && (
-            <Link
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-              href="/dashboard/treasurer"
-            >
-              <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
-              <span>Treasurer</span>
-            </Link>
-          )}
-          {isAdmin && (
-            <Link
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
-              href={`/dashboard/organization/${organizationSlug}/board-members`}
-            >
-              <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
-              <span>Board Members</span>
-            </Link>
-          )}
+          {getDashboardNavigation({
+            gmaCreated,
+            organizationSlug,
+            role: isAdmin ? "admin" : "owner",
+          })
+            .slice(1)
+            .map((item) => (
+              <Link
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[#9C8272] text-xs transition-all hover:bg-white/5 hover:text-[#FFEDD1]"
+                href={item.href}
+                key={item.key}
+              >
+                <span className="h-1 w-1 shrink-0 rounded-full bg-[#9C8272]/50" />
+                <span>{item.label}</span>
+              </Link>
+            ))}
         </div>
       </nav>
 
@@ -449,6 +422,7 @@ export default function App({
         style={{ fontFamily: "'Inter',sans-serif" }}
       >
         <Sidebar
+          gmaCreated={dashboardData.gmaCreated}
           isAdmin={isAdmin}
           organizationName={organizationName}
           organizationSlug={organizationSlug}

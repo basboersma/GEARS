@@ -66,9 +66,9 @@ export default async function OrganizationMembersPage({
         organizationName={organization.name}
         organizationSlug={slug}
         organizations={organizations}
-        showBoard={membership.role === "admin"}
         userEmail={user.email}
         userName={user.name}
+        viewerRole={membership.role === "admin" ? "admin" : "owner"}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <MembersPage

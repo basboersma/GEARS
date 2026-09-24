@@ -130,6 +130,7 @@ export interface BoardMember {
   id: string;
   memberId: string;
   position: BoardPosition;
+  createdAt: string;
 }
 
 export interface RoadmapItem {

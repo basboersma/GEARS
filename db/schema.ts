@@ -298,6 +298,32 @@ export const boardRelations = relations(board, ({ one }) => ({
   }),
 }));
 
+export const boardDecision = pgTable(
+  "board_decision",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    approval: boolean("approval").notNull().default(true),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("board_decision_organization_member_unique").on(
+      table.organizationId,
+      table.memberId
+    ),
+  ]
+);
+
 export const team = pgTable(
   "team",
   {
@@ -732,6 +758,7 @@ export const schema = {
   organizationDepartment,
   member,
   board,
+  boardDecision,
   invitation,
   departmentInvitation,
   orderRequest,

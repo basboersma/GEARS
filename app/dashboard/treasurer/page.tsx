@@ -31,9 +31,9 @@ export default async function TreasurerPage() {
         organizationName="Treasurer"
         organizationSlug={organization?.slug ?? ""}
         organizations={organizations}
-        showTreasurer
         userEmail={user.email}
         userName={user.name}
+        viewerRole="admin"
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <OrdersPanel

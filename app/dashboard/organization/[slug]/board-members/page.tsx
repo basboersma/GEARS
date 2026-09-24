@@ -49,6 +49,7 @@ export default async function OrganizationBoardMembersPage({
     id: row.id,
     memberId: row.memberId,
     position: row.position,
+    createdAt: row.createdAt.toISOString(),
   }));
 
   return (
@@ -58,9 +59,9 @@ export default async function OrganizationBoardMembersPage({
         organizationName={organization.name}
         organizationSlug={slug}
         organizations={organizations}
-        showBoard
         userEmail={user.email}
         userName={user.name}
+        viewerRole={membership.role === "admin" ? "admin" : "owner"}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <BoardMembersPage

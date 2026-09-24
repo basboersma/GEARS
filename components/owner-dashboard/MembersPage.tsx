@@ -260,7 +260,7 @@ const historyBuckets = (range: HistoryRange) => {
 };
 
 export function MembersOverTimeChart({
-  boardMemberCount,
+  boardHistory,
   departmentIds,
   departments,
   deptColors,
@@ -268,7 +268,7 @@ export function MembersOverTimeChart({
   activeSnapshot,
   onSnapshotChange,
 }: {
-  boardMemberCount?: number;
+  boardHistory?: { createdAt: string }[];
   departmentIds: Record<string, string>;
   departments: string[];
   deptColors: Record<string, string>;
@@ -288,8 +288,9 @@ export function MembersOverTimeChart({
     (entry) => entry.departmentId !== null && !entry.removed
   );
   const values = buckets.map(({ cutoff }) => {
-    if (boardMemberCount !== undefined) {
-      return boardMemberCount;
+    if (boardHistory !== undefined) {
+      return boardHistory.filter((entry) => new Date(entry.createdAt) <= cutoff)
+        .length;
     }
     if (filter === "total") {
       const joinedMemberIds = new Set(
@@ -364,7 +365,7 @@ export function MembersOverTimeChart({
           Members Over Time
         </span>
         <div className="flex items-center gap-1.5">
-          {boardMemberCount === undefined && (
+          {boardHistory === undefined && (
             <div className="relative">
               <button
                 onClick={() => setFilterOpen((o) => !o)}
@@ -508,7 +509,7 @@ export function MembersOverTimeChart({
 
 // ─── Choropleth world map (zoomable + pannable via projection params) ─────────
 
-function ChoroplethMap({
+export function ChoroplethMap({
   members,
   selectedIso,
   onCountryClick,

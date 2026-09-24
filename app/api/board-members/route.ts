@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       id,
       memberId: parsed.data.memberId,
       position: parsed.data.position,
+      createdAt: new Date().toISOString(),
     },
   });
 }
