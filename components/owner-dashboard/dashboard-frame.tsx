@@ -91,6 +91,7 @@ export function OwnerDashboardFrame({
   organizationName,
   organizationSlug,
   organizations,
+  showBoard,
   showTreasurer,
   userEmail,
   userName,
@@ -98,6 +99,7 @@ export function OwnerDashboardFrame({
   activePage:
     | "dashboard"
     | "members"
+    | "board"
     | "orders"
     | "inventory"
     | "gma"
@@ -109,6 +111,7 @@ export function OwnerDashboardFrame({
   userEmail: string;
   userName: string;
   showTreasurer?: boolean;
+  showBoard?: boolean;
 }) {
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
   const membersHref = `${dashboardHref}/members`;
@@ -116,6 +119,7 @@ export function OwnerDashboardFrame({
   const inventoryHref = `${dashboardHref}/inventory`;
   const gmaHref = `${dashboardHref}/gma`;
   const treasurerHref = "/dashboard/treasurer";
+  const boardHref = `${dashboardHref}/board-members`;
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
 
@@ -160,6 +164,17 @@ export function OwnerDashboardFrame({
               />
               <span>Manage members</span>
             </Link>
+            {showBoard && (
+              <Link
+                className={navClass(activePage === "board")}
+                href={boardHref}
+              >
+                <span
+                  className={`h-1 w-1 shrink-0 rounded-full ${activePage === "board" ? "bg-[#F0684D]" : "bg-[#9C8272]/50"}`}
+                />
+                <span>Board Members</span>
+              </Link>
+            )}
             <Link
               className={navClass(activePage === "orders")}
               href={ordersHref}

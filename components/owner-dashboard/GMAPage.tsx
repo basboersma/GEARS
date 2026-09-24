@@ -15,6 +15,8 @@ interface Motion {
   text: string;
   signaturesNeeded: number;
   signaturesGot: number;
+  remainingSeconds?: number;
+  timerPaused?: boolean;
 }
 
 interface PendingMotion {
@@ -33,6 +35,9 @@ interface SuggestedMotion {
   urgent: boolean;
   votesFor: number;
   votesAgainst: number;
+  votesAbstain?: number;
+  votesTotal?: number;
+  currentUserVote?: VoteStatus | null;
 }
 
 type VoteStatus = "infavour" | "against" | "abstain" | "notvoted";
@@ -259,18 +264,39 @@ function SenateChart({ seats }: { seats: SeatMember[] }) {
 function ActiveVotePage({
   motion,
   onBack,
+  onAction,
+  onVote,
 }: {
   motion: Motion;
   onBack: () => void;
+  onAction: (
+    action: "start" | "pause" | "add-time" | "remove-time" | "end"
+  ) => void;
+  onVote: (status: VoteStatus) => void;
 }) {
   const [seats, setSeats] = useState<SeatMember[]>(INIT_SEATS);
-  const [timerSec, setTimerSec] = useState(299);
-  const [running, setRunning] = useState(false);
+  const [timerSec, setTimerSec] = useState(motion.remainingSeconds ?? 300);
+  const [running, setRunning] = useState(!motion.timerPaused);
   const [adminVote, setAdminVote] = useState<VoteStatus | null>(null);
   const [ended, setEnded] = useState(false);
 
+  useEffect(() => {
+    setTimerSec(motion.remainingSeconds ?? 300);
+    setRunning(!motion.timerPaused);
+  }, [motion.remainingSeconds, motion.timerPaused]);
+
+  useEffect(() => {
+    if (!running || timerSec <= 0) return;
+    const interval = window.setInterval(
+      () => setTimerSec((seconds) => Math.max(0, seconds - 1)),
+      1000
+    );
+    return () => window.clearInterval(interval);
+  }, [running, timerSec]);
+
   const castVote = (status: VoteStatus) => {
     setAdminVote(status);
+    onVote(status);
     // update seat-0 to reflect admin's vote
     setSeats((prev) => prev.map((s, i) => (i === 0 ? { ...s, status } : s)));
   };
@@ -382,25 +408,38 @@ function ActiveVotePage({
           </p>
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <button
-              onClick={() => setTimerSec((s) => s + 60)}
+              onClick={() => {
+                setTimerSec((s) => s + 30);
+                onAction("add-time");
+              }}
               className="h-8 px-3 rounded-lg border border-[#3D3330] bg-[#232120] text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] text-[11px] font-medium transition-colors whitespace-nowrap"
             >
               Add more time
             </button>
             <button
-              onClick={() => setRunning((r) => !r)}
+              onClick={() => {
+                const nextRunning = !running;
+                setRunning(nextRunning);
+                onAction(nextRunning ? "start" : "pause");
+              }}
               className="h-8 px-3 rounded-lg border border-[#3D3330] bg-[#232120] text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] text-[11px] font-medium transition-colors whitespace-nowrap"
             >
               {running ? "Pause" : "Continue"}
             </button>
             <button
-              onClick={() => setTimerSec((s) => Math.max(0, s - 60))}
+              onClick={() => {
+                setTimerSec((s) => Math.max(0, s - 30));
+                onAction("remove-time");
+              }}
               className="h-8 px-3 rounded-lg border border-[#3D3330] bg-[#232120] text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] text-[11px] font-medium transition-colors whitespace-nowrap"
             >
               Remove time
             </button>
             <button
-              onClick={() => setEnded(true)}
+              onClick={() => {
+                setEnded(true);
+                onAction("end");
+              }}
               className="h-8 px-3 rounded-lg border border-[#F0684D]/40 bg-[#F0684D]/10 text-[#F0684D] text-[11px] font-semibold hover:bg-[#F0684D]/20 transition-colors whitespace-nowrap"
             >
               End Vote
@@ -602,14 +641,12 @@ function PendingMotionPopup({
 function SuggestedMotionPopup({
   motion,
   onClose,
+  onVote,
 }: {
   motion: SuggestedMotion;
   onClose: () => void;
+  onVote: (value: "for" | "against" | "abstain") => void;
 }) {
-  const [min, sec] = motion.timeLeft.split(":").map(Number);
-  const totalSec = min * 60 + sec;
-  const timeColor =
-    totalSec <= 30 ? "#F0684D" : totalSec <= 150 ? "#FFD142" : "#10b981";
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
@@ -651,36 +688,24 @@ function SuggestedMotionPopup({
         <p className="text-xs text-[#9C8272] leading-relaxed mb-5">
           {motion.text}
         </p>
-        <div className="flex items-center justify-between pt-4 border-t border-[#3D3330]">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] text-[#7A6555] uppercase tracking-widest">
-              Time left
-            </span>
-            <span
-              className="text-base font-mono font-bold"
-              style={{ color: timeColor }}
-            >
-              {motion.timeLeft}
-            </span>
-            {motion.urgent && (
-              <svg
-                viewBox="0 0 16 16"
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="#F0684D"
-                strokeWidth="1.5"
-              >
-                <circle cx="8" cy="8" r="6.5" />
-                <path d="M8 5v3.5M8 11h.01" />
-              </svg>
-            )}
+        <div className="border-t border-[#3D3330] pt-4">
+          <div className="mb-3 flex items-center justify-between text-[10px] text-[#9C8272]">
+            <span>{motion.votesTotal ?? 0} votes cast</span>
+            <span>30% of present members moves it to pending</span>
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold border border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors"
-          >
-            Close
-          </button>
+          <div className="flex gap-2">
+            {(["for", "abstain", "against"] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => onVote(value)}
+                className="flex-1 rounded-xl border border-[#3D3330] px-2 py-2 text-[10px] font-semibold text-[#FFEDD1] hover:border-[#8b5cf6]/50 transition-colors"
+              >
+                {value === "for"
+                  ? "In favour"
+                  : value[0].toUpperCase() + value.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -879,12 +904,13 @@ export function GMAPage({
 }: {
   organizationSlug?: string;
 } = {}) {
-  const { members } = useDashboardData();
+  const { members, organizationId } = useDashboardData();
   // ── GMA creation gate ──
   const [gmaCreated, setGmaCreated] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const votePath = organizationSlug
     ? `/dashboard/organization/${organizationSlug}/gma/vote`
@@ -899,8 +925,6 @@ export function GMAPage({
 
   const [active, setActive] = useState<Motion | null>(null);
   const [pending, setPending] = useState<PendingMotion[]>([]);
-  // Motions displaced from active are kept separately so pending is never mutated by additions
-  const [returned, setReturned] = useState<PendingMotion[]>([]);
   const [suggested, setSuggested] = useState<SuggestedMotion[]>([]);
   const [view, setView] = useState<"board" | "activevote">("board");
   const [showAdd, setShowAdd] = useState(false);
@@ -910,13 +934,79 @@ export function GMAPage({
   const [selectedPending, setSelectedPending] = useState<PendingMotion | null>(
     null
   );
-  const membersPresent = members.length;
+  const [presentCount, setPresentCount] = useState(0);
   const totalMembers = members.length;
 
+  const syncState = async () => {
+    const response = await fetch(`/api/gma?organizationId=${organizationId}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+    const data = (await response.json()) as {
+      session: { presentCount: number; requiredVotes: number } | null;
+      motions: Array<
+        SuggestedMotion & {
+          status: string;
+          remainingSeconds: number;
+          timerPaused: boolean;
+          text: string;
+          author: string;
+        }
+      >;
+    };
+    setGmaCreated(Boolean(data.session));
+    if (!data.session) {
+      setLoading(false);
+      return;
+    }
+    setPresentCount(data.session.presentCount);
+    const activeMotion = data.motions.find(
+      (motion) => motion.status === "active"
+    );
+    setActive(
+      activeMotion
+        ? {
+            ...activeMotion,
+            signaturesNeeded: data.session.requiredVotes,
+            signaturesGot: activeMotion.votesTotal ?? 0,
+          }
+        : null
+    );
+    setPending(data.motions.filter((motion) => motion.status === "pending"));
+    setSuggested(
+      data.motions
+        .filter((motion) => motion.status === "suggested")
+        .map((motion) => ({ ...motion, timeLeft: "", urgent: false }))
+    );
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void syncState();
+    const interval = window.setInterval(() => void syncState(), 5000);
+    return () => window.clearInterval(interval);
+  }, [organizationId]);
+
+  const runAction = async (
+    action:
+      | "push-active"
+      | "start"
+      | "pause"
+      | "add-time"
+      | "remove-time"
+      | "end",
+    motionId?: string
+  ) => {
+    await fetch("/api/gma", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, organizationId, motionId }),
+    });
+    await syncState();
+  };
+
   // Active motion must never appear in the pending list
-  const allPending = [...returned, ...pending].filter(
-    (m) => m.id !== active?.id
-  );
+  const allPending = pending.filter((m) => m.id !== active?.id);
 
   const pct = active
     ? Math.min((active.signaturesGot / active.signaturesNeeded) * 100, 100)
@@ -924,6 +1014,8 @@ export function GMAPage({
 
   const fieldCls =
     "rounded-lg bg-[#1A1919] border border-[#3D3330] px-3 py-2 text-xs text-[#FFEDD1] placeholder:text-[#4A3F38] focus:outline-none focus:border-[#4A3F38] transition-colors";
+
+  if (loading) return null;
 
   // ── Creation gate view ──
   if (!gmaCreated) {
@@ -979,7 +1071,20 @@ export function GMAPage({
               </label>
             </div>
             <button
-              onClick={() => setGmaCreated(true)}
+              onClick={async () => {
+                await fetch("/api/gma", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "create-session",
+                    organizationId,
+                    startDate,
+                    startTime,
+                    endTime,
+                  }),
+                });
+                await syncState();
+              }}
               className="shrink-0 flex items-center gap-2 px-6 py-2 rounded-xl border border-[#F0684D]/50 bg-[#F0684D]/10 text-[#F0684D] text-sm font-semibold hover:bg-[#F0684D]/20 transition-colors whitespace-nowrap"
             >
               Create GMA
@@ -991,7 +1096,25 @@ export function GMAPage({
   }
 
   if (view === "activevote" && active) {
-    return <ActiveVotePage motion={active} onBack={() => setView("board")} />;
+    return (
+      <ActiveVotePage
+        motion={active}
+        onBack={() => setView("board")}
+        onAction={(action) => void runAction(action, active.id)}
+        onVote={(status) => {
+          void fetch("/api/gma", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "vote",
+              organizationId,
+              motionId: active.id,
+              value: status === "infavour" ? "for" : status,
+            }),
+          }).then(() => syncState());
+        }}
+      />
+    );
   }
 
   return (
@@ -1002,7 +1125,7 @@ export function GMAPage({
           General Members Assembly
         </p>
         <h1 className="text-lg font-semibold text-[#FFEDD1] tracking-tight mt-0.5">
-          {membersPresent}/{totalMembers} Members
+          {presentCount}/{totalMembers} Members present
         </h1>
         <p className="text-[11px] text-[#7A6555] mt-0.5">
           {new Date().toLocaleDateString("en-NL", {
@@ -1044,7 +1167,12 @@ export function GMAPage({
             </div>
             <div className="shrink-0 flex flex-col items-end gap-3">
               <button
-                onClick={() => setView("activevote")}
+                onClick={() => {
+                  if (active) {
+                    void runAction("start", active.id);
+                    setView("activevote");
+                  }
+                }}
                 disabled={!active}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#10b981]/50 bg-[#10b981]/12 text-[#10b981] text-xs font-semibold hover:bg-[#10b981]/20 transition-colors whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -1135,7 +1263,7 @@ export function GMAPage({
               {allPending.length}
             </span>
             <button
-              disabled
+              onClick={() => setShowAddVote(true)}
               className="text-[9px] font-medium px-2 py-1 rounded-lg border border-[#3D3330] text-[#9C8272] transition-colors whitespace-nowrap opacity-40 cursor-not-allowed"
             >
               + Add Vote
@@ -1191,7 +1319,7 @@ export function GMAPage({
               {suggested.length}
             </span>
             <button
-              disabled
+              onClick={() => setShowAdd(true)}
               className="text-[9px] font-medium px-2 py-1 rounded-lg border border-[#3D3330] text-[#9C8272] transition-colors whitespace-nowrap opacity-40 cursor-not-allowed"
             >
               + Suggest
@@ -1199,14 +1327,6 @@ export function GMAPage({
           </div>
           <div className="flex-1 overflow-auto divide-y divide-[#3D3330]/50">
             {suggested.map((m, i) => {
-              const [min, sec] = m.timeLeft.split(":").map(Number);
-              const totalSec = min * 60 + sec;
-              const timeColor =
-                totalSec <= 30
-                  ? "#F0684D"
-                  : totalSec <= 150
-                    ? "#FFD142"
-                    : "#10b981";
               return (
                 <button
                   key={m.id}
@@ -1225,30 +1345,12 @@ export function GMAPage({
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="flex flex-col items-end gap-0.5">
                       <span className="font-mono text-[8px] text-[#7A6555] uppercase tracking-widest">
-                        against
+                        votes
                       </span>
-                      <span className="font-mono text-[10px] font-bold text-[#F0684D]">
-                        {m.votesAgainst}/{totalMembers}
+                      <span className="font-mono text-[10px] font-bold text-[#8b5cf6]">
+                        {m.votesTotal ?? 0}
                       </span>
                     </div>
-                    <span
-                      className="text-sm font-mono font-semibold"
-                      style={{ color: timeColor }}
-                    >
-                      {m.timeLeft}
-                    </span>
-                    {m.urgent && (
-                      <svg
-                        viewBox="0 0 16 16"
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        stroke="#F0684D"
-                        strokeWidth="1.5"
-                      >
-                        <circle cx="8" cy="8" r="6.5" />
-                        <path d="M8 5v3.5M8 11h.01" />
-                      </svg>
-                    )}
                   </div>
                 </button>
               );
@@ -1262,32 +1364,7 @@ export function GMAPage({
           motion={selectedPending}
           onClose={() => setSelectedPending(null)}
           onPushToActive={(m) => {
-            const displaced = active
-              ? {
-                  id: crypto.randomUUID(),
-                  title: active.title,
-                  author: active.author,
-                  text: active.text,
-                }
-              : null;
-            setActive((a) => ({
-              ...(a ?? {
-                signaturesNeeded: 0,
-                signaturesGot: 0,
-              }),
-              id: m.id,
-              title: m.title,
-              author: m.author,
-              text: m.text,
-            }));
-            // Remove m from whichever list it lives in
-            setPending((p) => p.filter((x) => x.id !== m.id));
-            if (displaced) {
-              setReturned((r) => [
-                displaced,
-                ...r.filter((x) => x.id !== m.id),
-              ]);
-            }
+            void runAction("push-active", m.id);
             setSelectedPending(null);
           }}
         />
@@ -1296,16 +1373,34 @@ export function GMAPage({
         <SuggestedMotionPopup
           motion={selectedSuggested}
           onClose={() => setSelectedSuggested(null)}
+          onVote={(value) => {
+            void fetch("/api/gma", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "vote",
+                organizationId,
+                motionId: selectedSuggested.id,
+                value,
+              }),
+            }).then(() => syncState());
+          }}
         />
       )}
       {showAddVote && (
         <AddVotePopup
           onClose={() => setShowAddVote(false)}
           onAdd={(title, author, text) => {
-            setPending((p) => [
-              ...p,
-              { id: crypto.randomUUID(), title, author, text },
-            ]);
+            void fetch("/api/gma", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "suggest",
+                organizationId,
+                title,
+                text: `${author}: ${text}`,
+              }),
+            }).then(() => syncState());
           }}
         />
       )}
@@ -1313,19 +1408,16 @@ export function GMAPage({
         <AddMotionPopup
           onClose={() => setShowAdd(false)}
           onAdd={(title, author, text) => {
-            setSuggested((prev) => [
-              ...prev,
-              {
-                id: crypto.randomUUID(),
+            void fetch("/api/gma", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "suggest",
+                organizationId,
                 title,
-                author,
-                text,
-                timeLeft: "10:00",
-                urgent: false,
-                votesFor: 0,
-                votesAgainst: 0,
-              },
-            ]);
+                text: `${author}: ${text}`,
+              }),
+            }).then(() => syncState());
           }}
         />
       )}

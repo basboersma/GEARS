@@ -114,6 +114,26 @@ function formatFileSize(value?: string): string {
     : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+function findReimbursementImageUrl(
+  tree: FileTreeNode[],
+  reimbursementName: string
+) {
+  const reimbursementsFolder = tree.find(
+    (node) => node.kind === "folder" && node.name === "Reimbursements"
+  );
+  if (!reimbursementsFolder || reimbursementsFolder.kind !== "folder") {
+    return undefined;
+  }
+  const orderFolder = reimbursementsFolder.children.find(
+    (node) => node.kind === "folder" && node.name === reimbursementName
+  );
+  if (!orderFolder || orderFolder.kind !== "folder") {
+    return undefined;
+  }
+  const file = orderFolder.children.find((node) => node.kind === "file");
+  return file?.kind === "file" ? (file.thumbnailUrl ?? file.url) : undefined;
+}
+
 export async function getOwnerDashboardData(
   organizationId: string,
   viewer?: { userId: string; role: string }
@@ -474,6 +494,7 @@ export async function getOwnerDashboardData(
       comments: row.comments,
       status: row.status,
       submittedAt: row.createdAt.toISOString(),
+      imageUrl: findReimbursementImageUrl(googleDriveTree, row.name),
     })),
     monthlySpend: Object.fromEntries(
       ["Total", ...departments].map((name) => [
@@ -489,7 +510,8 @@ export async function getOwnerDashboardData(
                 (name === "Total" || row.department === name) &&
                 row.ordered &&
                 !row.canceled &&
-                row.orderedDate.getMonth() === monthIndex
+                row.orderedDate.getFullYear() === 2026 &&
+                row.orderedDate.getMonth() <= monthIndex
             )
             .reduce((sum, row) => sum + Number(row.totalCosts), 0),
         })),

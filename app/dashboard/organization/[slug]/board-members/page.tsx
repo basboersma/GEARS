@@ -1,8 +1,11 @@
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { BoardMembersPage } from "@/components/owner-dashboard/board-members-page";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
-import { MembersPage } from "@/components/owner-dashboard/MembersPage";
-import type { Member } from "@/components/owner-dashboard/types";
+import type { BoardMember } from "@/components/owner-dashboard/types";
+import { db } from "@/db/drizzle";
+import { board } from "@/db/schema";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -12,7 +15,7 @@ import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
 
-export default async function OrganizationMembersPage({
+export default async function OrganizationBoardMembersPage({
   params,
 }: {
   params: Params;
@@ -28,7 +31,6 @@ export default async function OrganizationMembersPage({
   const membership = organization.members.find(
     (entry) => entry.userId === user.id
   );
-
   if (
     !membership ||
     (membership.role !== "owner" && membership.role !== "admin")
@@ -36,52 +38,37 @@ export default async function OrganizationMembersPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const [dashboardData, organizations] = await Promise.all([
+  const [dashboardData, organizations, boardRows] = await Promise.all([
     getOwnerDashboardData(organization.id),
     getOrganizations(),
+    db.query.board.findMany({
+      where: eq(board.organizationId, organization.id),
+    }),
   ]);
-  const profileById = new Map(
-    dashboardData.members.map((entry) => [entry.id, entry])
-  );
-  const members: Member[] = organization.members.map((entry) => ({
-    id: entry.id,
-    name: entry.user.name,
-    email: entry.user.email,
-    team: entry.role === "owner" ? "Board" : "",
-    department: "",
-    role: entry.role,
-    avatar: entry.user.name.slice(0, 1).toUpperCase(),
-    status: "active",
-    isSubLead: entry.role === "sub_owner",
-    strikes: 0,
-    gender: profileById.get(entry.id)?.gender,
-    nationality: profileById.get(entry.id)?.nationality,
-    study: profileById.get(entry.id)?.study,
+  const boardMembers: BoardMember[] = boardRows.map((row) => ({
+    id: row.id,
+    memberId: row.memberId,
+    position: row.position,
   }));
 
   return (
     <DashboardDataProvider value={dashboardData}>
       <OwnerDashboardFrame
-        activePage="members"
+        activePage="board"
         organizationName={organization.name}
         organizationSlug={slug}
         organizations={organizations}
-        showBoard={membership.role === "admin"}
+        showBoard
         userEmail={user.email}
         userName={user.name}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <MembersPage
+          <BoardMembersPage
+            initialBoardMembers={boardMembers}
             initialDepartmentIds={dashboardData.departmentIds}
             initialDepartments={dashboardData.departments}
-            initialMembers={members}
+            initialMembers={dashboardData.members}
             initialOrganizationId={dashboardData.organizationId}
-            initialTeams={dashboardData.teams}
-            leadMemberId={
-              organization.members.find((entry) => entry.role === "owner")
-                ?.id ?? null
-            }
-            organizationSlug={slug}
             teamHistory={dashboardData.teamHistory}
           />
         </main>

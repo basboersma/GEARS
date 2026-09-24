@@ -29,5 +29,10 @@ export default async function GMAVoteRoute({ params }: { params: Params }) {
     redirect("/dashboard");
   }
 
-  return <MobileVotePage organizationSlug={slug} />;
+  return (
+    <MobileVotePage
+      organizationId={selectedOrganization.id}
+      organizationSlug={slug}
+    />
+  );
 }

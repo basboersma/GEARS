@@ -113,7 +113,7 @@ function PieChart({
 
 type StatMetric = "Gender" | "Study" | "Nationality";
 
-function PieStatsWidget({ members }: { members: Member[] }) {
+export function PieStatsWidget({ members }: { members: Member[] }) {
   const [metric, setMetric] = useState<StatMetric>("Gender");
   const [open, setOpen] = useState(false);
   const total = members.length;
@@ -259,7 +259,7 @@ const historyBuckets = (range: HistoryRange) => {
   });
 };
 
-function MembersOverTimeChart({
+export function MembersOverTimeChart({
   departmentIds,
   departments,
   deptColors,
@@ -419,11 +419,12 @@ function MembersOverTimeChart({
               <stop offset="100%" stopColor={lineColor} stopOpacity="0.02" />
             </linearGradient>
           </defs>
-          {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+          {Array.from({ length: Math.min(maxVal, 6) + 1 }, (_, index) => {
+            const v = maxVal <= 6 ? index : Math.round((maxVal * index) / 6);
+            const f = v / maxVal;
             const y = PAD.t + (1 - f) * (H - PAD.t - PAD.b);
-            const v = Math.round(maxVal * f);
             return (
-              <g key={f}>
+              <g key={v}>
                 <line
                   x1={PAD.l}
                   x2={W - PAD.r}
@@ -753,7 +754,7 @@ interface OutsiderInvite {
   depts: string[];
 }
 
-function InvitePanel({
+export function InvitePanel({
   members,
   depts,
   deptColors,

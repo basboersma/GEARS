@@ -115,6 +115,23 @@ export interface TeamHistorySnapshot
   removed: boolean;
 }
 
+export const BOARD_POSITIONS = [
+  "Chair",
+  "Secretary",
+  "Extern",
+  "Treasurer",
+  "PR",
+  "Intern",
+] as const;
+
+export type BoardPosition = (typeof BOARD_POSITIONS)[number];
+
+export interface BoardMember {
+  id: string;
+  memberId: string;
+  position: BoardPosition;
+}
+
 export interface RoadmapItem {
   id: string;
   title: string;
@@ -215,4 +232,5 @@ export interface ReimbursementRequest {
   comments: string;
   status: string;
   submittedAt: string;
+  imageUrl?: string;
 }

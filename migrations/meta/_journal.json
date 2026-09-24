@@ -141,6 +141,20 @@
       "when": 1790029447465,
       "tag": "0019_silly_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790277308720,
+      "tag": "0020_calm_justice",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790279851483,
+      "tag": "0021_clear_argent",
+      "breakpoints": true
     }
   ]
 }

@@ -176,6 +176,28 @@ export const agendaVoteValue = pgEnum("agenda_vote_value", [
   "abstain",
 ]);
 
+export const gmaMotionStatus = pgEnum("gma_motion_status", [
+  "suggested",
+  "pending",
+  "active",
+  "completed",
+]);
+
+export const gmaVoteValue = pgEnum("gma_vote_value", [
+  "for",
+  "against",
+  "abstain",
+]);
+
+export const boardPosition = pgEnum("board_position", [
+  "Chair",
+  "Secretary",
+  "Extern",
+  "Treasurer",
+  "PR",
+  "Intern",
+]);
+
 export type Role = (typeof role.enumValues)[number];
 
 export const member = pgTable("member", {
@@ -232,6 +254,47 @@ export const memberRelations = relations(member, ({ one }) => ({
   user: one(user, {
     fields: [member.userId],
     references: [user.id],
+  }),
+}));
+
+export const board = pgTable(
+  "board",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    position: boardPosition("position").notNull(),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    unique("board_organization_position_unique").on(
+      table.organizationId,
+      table.position
+    ),
+    unique("board_organization_member_unique").on(
+      table.organizationId,
+      table.memberId
+    ),
+  ]
+);
+
+export const boardRelations = relations(board, ({ one }) => ({
+  organization: one(organization, {
+    fields: [board.organizationId],
+    references: [organization.id],
+  }),
+  member: one(member, {
+    fields: [board.memberId],
+    references: [member.id],
   }),
 }));
 
@@ -492,6 +555,89 @@ export const agendaDiscussionPointVote = pgTable(
   }
 );
 
+export const gmaSession = pgTable("gma_session", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  createdByUserId: text("created_by_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  startDate: text("start_date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const gmaPresence = pgTable(
+  "gma_presence",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => gmaSession.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lastSeenAt: timestamp("last_seen_at").notNull(),
+  },
+  (table) => [unique().on(table.sessionId, table.userId)]
+);
+
+export const gmaMotion = pgTable("gma_motion", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => gmaSession.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  authorId: text("author_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  text: text("text").notNull().default(""),
+  status: gmaMotionStatus("status").notNull().default("suggested"),
+  timerSeconds: integer("timer_seconds").notNull().default(300),
+  timerStartedAt: timestamp("timer_started_at"),
+  timerPaused: boolean("timer_paused").notNull().default(true),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .$defaultFn(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
+export const gmaMotionVote = pgTable(
+  "gma_motion_vote",
+  {
+    id: text("id").primaryKey(),
+    motionId: text("motion_id")
+      .notNull()
+      .references(() => gmaMotion.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => gmaSession.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    value: gmaVoteValue("value").notNull(),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [unique().on(table.motionId, table.userId)]
+);
+
 export const dashboardTodo = pgTable("dashboard_todo", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id")
@@ -584,6 +730,7 @@ export const schema = {
   organization,
   organizationDepartment,
   member,
+  board,
   invitation,
   departmentInvitation,
   orderRequest,
@@ -591,6 +738,10 @@ export const schema = {
   agendaEvent,
   agendaDiscussionPoint,
   agendaDiscussionPointVote,
+  gmaSession,
+  gmaPresence,
+  gmaMotion,
+  gmaMotionVote,
   dashboardTodo,
   dashboardTodoAssignee,
   dashboardRoadmapItem,
@@ -601,6 +752,7 @@ export const schema = {
   organizationRelations,
   organizationDepartmentRelations,
   memberRelations,
+  boardRelations,
   teamRelations,
   teamHistory,
 };

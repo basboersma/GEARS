@@ -33,9 +33,9 @@ export function ReimbursementForm({
   return (
     <form className="mx-auto grid w-full max-w-xl gap-4" onSubmit={submit}>
       <h1 className="font-bold text-2xl">Submit reimbursement</h1>
-      <input name="name" placeholder="Description" required />
-      <input name="department" placeholder="Department" />
-      <input name="link" placeholder="Link / URL" />
+      <input name="name" placeholder="Order name" required />
+      <input name="department" placeholder="Department" required />
+      <input name="link" placeholder="Link / URL" required />
       <div className="grid grid-cols-2 gap-3">
         <input
           min="0"
@@ -53,19 +53,25 @@ export function ReimbursementForm({
           type="number"
         />
       </div>
-      <select defaultValue="Hardware" name="orderType">
+      <select defaultValue="" name="orderType" required>
+        <option disabled value="">
+          Select order type
+        </option>
         <option>Hardware</option>
         <option>Electronic</option>
         <option>Software</option>
         <option>Social</option>
       </select>
-      <select defaultValue="7 days" name="urgency">
+      <select defaultValue="" name="urgency" required>
+        <option disabled value="">
+          Select urgency
+        </option>
         <option>1 day</option>
         <option>2 days</option>
         <option>3 days</option>
         <option>7 days</option>
       </select>
-      <textarea name="comments" placeholder="Comments" />
+      <textarea name="comments" placeholder="Comments" required />
       <input accept="image/*,.pdf" name="file" required type="file" />
       <button type="submit">
         {submitted ? "Submitted" : "Submit reimbursement"}

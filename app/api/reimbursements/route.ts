@@ -10,13 +10,13 @@ import { uploadReimbursementAttachment } from "@/lib/google-drive";
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
   name: z.string().trim().min(1).max(200),
-  department: z.string().trim().default(""),
-  link: z.string().trim().default(""),
+  department: z.string().trim().min(1),
+  link: z.string().trim().min(1),
   pricePerPiece: z.coerce.number().nonnegative(),
   quantity: z.coerce.number().int().positive(),
   orderType: z.string().trim().min(1),
   urgency: z.string().trim().min(1),
-  comments: z.string().max(200).default(""),
+  comments: z.string().trim().min(1).max(200),
 });
 
 export async function POST(request: Request) {

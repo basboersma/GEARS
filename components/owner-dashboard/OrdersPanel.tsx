@@ -39,6 +39,7 @@ interface Reimbursement {
   invoiceFile: File | null;
   invoiceDataUrl: string | null;
   isPast: boolean;
+  imageUrl?: string;
 }
 
 interface OrderItem {
@@ -2296,6 +2297,16 @@ const reimbRowHasContent = (r: ReimbRow) =>
     r.urgency ||
     r.comments
   );
+const reimbRowIsComplete = (r: ReimbRow) =>
+  Boolean(
+    r.name.trim() &&
+      r.link.trim() &&
+      r.pricePerPiece.trim() &&
+      r.quantity.trim() &&
+      r.orderType &&
+      r.urgency &&
+      r.comments.trim()
+  );
 const reimbRowsTotal = (rows: ReimbRow[]) =>
   rows.reduce(
     (s, r) =>
@@ -2339,7 +2350,13 @@ function ReimbursementForm({
 
   async function handleSubmit() {
     const filledRows = rows.filter(reimbRowHasContent);
-    if (!filledRows.length || !file) return;
+    if (
+      !filledRows.length ||
+      !file ||
+      !department ||
+      filledRows.some((row) => !reimbRowIsComplete(row))
+    )
+      return;
     const now = new Date();
     // submit each filled row as a separate reimbursement
     for (const row of filledRows) {
@@ -2426,6 +2443,7 @@ function ReimbursementForm({
             className={selectCls}
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
+            required
           >
             <option value="">Select…</option>
             {departments.map((d) => (
@@ -2519,7 +2537,8 @@ function ReimbursementForm({
             </span>
             <input
               className={fieldCls}
-              placeholder="Item description…"
+              placeholder="Order name…"
+              required={reimbRowHasContent(row)}
               value={row.name}
               onChange={(e) => updateRow(i, { name: e.target.value })}
             />
@@ -2528,6 +2547,7 @@ function ReimbursementForm({
               type="url"
               placeholder="https://…"
               value={row.link}
+              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { link: e.target.value })}
             />
             <input
@@ -2537,6 +2557,7 @@ function ReimbursementForm({
               step="0.01"
               placeholder="0.00"
               value={row.pricePerPiece}
+              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { pricePerPiece: e.target.value })}
             />
             <input
@@ -2545,11 +2566,13 @@ function ReimbursementForm({
               min="1"
               step="1"
               value={row.quantity}
+              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { quantity: e.target.value })}
             />
             <select
               className={selectCls}
               value={row.orderType}
+              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { orderType: e.target.value })}
             >
               <option value="">—</option>
@@ -2562,6 +2585,7 @@ function ReimbursementForm({
             <select
               className={selectCls}
               value={row.urgency}
+              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { urgency: e.target.value })}
             >
               <option value="">—</option>
@@ -2576,6 +2600,7 @@ function ReimbursementForm({
               placeholder="Optional note…"
               maxLength={200}
               value={row.comments}
+              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { comments: e.target.value })}
             />
           </div>
@@ -2603,7 +2628,14 @@ function ReimbursementForm({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!rows.some(reimbRowHasContent) || !file}
+            disabled={
+              !rows.some(reimbRowHasContent) ||
+              !file ||
+              !department ||
+              rows
+                .filter(reimbRowHasContent)
+                .some((row) => !reimbRowIsComplete(row))
+            }
             className={`px-5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
               submitted
                 ? "border-[#10b981]/50 text-[#10b981] bg-[#10b981]/10"
@@ -2648,7 +2680,13 @@ function ReimbursementInvoicePopup({
             ✕
           </button>
         </div>
-        {r.invoiceDataUrl && r.invoiceDataUrl.startsWith("data:image") ? (
+        {r.imageUrl ? (
+          <img
+            src={r.imageUrl}
+            alt={`${r.name} reimbursement`}
+            className="w-full rounded-xl border border-[#3D3330] object-contain max-h-64"
+          />
+        ) : r.invoiceDataUrl && r.invoiceDataUrl.startsWith("data:image") ? (
           <img
             src={r.invoiceDataUrl}
             alt="invoice"
@@ -3294,11 +3332,24 @@ export function OrdersPanel({
                       <div
                         className="flex items-center gap-3 rounded-xl border border-[#3D3330] bg-[#1A1919] px-3 py-2.5"
                         key={reimbursement.id}
+                        onClick={() => setViewingReimburse(reimbursement)}
                       >
+                        {reimbursement.imageUrl && (
+                          <img
+                            src={reimbursement.imageUrl}
+                            alt=""
+                            className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
+                          />
+                        )}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-medium text-[#FFEDD1]">
-                            {reimbursement.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-xs font-medium text-[#FFEDD1]">
+                              {reimbursement.name}
+                            </p>
+                            <span className="shrink-0 rounded-full bg-[#10b981]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[#10b981]">
+                              Reimbursement
+                            </span>
+                          </div>
                           <p className="text-[10px] text-[#9C8272]">
                             {reimbursement.submittedBy} ·{" "}
                             {reimbursement.department}
@@ -3318,6 +3369,7 @@ export function OrdersPanel({
                                 "accepted"
                               ).catch(() => undefined)
                             }
+                            onClickCapture={(event) => event.stopPropagation()}
                             type="button"
                           >
                             Accept
@@ -3332,6 +3384,7 @@ export function OrdersPanel({
                                 "successful"
                               ).catch(() => undefined)
                             }
+                            onClickCapture={(event) => event.stopPropagation()}
                             type="button"
                           >
                             Mark paid
