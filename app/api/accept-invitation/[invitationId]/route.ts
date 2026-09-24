@@ -2,7 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/drizzle";
-import { invitation as invitationTable, member, team } from "@/db/schema";
+import {
+  board,
+  invitation as invitationTable,
+  member,
+  team,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
   recordCurrentTeamSnapshot,
@@ -83,6 +88,17 @@ export async function GET(
           .onConflictDoNothing();
         await recordCurrentTeamSnapshot(invitationRecord.organizationId);
       }
+    }
+    if (invitationRecord?.boardPosition && newMember) {
+      await db
+        .insert(board)
+        .values({
+          id: crypto.randomUUID(),
+          organizationId: invitationRecord.organizationId,
+          memberId: newMember.id,
+          position: invitationRecord.boardPosition,
+        })
+        .onConflictDoNothing();
     }
   } catch (error) {
     console.error("Failed to accept invitation", error);

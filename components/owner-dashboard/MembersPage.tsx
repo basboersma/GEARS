@@ -260,6 +260,7 @@ const historyBuckets = (range: HistoryRange) => {
 };
 
 export function MembersOverTimeChart({
+  boardMemberCount,
   departmentIds,
   departments,
   deptColors,
@@ -267,6 +268,7 @@ export function MembersOverTimeChart({
   activeSnapshot,
   onSnapshotChange,
 }: {
+  boardMemberCount?: number;
   departmentIds: Record<string, string>;
   departments: string[];
   deptColors: Record<string, string>;
@@ -286,6 +288,9 @@ export function MembersOverTimeChart({
     (entry) => entry.departmentId !== null && !entry.removed
   );
   const values = buckets.map(({ cutoff }) => {
+    if (boardMemberCount !== undefined) {
+      return boardMemberCount;
+    }
     if (filter === "total") {
       const joinedMemberIds = new Set(
         lifecycleEvents
@@ -359,37 +364,39 @@ export function MembersOverTimeChart({
           Members Over Time
         </span>
         <div className="flex items-center gap-1.5">
-          <div className="relative">
-            <button
-              onClick={() => setFilterOpen((o) => !o)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#2A2724] border border-[#3D3330] text-[10px] text-[#C4A882] hover:border-[#4A3F38]"
-            >
-              {filter === "total" ? "Total" : filter}{" "}
-              <span className="text-[8px]">{filterOpen ? "▲" : "▼"}</span>
-            </button>
-            {filterOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 rounded-xl border border-[#3D3330] bg-[#232120] shadow-xl overflow-hidden min-w-[110px]">
-                {["total", ...departments].map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => {
-                      setFilter(opt);
-                      setFilterOpen(false);
-                    }}
-                    className={`w-full px-3 py-1.5 text-xs text-left flex items-center gap-1.5 transition-colors ${filter === opt ? "text-[#F0684D] bg-[#F0684D]/10" : "text-[#C4A882] hover:bg-white/5 hover:text-[#FFEDD1]"}`}
-                  >
-                    {opt !== "total" && (
-                      <span
-                        className="w-1.5 h-1.5 rounded-sm shrink-0"
-                        style={{ background: deptColors[opt] ?? "#888" }}
-                      />
-                    )}
-                    {opt === "total" ? "Total" : opt}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {boardMemberCount === undefined && (
+            <div className="relative">
+              <button
+                onClick={() => setFilterOpen((o) => !o)}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#2A2724] border border-[#3D3330] text-[10px] text-[#C4A882] hover:border-[#4A3F38]"
+              >
+                {filter === "total" ? "Total" : filter}{" "}
+                <span className="text-[8px]">{filterOpen ? "▲" : "▼"}</span>
+              </button>
+              {filterOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 rounded-xl border border-[#3D3330] bg-[#232120] shadow-xl overflow-hidden min-w-[110px]">
+                  {["total", ...departments].map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => {
+                        setFilter(opt);
+                        setFilterOpen(false);
+                      }}
+                      className={`w-full px-3 py-1.5 text-xs text-left flex items-center gap-1.5 transition-colors ${filter === opt ? "text-[#F0684D] bg-[#F0684D]/10" : "text-[#C4A882] hover:bg-white/5 hover:text-[#FFEDD1]"}`}
+                    >
+                      {opt !== "total" && (
+                        <span
+                          className="w-1.5 h-1.5 rounded-sm shrink-0"
+                          style={{ background: deptColors[opt] ?? "#888" }}
+                        />
+                      )}
+                      {opt === "total" ? "Total" : opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-0.5">
             {(["1W", "1M", "3M", "6M", "1Y"] as HistoryRange[]).map((r) => (
               <button

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
 import {
+  boardPosition,
   invitation,
   member,
   organization,
@@ -17,6 +18,7 @@ const inviteSchema = z.object({
   organizationId: z.string().min(1),
   email: z.string().trim().email("Enter a valid email address."),
   departmentIds: z.array(z.string().min(1)).optional().default([]),
+  boardPosition: z.enum(boardPosition.enumValues).optional(),
 });
 
 export async function POST(request: Request) {
@@ -104,6 +106,7 @@ export async function POST(request: Request) {
     inviterId: session.user.id,
     departmentIds:
       validDepartmentIds.length > 0 ? JSON.stringify(validDepartmentIds) : null,
+    boardPosition: parsed.data.boardPosition,
   });
 
   try {

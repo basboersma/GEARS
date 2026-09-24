@@ -47,6 +47,12 @@ interface SeatMember {
   status: VoteStatus;
 }
 
+interface BoardLockRequirements {
+  boardMemberCount: number;
+  requiredPasswords: number;
+  configuredBoardMemberCount: number;
+}
+
 const SEAT_NAMES = [
   "Liam B.",
   "Sophie J.",
@@ -911,6 +917,11 @@ export function GMAPage({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [boardPasswords, setBoardPasswords] = useState<string[]>([]);
+  const [boardLockRequirements, setBoardLockRequirements] =
+    useState<BoardLockRequirements | null>(null);
 
   const votePath = organizationSlug
     ? `/dashboard/organization/${organizationSlug}/gma/vote`
@@ -944,6 +955,7 @@ export function GMAPage({
     if (!response.ok) return;
     const data = (await response.json()) as {
       session: { presentCount: number; requiredVotes: number } | null;
+      boardLock: BoardLockRequirements;
       motions: Array<
         SuggestedMotion & {
           status: string;
@@ -954,6 +966,13 @@ export function GMAPage({
         }
       >;
     };
+    setBoardLockRequirements(data.boardLock);
+    setBoardPasswords((current) =>
+      Array.from(
+        { length: data.boardLock.requiredPasswords },
+        (_, index) => current[index] ?? ""
+      )
+    );
     setGmaCreated(Boolean(data.session));
     if (!data.session) {
       setLoading(false);
@@ -1071,25 +1090,119 @@ export function GMAPage({
               </label>
             </div>
             <button
+              disabled={creating}
               onClick={async () => {
-                await fetch("/api/gma", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    action: "create-session",
-                    organizationId,
-                    startDate,
-                    startTime,
-                    endTime,
-                  }),
-                });
-                await syncState();
+                if (!(startDate && startTime && endTime)) {
+                  setCreateError(
+                    "Choose a start date, start time, and end time."
+                  );
+                  return;
+                }
+                if (
+                  !boardLockRequirements ||
+                  boardLockRequirements.boardMemberCount === 0
+                ) {
+                  setCreateError("Assign board members before creating a GMA.");
+                  return;
+                }
+                if (boardPasswords.some((password) => !password)) {
+                  setCreateError(
+                    `Fill in all ${boardPasswords.length} board password fields.`
+                  );
+                  return;
+                }
+
+                setCreating(true);
+                setCreateError(null);
+                try {
+                  const response = await fetch("/api/gma", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      action: "create-session",
+                      organizationId,
+                      startDate,
+                      startTime,
+                      endTime,
+                      boardPasswords,
+                    }),
+                  });
+                  if (!response.ok) {
+                    const data = (await response.json().catch(() => null)) as {
+                      error?: string;
+                    } | null;
+                    throw new Error(
+                      data?.error ?? "The GMA could not be created."
+                    );
+                  }
+                  await syncState();
+                } catch (error) {
+                  setCreateError(
+                    error instanceof Error
+                      ? error.message
+                      : "The GMA could not be created."
+                  );
+                } finally {
+                  setCreating(false);
+                }
               }}
               className="shrink-0 flex items-center gap-2 px-6 py-2 rounded-xl border border-[#F0684D]/50 bg-[#F0684D]/10 text-[#F0684D] text-sm font-semibold hover:bg-[#F0684D]/20 transition-colors whitespace-nowrap"
             >
-              Create GMA
+              {creating ? "Creating..." : "Create GMA"}
             </button>
           </div>
+          {boardLockRequirements && (
+            <div className="mt-5 border-[#3D3330] border-t pt-4">
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[8.5px] text-[#FFD142] uppercase tracking-widest">
+                    Board lock
+                  </p>
+                  <p className="mt-1 text-[11px] text-[#9C8272]">
+                    {boardLockRequirements.boardMemberCount === 0
+                      ? "Assign board members before creating a GMA."
+                      : `Enter ${boardLockRequirements.requiredPasswords} of ${boardLockRequirements.boardMemberCount} board member passwords.`}
+                  </p>
+                </div>
+                <span className="text-[10px] text-[#7A6555]">
+                  {boardLockRequirements.configuredBoardMemberCount}/
+                  {boardLockRequirements.boardMemberCount} set
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                {boardPasswords.map((password, index) => (
+                  <label className="relative" key={`board-password-${index}`}>
+                    <span className="sr-only">Board password {index + 1}</span>
+                    <input
+                      className={fieldCls + " w-full pr-8"}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setBoardPasswords((current) =>
+                          current.map((entry, entryIndex) =>
+                            entryIndex === index ? value : entry
+                          )
+                        );
+                        setCreateError(null);
+                      }}
+                      placeholder={`Password ${index + 1}`}
+                      type="password"
+                      value={password}
+                    />
+                    {password && (
+                      <span className="absolute top-1/2 right-2 -translate-y-1/2 text-[#10b981] text-sm">
+                        ✓
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          {createError && (
+            <p className="mt-3 text-xs text-[#F0684D]" role="alert">
+              {createError}
+            </p>
+          )}
         </div>
       </div>
     );

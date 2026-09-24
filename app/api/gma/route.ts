@@ -13,6 +13,7 @@ import {
   user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { boardLock, getBoardLockRequirements } from "@/lib/board-lock";
 
 const presenceWindowMs = 30_000;
 const motionSchema = z.object({
@@ -27,6 +28,7 @@ const sessionSchema = z.object({
   startDate: z.string().min(1),
   startTime: z.string().min(1),
   endTime: z.string().min(1),
+  boardPasswords: z.array(z.string()).min(1),
 });
 const voteSchema = z.object({
   action: z.literal("vote"),
@@ -174,10 +176,14 @@ export async function GET(request: Request) {
       { status: 403 }
     );
   const session = await getLatestSession(organizationId);
+  const boardLockRequirements = await getBoardLockRequirements(organizationId);
   return NextResponse.json(
     session
-      ? await stateFor(currentUser.id, session)
-      : { session: null, motions: [] }
+      ? {
+          ...(await stateFor(currentUser.id, session)),
+          boardLock: boardLockRequirements,
+        }
+      : { session: null, motions: [], boardLock: boardLockRequirements }
   );
 }
 
@@ -204,6 +210,19 @@ export async function POST(request: Request) {
         { error: "Admin access required" },
         { status: 403 }
       );
+    const lock = await boardLock(
+      parsed.data.organizationId,
+      parsed.data.boardPasswords
+    );
+    if (!lock.unlocked) {
+      return NextResponse.json(
+        {
+          error: `Enter ${lock.requirements.requiredPasswords} different board member passwords to create the GMA.`,
+          boardLock: lock.requirements,
+        },
+        { status: 403 }
+      );
+    }
     const session = {
       id: crypto.randomUUID(),
       organizationId: parsed.data.organizationId,

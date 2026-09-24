@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { avatarBg } from "./data";
-import {
-  InvitePanel,
-  MembersOverTimeChart,
-  PieStatsWidget,
-} from "./MembersPage";
+import { MembersOverTimeChart, PieStatsWidget } from "./MembersPage";
 import type {
   BoardMember,
   BoardPosition,
@@ -14,6 +10,111 @@ import type {
   TeamHistorySnapshot,
 } from "./types";
 import { BOARD_POSITIONS } from "./types";
+
+interface BoardInvite {
+  email: string;
+  position: BoardPosition;
+}
+
+function BoardInvitePanel({
+  members,
+  organizationId,
+  onClose,
+}: {
+  members: Member[];
+  organizationId: string;
+  onClose: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [position, setPosition] = useState<BoardPosition>(BOARD_POSITIONS[0]);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState<BoardInvite[]>([]);
+
+  const sendInvite = async () => {
+    setError("");
+    const response = await fetch("/api/organization-invitations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        organizationId,
+        email,
+        boardPosition: position,
+      }),
+    });
+    const result = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to send invitation.");
+      return;
+    }
+    setSent((current) => [...current, { email, position }]);
+    setEmail("");
+  };
+
+  return (
+    <aside className="flex h-full w-[296px] min-w-[296px] flex-col overflow-hidden border-[#3D3330] border-l bg-[#1E1C1B]">
+      <div className="flex shrink-0 items-center justify-between border-[#3D3330] border-b px-4 py-3">
+        <h2 className="font-semibold text-[#FFEDD1] text-sm">
+          Invite Board Member
+        </h2>
+        <button
+          className="text-[#7A6555] text-sm hover:text-[#FFEDD1]"
+          onClick={onClose}
+          type="button"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="shrink-0 space-y-2 border-[#3D3330] border-b p-3">
+        <input
+          className="w-full rounded-xl border border-[#3D3330] bg-[#2A2724] px-2.5 py-1.5 text-[#FFEDD1] text-xs outline-none placeholder:text-[#7A6555] focus:border-[#F0684D]/60"
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="student@university.nl"
+          type="email"
+          value={email}
+        />
+        <select
+          className="w-full rounded-xl border border-[#3D3330] bg-[#2A2724] px-2.5 py-1.5 text-[#C4A882] text-xs outline-none focus:border-[#F0684D]/60"
+          onChange={(event) => setPosition(event.target.value as BoardPosition)}
+          value={position}
+        >
+          {BOARD_POSITIONS.map((boardPosition) => (
+            <option key={boardPosition} value={boardPosition}>
+              {boardPosition}
+            </option>
+          ))}
+        </select>
+        <button
+          className="w-full rounded-xl bg-[#F0684D] py-1.5 font-semibold text-white text-xs hover:bg-[#E05538]"
+          onClick={sendInvite}
+          type="button"
+        >
+          Send Invite Mail
+        </button>
+        {error && <p className="text-[10px] text-rose-400">{error}</p>}
+      </div>
+      <div className="flex-1 space-y-1.5 overflow-auto p-3">
+        {sent.map((invite, index) => (
+          <div
+            className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5"
+            key={`${invite.email}-${index}`}
+          >
+            <div className="truncate text-[10px] text-emerald-400">
+              {invite.email}
+            </div>
+            <div className="text-[9px] text-emerald-400/60">
+              {invite.position}
+            </div>
+          </div>
+        ))}
+        {members.length === 0 && (
+          <p className="text-[#7A6555] text-xs">No current members.</p>
+        )}
+      </div>
+    </aside>
+  );
+}
 
 export function BoardMembersPage({
   initialBoardMembers,
@@ -83,11 +184,16 @@ export function BoardMembersPage({
             style={{ height: 286 }}
           >
             <div className="flex w-[218px] shrink-0 flex-col rounded-xl border border-[#3D3330] bg-[#232120] p-3">
-              <PieStatsWidget members={initialMembers} />
+              <PieStatsWidget
+                members={initialMembers.filter((member) =>
+                  boardMembers.some((entry) => entry.memberId === member.id)
+                )}
+              />
             </div>
             <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-[#3D3330] bg-[#232120] p-3">
               <MembersOverTimeChart
                 activeSnapshot={historySnapshot}
+                boardMemberCount={boardMembers.length}
                 departmentIds={initialDepartmentIds}
                 departments={initialDepartments}
                 deptColors={Object.fromEntries(
@@ -99,17 +205,6 @@ export function BoardMembersPage({
                 history={teamHistory}
                 onSnapshotChange={setHistorySnapshot}
               />
-            </div>
-            <div className="flex w-[218px] shrink-0 flex-col justify-center rounded-xl border border-[#3D3330] bg-[#232120] p-3">
-              <div className="font-semibold text-[#7A6555] text-[10px] uppercase tracking-wider">
-                Board seats
-              </div>
-              <div className="mt-2 font-bold text-3xl text-[#FFEDD1]">
-                {boardMembers.length}/{BOARD_POSITIONS.length}
-              </div>
-              <div className="mt-1 text-[#9C8272] text-xs">
-                filled positions
-              </div>
             </div>
           </div>
 
@@ -181,12 +276,7 @@ export function BoardMembersPage({
           </div>
         </div>
         {showInvite && (
-          <InvitePanel
-            departmentIds={initialDepartmentIds}
-            deptColors={Object.fromEntries(
-              initialDepartments.map((department) => [department, "#4f6ef7"])
-            )}
-            depts={initialDepartments}
+          <BoardInvitePanel
             members={initialMembers}
             onClose={() => setShowInvite(false)}
             organizationId={initialOrganizationId}

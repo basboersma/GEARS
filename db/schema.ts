@@ -382,6 +382,7 @@ export const invitation = pgTable("invitation", {
     .references(() => user.id, { onDelete: "cascade" }),
   // JSON-stringified array of organizationDepartment ids to join on acceptance.
   departmentIds: text("department_ids"),
+  boardPosition: boardPosition("board_position"),
 });
 
 // Invites an EXISTING org member into additional department(s) via an emailed link.
