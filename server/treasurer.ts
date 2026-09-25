@@ -6,8 +6,35 @@ import {
   orderRequest,
   organization,
   reimbursementRequest,
+  studentProfile,
   user,
 } from "@/db/schema";
+import { listGoogleDriveTree } from "@/lib/google-drive";
+
+function findReimbursementImageUrl(
+  tree: Awaited<ReturnType<typeof listGoogleDriveTree>> | undefined,
+  reimbursementName: string
+) {
+  if (!tree?.success) {
+    return undefined;
+  }
+  const reimbursementsFolder = tree.files.find(
+    (node) => node.kind === "folder" && node.name === "Reimbursements"
+  );
+  if (!reimbursementsFolder || reimbursementsFolder.kind !== "folder") {
+    return undefined;
+  }
+  const orderFolder = reimbursementsFolder.children?.find(
+    (node) => node.kind === "folder" && node.name === reimbursementName
+  );
+  if (!orderFolder || orderFolder.kind !== "folder") {
+    return undefined;
+  }
+  const file = orderFolder.children?.find((node) => node.kind === "file");
+  return file?.kind === "file"
+    ? (file.thumbnailLink ?? file.webViewLink)
+    : undefined;
+}
 
 export async function getTreasurerDashboardData(): Promise<DashboardData> {
   const rows = await db
@@ -28,7 +55,10 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     .innerJoin(user, eq(orderRequest.userId, user.id))
     .orderBy(asc(orderRequest.orderedDate));
   const reimbursements = await db
-    .select({ reimbursement: reimbursementRequest })
+    .select({
+      reimbursement: reimbursementRequest,
+      ibanNumber: studentProfile.ibanNumber,
+    })
     .from(reimbursementRequest)
     .innerJoin(
       member,
@@ -36,6 +66,10 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         eq(reimbursementRequest.organizationId, member.organizationId),
         eq(reimbursementRequest.userId, member.userId)
       )
+    )
+    .leftJoin(
+      studentProfile,
+      eq(reimbursementRequest.userId, studentProfile.userId)
     )
     .where(
       or(
@@ -47,6 +81,26 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
       )
     )
     .orderBy(asc(reimbursementRequest.createdAt));
+  const reimbursementTrees = new Map<
+    string,
+    Awaited<ReturnType<typeof listGoogleDriveTree>>
+  >();
+  await Promise.all(
+    reimbursements.map(async ({ reimbursement }) => {
+      if (reimbursementTrees.has(reimbursement.organizationId)) {
+        return;
+      }
+      const organizationRow = await db.query.organization.findFirst({
+        where: eq(organization.id, reimbursement.organizationId),
+      });
+      if (organizationRow?.driveFolderId) {
+        reimbursementTrees.set(
+          reimbursement.organizationId,
+          await listGoogleDriveTree(organizationRow.driveFolderId)
+        );
+      }
+    })
+  );
   const gmaCreated = Boolean(await db.query.gmaSession.findFirst());
 
   const uniqueRows = Array.from(
@@ -154,21 +208,28 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         }),
         read: false,
       })),
-    reimbursements: reimbursements.map(({ reimbursement: row }) => ({
-      id: row.id,
-      organizationId: row.organizationId,
-      name: row.name,
-      department: row.department,
-      submittedBy: row.submittedBy,
-      link: row.link,
-      pricePerPiece: Number(row.pricePerPiece),
-      quantity: row.quantity,
-      orderType: row.orderType,
-      urgency: row.urgency,
-      comments: row.comments,
-      status: row.status,
-      submittedAt: row.createdAt.toISOString(),
-    })),
+    reimbursements: reimbursements.map(
+      ({ reimbursement: row, ibanNumber }) => ({
+        id: row.id,
+        organizationId: row.organizationId,
+        name: row.name,
+        department: row.department,
+        submittedBy: row.submittedBy,
+        link: row.link,
+        pricePerPiece: Number(row.pricePerPiece),
+        quantity: row.quantity,
+        orderType: row.orderType,
+        urgency: row.urgency,
+        comments: row.comments,
+        status: row.status,
+        submittedAt: row.createdAt.toISOString(),
+        imageUrl: findReimbursementImageUrl(
+          reimbursementTrees.get(row.organizationId),
+          row.name
+        ),
+        ibanNumber: ibanNumber ?? "",
+      })
+    ),
     monthlySpend: {
       Total: Object.entries(monthlySpend).map(([month, spent]) => ({
         month,

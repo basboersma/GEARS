@@ -3,11 +3,17 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { member, organization, reimbursementRequest } from "@/db/schema";
+import {
+  member,
+  organization,
+  reimbursementRequest,
+  studentProfile,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { uploadReimbursementAttachment } from "@/lib/google-drive";
 
 const payloadSchema = z.object({
+  id: z.string().uuid().optional(),
   organizationId: z.string().min(1),
   name: z.string().trim().min(1).max(200),
   department: z.string().trim().min(1),
@@ -27,6 +33,7 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const parsed = payloadSchema.safeParse({
+    id: form.get("id") || undefined,
     organizationId: form.get("organizationId"),
     name: form.get("name"),
     department: form.get("department"),
@@ -55,6 +62,30 @@ export async function POST(request: Request) {
       { error: "Organization membership required" },
       { status: 403 }
     );
+  }
+
+  const profile = await db.query.studentProfile.findFirst({
+    where: eq(studentProfile.userId, session.user.id),
+  });
+  if (!profile?.ibanNumber.trim()) {
+    return NextResponse.json(
+      {
+        error: "Add an IBAN to your account before submitting a reimbursement",
+      },
+      { status: 400 }
+    );
+  }
+
+  if (parsed.data.id) {
+    const existing = await db.query.reimbursementRequest.findFirst({
+      where: and(
+        eq(reimbursementRequest.id, parsed.data.id),
+        eq(reimbursementRequest.userId, session.user.id)
+      ),
+    });
+    if (existing) {
+      return NextResponse.json({ success: true, reimbursement: existing });
+    }
   }
 
   const organizationRow = await db.query.organization.findFirst({
@@ -86,7 +117,7 @@ export async function POST(request: Request) {
   const [created] = await db
     .insert(reimbursementRequest)
     .values({
-      id: crypto.randomUUID(),
+      id: parsed.data.id ?? crypto.randomUUID(),
       organizationId: parsed.data.organizationId,
       userId: session.user.id,
       name: parsed.data.name,

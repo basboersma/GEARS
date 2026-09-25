@@ -40,6 +40,7 @@ interface Reimbursement {
   invoiceDataUrl: string | null;
   isPast: boolean;
   imageUrl?: string;
+  ibanNumber?: string;
 }
 
 interface OrderItem {
@@ -2327,6 +2328,7 @@ function ReimbursementForm({
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [department, setDepartment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [rows, setRows] = useState<ReimbRow[]>([
     mkReimbRow(),
@@ -2349,6 +2351,7 @@ function ReimbursementForm({
   }
 
   async function handleSubmit() {
+    if (submitting) return;
     const filledRows = rows.filter(reimbRowHasContent);
     if (
       !filledRows.length ||
@@ -2357,40 +2360,46 @@ function ReimbursementForm({
       filledRows.some((row) => !reimbRowIsComplete(row))
     )
       return;
+    setSubmitting(true);
     const now = new Date();
-    // submit each filled row as a separate reimbursement
-    for (const row of filledRows) {
-      const reimbursement = {
-        id: crypto.randomUUID(),
-        name: row.name || "Unnamed",
-        department,
-        submittedBy: "Admin user",
-        submittedAt: now.toISOString(),
-        monthLabel:
-          now.toLocaleString("en-GB", { month: "short" }) +
-          "'" +
-          String(now.getFullYear()).slice(2),
-        link: row.link,
-        pricePerPiece: parseFloat(row.pricePerPiece) || 0,
-        quantity: parseInt(row.quantity) || 1,
-        orderType: row.orderType,
-        urgency: row.urgency,
-        comments: row.comments,
-        status: "pending" as const,
-        invoiceFile: file,
-        invoiceDataUrl: dataUrl,
-        isPast: false,
-      };
-      await onSubmit(reimbursement, file);
+    try {
+      for (const row of filledRows) {
+        const reimbursement = {
+          id: crypto.randomUUID(),
+          name: row.name || "Unnamed",
+          department,
+          submittedBy: "Admin user",
+          submittedAt: now.toISOString(),
+          monthLabel:
+            now.toLocaleString("en-GB", { month: "short" }) +
+            "'" +
+            String(now.getFullYear()).slice(2),
+          link: row.link,
+          pricePerPiece: parseFloat(row.pricePerPiece) || 0,
+          quantity: parseInt(row.quantity) || 1,
+          orderType: row.orderType,
+          urgency: row.urgency,
+          comments: row.comments,
+          status: "pending" as const,
+          invoiceFile: file,
+          invoiceDataUrl: dataUrl,
+          isPast: false,
+        };
+        await onSubmit(reimbursement, file);
+      }
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setFile(null);
+        setDataUrl(null);
+        setDepartment("");
+        setRows([mkReimbRow(), mkReimbRow(), mkReimbRow()]);
+      }, 2000);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Submission failed");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFile(null);
-      setDataUrl(null);
-      setDepartment("");
-      setRows([mkReimbRow(), mkReimbRow(), mkReimbRow()]);
-    }, 2000);
   }
 
   function handleSaveDraftClick() {
@@ -2629,6 +2638,7 @@ function ReimbursementForm({
           <button
             onClick={handleSubmit}
             disabled={
+              submitting ||
               !rows.some(reimbRowHasContent) ||
               !file ||
               !department ||
@@ -2642,7 +2652,11 @@ function ReimbursementForm({
                 : "border-[#10b981]/40 bg-[#10b981]/8 text-[#10b981] hover:bg-[#10b981]/15 disabled:opacity-40 disabled:cursor-not-allowed"
             }`}
           >
-            {submitted ? "✓ Submitted" : "Submit Reimbursement"}
+            {submitting
+              ? "Submitting…"
+              : submitted
+                ? "✓ Submitted"
+                : "Submit Reimbursement"}
           </button>
         </div>
       </div>
@@ -2718,6 +2732,100 @@ function ReimbursementInvoicePopup({
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReimbursementIncomingRow({
+  reimbursement,
+  isTreasurer,
+  onAccept,
+  onMarkPaid,
+}: {
+  reimbursement: Reimbursement;
+  isTreasurer: boolean;
+  onAccept: () => void;
+  onMarkPaid: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const total = reimbursement.pricePerPiece * reimbursement.quantity;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
+      <button
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/5"
+        onClick={() => setExpanded((current) => !current)}
+        type="button"
+      >
+        {reimbursement.imageUrl ? (
+          <img
+            src={reimbursement.imageUrl}
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
+          />
+        ) : (
+          <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
+        )}
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
+          {reimbursement.name}
+        </span>
+        <span className="shrink-0 text-[10px] text-[#9C8272]">
+          {reimbursement.submittedBy}
+        </span>
+        <span className="shrink-0 font-mono text-[11px] text-[#C4A882]">
+          {fmt(total)}
+        </span>
+        <span className="shrink-0 text-[#7A6555] text-[10px]">
+          {expanded ? "⌃" : "⌄"}
+        </span>
+      </button>
+      {expanded && (
+        <div className="space-y-3 border-t border-[#3D3330] px-4 py-3">
+          {reimbursement.imageUrl ? (
+            <img
+              src={reimbursement.imageUrl}
+              alt={`${reimbursement.name} reimbursement`}
+              className="max-h-72 w-full rounded-lg border border-[#3D3330] object-contain"
+            />
+          ) : (
+            <div className="rounded-lg border border-[#3D3330] bg-[#232120] p-4 text-center text-xs text-[#7A6555]">
+              No reimbursement photo found
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2 text-[10px] text-[#9C8272] sm:grid-cols-4">
+            <span>Department: {reimbursement.department}</span>
+            <span>Quantity: {reimbursement.quantity}</span>
+            <span>Type: {reimbursement.orderType}</span>
+            <span>Urgency: {reimbursement.urgency}</span>
+          </div>
+          {isTreasurer && (
+            <p className="text-[11px] text-[#C4A882]">
+              IBAN: {reimbursement.ibanNumber || "Not available"}
+            </p>
+          )}
+          <p className="text-xs text-[#9C8272]">{reimbursement.comments}</p>
+          <div className="flex items-center justify-end gap-2">
+            {!isTreasurer && (
+              <button
+                className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
+                onClick={onAccept}
+                type="button"
+              >
+                Accept
+              </button>
+            )}
+            {isTreasurer && (
+              <button
+                className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
+                onClick={onMarkPaid}
+                type="button"
+              >
+                Mark paid
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2817,6 +2925,7 @@ export function OrdersPanel({
 
   async function submitReimbursement(reimbursement: Reimbursement, file: File) {
     const form = new FormData();
+    form.append("id", reimbursement.id);
     form.append("organizationId", organizationId);
     form.append("name", reimbursement.name);
     form.append("department", reimbursement.department);
@@ -3334,68 +3443,22 @@ export function OrdersPanel({
                       Reimbursements
                     </p>
                     {incomingReimbursements.map((reimbursement) => (
-                      <div
-                        className="flex items-center gap-3 rounded-xl border border-[#3D3330] bg-[#1A1919] px-3 py-2.5"
+                      <ReimbursementIncomingRow
                         key={reimbursement.id}
-                        onClick={() => setViewingReimburse(reimbursement)}
-                      >
-                        {reimbursement.imageUrl && (
-                          <img
-                            src={reimbursement.imageUrl}
-                            alt=""
-                            className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-xs font-medium text-[#FFEDD1]">
-                              {reimbursement.name}
-                            </p>
-                            <span className="shrink-0 rounded-full bg-[#10b981]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[#10b981]">
-                              Reimbursement
-                            </span>
-                          </div>
-                          <p className="text-[10px] text-[#9C8272]">
-                            {reimbursement.submittedBy} ·{" "}
-                            {reimbursement.department}
-                          </p>
-                        </div>
-                        <span className="font-mono text-[11px] text-[#C4A882]">
-                          {fmt(
-                            reimbursement.pricePerPiece * reimbursement.quantity
-                          )}
-                        </span>
-                        {!isTreasurer && (
-                          <button
-                            className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
-                            onClick={() =>
-                              updateReimbursement(
-                                reimbursement,
-                                "accepted"
-                              ).catch(() => undefined)
-                            }
-                            onClickCapture={(event) => event.stopPropagation()}
-                            type="button"
-                          >
-                            Accept
-                          </button>
-                        )}
-                        {isTreasurer && (
-                          <button
-                            className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
-                            onClick={() =>
-                              updateReimbursement(
-                                reimbursement,
-                                "successful"
-                              ).catch(() => undefined)
-                            }
-                            onClickCapture={(event) => event.stopPropagation()}
-                            type="button"
-                          >
-                            Mark paid
-                          </button>
-                        )}
-                      </div>
+                        reimbursement={reimbursement}
+                        isTreasurer={isTreasurer}
+                        onAccept={() =>
+                          updateReimbursement(reimbursement, "accepted").catch(
+                            () => undefined
+                          )
+                        }
+                        onMarkPaid={() =>
+                          updateReimbursement(
+                            reimbursement,
+                            "successful"
+                          ).catch(() => undefined)
+                        }
+                      />
                     ))}
                   </div>
                 )}

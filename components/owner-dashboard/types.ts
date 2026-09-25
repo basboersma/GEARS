@@ -234,4 +234,5 @@ export interface ReimbursementRequest {
   status: string;
   submittedAt: string;
   imageUrl?: string;
+  ibanNumber?: string;
 }

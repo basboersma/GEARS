@@ -62,6 +62,7 @@ export async function POST(request: Request) {
   }
 
   const id = crypto.randomUUID();
+  const now = new Date();
   try {
     await db.transaction(async (tx) => {
       await tx
@@ -85,10 +86,17 @@ export async function POST(request: Request) {
         organizationId: parsed.data.organizationId,
         memberId: parsed.data.memberId,
         position: parsed.data.position,
+        createdAt: now,
+        updatedAt: now,
       });
     });
   } catch (error) {
-    console.error("Unable to save board member", error);
+    console.error("Unable to save board member", {
+      error,
+      organizationId: parsed.data.organizationId,
+      memberId: parsed.data.memberId,
+      position: parsed.data.position,
+    });
     return NextResponse.json(
       { error: "Unable to save board member assignment." },
       { status: 500 }

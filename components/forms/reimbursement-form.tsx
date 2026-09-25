@@ -9,9 +9,14 @@ export function ReimbursementForm({
 }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) {
+      return;
+    }
+    setSubmitting(true);
     setError("");
     const form = new FormData(event.currentTarget);
     form.set("organizationId", organizationId);
@@ -24,10 +29,19 @@ export function ReimbursementForm({
         error?: string;
       } | null;
       setError(body?.error ?? "Unable to submit reimbursement");
+      setSubmitting(false);
       return;
     }
     event.currentTarget.reset();
     setSubmitted(true);
+    setSubmitting(false);
+  }
+
+  let submitLabel = "Submit reimbursement";
+  if (submitting) {
+    submitLabel = "Submitting…";
+  } else if (submitted) {
+    submitLabel = "Submitted";
   }
 
   return (
@@ -81,8 +95,8 @@ export function ReimbursementForm({
       </select>
       <textarea name="comments" placeholder="Comments" required />
       <input accept="image/*,.pdf" name="file" required type="file" />
-      <button type="submit">
-        {submitted ? "Submitted" : "Submit reimbursement"}
+      <button disabled={submitting} type="submit">
+        {submitLabel}
       </button>
       {error && <p className="text-red-500 text-sm">{error}</p>}
     </form>

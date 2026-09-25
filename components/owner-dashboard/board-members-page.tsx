@@ -20,6 +20,106 @@ interface BoardInvite {
   position: BoardPosition;
 }
 
+function BoardMemberCard({
+  member,
+  onRemove,
+}: {
+  member: Member;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex cursor-pointer select-none items-center gap-2 rounded-xl border border-[#3D3330] bg-[#2A2724] px-2.5 py-2 transition-all duration-150 hover:border-[#4A3F38]">
+      <div
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${avatarBg(0)} font-bold text-[9px] text-white`}
+      >
+        {member.avatar}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-semibold text-[#FFEDD1] text-[11px]">
+          {member.name}
+        </div>
+        <div className="truncate text-[#7A6555] text-[9px]">{member.role}</div>
+      </div>
+      <button
+        aria-label={`Remove ${member.name} from the board`}
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[#7A6555] text-[9px] transition-colors hover:bg-rose-400/10 hover:text-rose-400"
+        onClick={onRemove}
+        title={`Remove ${member.name}`}
+        type="button"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+function BoardPositionColumn({
+  color,
+  availableMembers,
+  member,
+  position,
+  onAssign,
+  onRemove,
+}: {
+  color: string;
+  availableMembers: Member[];
+  member: Member | null;
+  position: BoardPosition;
+  onAssign: (memberId: string) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex min-w-[190px] max-w-[230px] flex-1 flex-col gap-2 rounded-2xl border border-[#3D3330] bg-[#232120] p-3 transition-all">
+      <div className="flex items-center gap-2 border-[#3D3330] border-b pb-2">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-sm"
+          style={{ background: color }}
+        />
+        <span className="flex-1 truncate font-bold text-[#FFEDD1] text-xs">
+          {position}
+        </span>
+        <span
+          className="rounded px-1.5 py-0.5 font-semibold text-[9px]"
+          style={{ background: `${color}22`, color }}
+        >
+          {member ? 1 : 0}
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-1.5">
+        <div className="font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
+          Members
+        </div>
+        {member ? (
+          <BoardMemberCard member={member} onRemove={onRemove} />
+        ) : (
+          <select
+            aria-label={`Add member to ${position}`}
+            className="w-full rounded-xl border border-[#3D3330] border-dashed bg-[#2A2724] px-2.5 py-2 text-[#9C8272] text-[10px] outline-none focus:border-[#F0684D]/60"
+            onChange={(event) => {
+              if (event.target.value) {
+                onAssign(event.target.value);
+              }
+            }}
+            value=""
+          >
+            <option value="">Add board member</option>
+            {availableMembers.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {!member && (
+          <div className="py-2 text-center text-[#4A3F38] text-[10px]">
+            No members
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BoardInvitePanel({
   members,
   organizationId,
@@ -148,79 +248,6 @@ export function BoardMembersPage({
   const boardMembersOnly = initialMembers.filter((member) =>
     boardMembers.some((entry) => entry.memberId === member.id)
   );
-  const boardMemberCard = (position: BoardPosition) => {
-    const assignment = boardMemberFor(position);
-    const member = initialMembers.find(
-      (entry) => entry.id === assignment?.memberId
-    );
-    const availableMembers = initialMembers.filter(
-      (entry) =>
-        !boardMembers.some((boardMember) => boardMember.memberId === entry.id)
-    );
-    return (
-      <div
-        className="flex min-w-[190px] flex-1 flex-col gap-2 rounded-2xl border border-[#3D3330] bg-[#232120] p-3"
-        key={position}
-      >
-        <div className="flex items-center gap-2 border-[#3D3330] border-b pb-2">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-[#F0684D]" />
-          <span className="flex-1 truncate font-bold text-[#FFEDD1] text-xs">
-            {position === "Chair" ? "Lead" : position}
-          </span>
-          <span className="rounded bg-[#F0684D]/15 px-1.5 py-0.5 font-semibold text-[#F0684D] text-[9px]">
-            {member ? 1 : 0}
-          </span>
-        </div>
-        {member ? (
-          <div className="flex items-center gap-2 rounded-xl border border-[#3D3330] bg-[#2A2724] px-2.5 py-2">
-            <div
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${avatarBg(initialMembers.indexOf(member))} font-bold text-[9px] text-white`}
-            >
-              {member.avatar}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate font-semibold text-[#FFEDD1] text-[11px]">
-                {member.name}
-              </div>
-              <div className="truncate text-[#7A6555] text-[9px]">
-                {member.role}
-              </div>
-            </div>
-            <button
-              aria-label={`Remove ${member.name} from ${position}`}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[#7A6555] text-[9px] transition-colors hover:bg-rose-400/10 hover:text-rose-400"
-              onClick={() => savePosition(position, "").catch(() => undefined)}
-              title={`Remove ${member.name}`}
-              type="button"
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <select
-            aria-label={`Add member to ${position}`}
-            className="w-full rounded-xl border border-[#3D3330] border-dashed bg-[#2A2724] px-2.5 py-2 text-[#9C8272] text-[10px] outline-none focus:border-[#F0684D]/60"
-            onChange={(event) => {
-              if (event.target.value) {
-                savePosition(position, event.target.value).catch(
-                  () => undefined
-                );
-              }
-            }}
-            value=""
-          >
-            <option value="">Add board member</option>
-            {availableMembers.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-    );
-  };
-
   async function savePosition(position: BoardPosition, memberId: string) {
     setSaveError(null);
     try {
@@ -320,11 +347,107 @@ export function BoardMembersPage({
             </div>
           )}
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            <div className="mx-auto flex max-w-5xl flex-col items-center gap-3">
-              <div className="w-full max-w-sm">{boardMemberCard("Chair")}</div>
-              <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3">
+            <div className="flex min-w-max flex-col items-center pt-10 pb-8">
+              <div className="flex flex-col items-center">
+                <div className="w-52 rounded-2xl border border-[#F0684D]/50 bg-[#F0684D]/10 px-3 py-2.5">
+                  <div className="mb-1.5 font-semibold text-[#F0684D] text-[9px] uppercase tracking-wider">
+                    Lead
+                  </div>
+                  {(() => {
+                    const chair = initialMembers.find(
+                      (member) =>
+                        member.id === boardMemberFor("Chair")?.memberId
+                    );
+                    return chair ? (
+                      <BoardMemberCard
+                        member={chair}
+                        onRemove={() =>
+                          savePosition("Chair", "").catch(() => undefined)
+                        }
+                      />
+                    ) : (
+                      <select
+                        aria-label="Add member as Chair"
+                        className="w-full rounded-xl border border-[#F0684D]/40 border-dashed bg-[#2A2724] px-2.5 py-2 text-[#C4A882] text-[10px] outline-none focus:border-[#F0684D]"
+                        onChange={(event) => {
+                          if (event.target.value) {
+                            savePosition("Chair", event.target.value).catch(
+                              () => undefined
+                            );
+                          }
+                        }}
+                        value=""
+                      >
+                        <option value="">Assign Chair</option>
+                        {initialMembers
+                          .filter(
+                            (member) =>
+                              !boardMembers.some(
+                                (boardMember) =>
+                                  boardMember.memberId === member.id
+                              )
+                          )
+                          .map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.name}
+                            </option>
+                          ))}
+                      </select>
+                    );
+                  })()}
+                </div>
+                <div className="h-5 w-px bg-[#3D3330]" />
+              </div>
+              <div className="relative flex items-start gap-3">
+                <div
+                  className="absolute top-0 h-px bg-[#3D3330]"
+                  style={{
+                    left: "calc(50% / 5)",
+                    right: "calc(50% / 5)",
+                  }}
+                />
                 {BOARD_POSITIONS.filter((position) => position !== "Chair").map(
-                  boardMemberCard
+                  (position) => {
+                    const member = initialMembers.find(
+                      (entry) => entry.id === boardMemberFor(position)?.memberId
+                    );
+                    const availableMembers = initialMembers.filter(
+                      (entry) =>
+                        !boardMembers.some(
+                          (boardMember) => boardMember.memberId === entry.id
+                        )
+                    );
+                    return (
+                      <div
+                        className="flex flex-col items-center"
+                        key={position}
+                      >
+                        <div className="h-4 w-px bg-[#3D3330]" />
+                        <BoardPositionColumn
+                          availableMembers={availableMembers}
+                          color={
+                            [
+                              "#4f6ef7",
+                              "#10b981",
+                              "#8b5cf6",
+                              "#f59e0b",
+                              "#f43f5e",
+                            ][BOARD_POSITIONS.indexOf(position) - 1] ?? "#888"
+                          }
+                          member={member ?? null}
+                          onAssign={(memberId) =>
+                            savePosition(position, memberId).catch(
+                              () => undefined
+                            )
+                          }
+                          onRemove={() =>
+                            savePosition(position, "").catch(() => undefined)
+                          }
+                          position={position}
+                        />
+                      </div>
+                    );
+                  }
                 )}
               </div>
             </div>
