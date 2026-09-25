@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, or } from "drizzle-orm";
 import type { DashboardData } from "@/components/owner-dashboard/dashboard-data-context";
 import { db } from "@/db/drizzle";
 import {
@@ -27,10 +27,26 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     )
     .innerJoin(user, eq(orderRequest.userId, user.id))
     .orderBy(asc(orderRequest.orderedDate));
-  const reimbursements = await db.query.reimbursementRequest.findMany({
-    where: eq(reimbursementRequest.status, "accepted"),
-    orderBy: [asc(reimbursementRequest.createdAt)],
-  });
+  const reimbursements = await db
+    .select({ reimbursement: reimbursementRequest })
+    .from(reimbursementRequest)
+    .innerJoin(
+      member,
+      and(
+        eq(reimbursementRequest.organizationId, member.organizationId),
+        eq(reimbursementRequest.userId, member.userId)
+      )
+    )
+    .where(
+      or(
+        eq(reimbursementRequest.status, "accepted"),
+        and(
+          eq(reimbursementRequest.status, "pending"),
+          or(eq(member.role, "owner"), eq(member.role, "admin"))
+        )
+      )
+    )
+    .orderBy(asc(reimbursementRequest.createdAt));
   const gmaCreated = Boolean(await db.query.gmaSession.findFirst());
 
   const uniqueRows = Array.from(
@@ -138,7 +154,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         }),
         read: false,
       })),
-    reimbursements: reimbursements.map((row) => ({
+    reimbursements: reimbursements.map(({ reimbursement: row }) => ({
       id: row.id,
       organizationId: row.organizationId,
       name: row.name,

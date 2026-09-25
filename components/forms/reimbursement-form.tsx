@@ -33,7 +33,15 @@ export function ReimbursementForm({
   return (
     <form className="mx-auto grid w-full max-w-xl gap-4" onSubmit={submit}>
       <h1 className="font-bold text-2xl">Submit reimbursement</h1>
-      <input name="name" placeholder="Order name" required />
+      <label className="grid gap-1">
+        <span className="font-medium text-sm">Order name</span>
+        <input
+          aria-label="Order name"
+          name="name"
+          placeholder="Order name"
+          required
+        />
+      </label>
       <input name="department" placeholder="Department" required />
       <input name="link" placeholder="Link / URL" required />
       <div className="grid grid-cols-2 gap-3">

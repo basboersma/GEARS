@@ -14,7 +14,8 @@ export interface DashboardNavigationItem {
     | "inventory"
     | "gma"
     | "treasurer"
-    | "board";
+    | "board"
+    | "team-management";
   label: string;
   href: string;
 }
@@ -48,7 +49,7 @@ export function getDashboardNavigation({
     },
   ];
 
-  if (gmaCreated) {
+  if (gmaCreated || role === "admin" || role === "owner") {
     navigation.push({
       key: "gma",
       label: "GMA",
@@ -63,6 +64,11 @@ export function getDashboardNavigation({
         key: "board",
         label: "Board Members",
         href: `${dashboardHref}/board-members`,
+      },
+      {
+        key: "team-management",
+        label: "Team management",
+        href: "/dashboard/admin/team-management",
       }
     );
   }

@@ -25,12 +25,15 @@ async function getManager(organizationId: string) {
   if (!session) {
     return null;
   }
-  return db.query.member.findFirst({
+  const manager = await db.query.member.findFirst({
     where: and(
       eq(member.organizationId, organizationId),
       eq(member.userId, session.user.id)
     ),
   });
+  return manager?.role === "admin" || manager?.role === "owner"
+    ? manager
+    : null;
 }
 
 export async function POST(request: Request) {
@@ -59,30 +62,38 @@ export async function POST(request: Request) {
   }
 
   const id = crypto.randomUUID();
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(board)
-      .where(
-        and(
-          eq(board.organizationId, parsed.data.organizationId),
-          eq(board.position, parsed.data.position)
-        )
-      );
-    await tx
-      .delete(board)
-      .where(
-        and(
-          eq(board.organizationId, parsed.data.organizationId),
-          eq(board.memberId, parsed.data.memberId)
-        )
-      );
-    await tx.insert(board).values({
-      id,
-      organizationId: parsed.data.organizationId,
-      memberId: parsed.data.memberId,
-      position: parsed.data.position,
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(board)
+        .where(
+          and(
+            eq(board.organizationId, parsed.data.organizationId),
+            eq(board.position, parsed.data.position)
+          )
+        );
+      await tx
+        .delete(board)
+        .where(
+          and(
+            eq(board.organizationId, parsed.data.organizationId),
+            eq(board.memberId, parsed.data.memberId)
+          )
+        );
+      await tx.insert(board).values({
+        id,
+        organizationId: parsed.data.organizationId,
+        memberId: parsed.data.memberId,
+        position: parsed.data.position,
+      });
     });
-  });
+  } catch (error) {
+    console.error("Unable to save board member", error);
+    return NextResponse.json(
+      { error: "Unable to save board member assignment." },
+      { status: 500 }
+    );
+  }
   return NextResponse.json({
     boardMember: {
       id,

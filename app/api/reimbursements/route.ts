@@ -98,6 +98,10 @@ export async function POST(request: Request) {
       orderType: parsed.data.orderType,
       urgency: parsed.data.urgency,
       comments: parsed.data.comments,
+      status:
+        membership.role === "owner" || membership.role === "admin"
+          ? "accepted"
+          : "pending",
     })
     .returning();
 

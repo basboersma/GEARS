@@ -153,75 +153,112 @@ export function BoardMembersPage({
     const member = initialMembers.find(
       (entry) => entry.id === assignment?.memberId
     );
+    const availableMembers = initialMembers.filter(
+      (entry) =>
+        !boardMembers.some((boardMember) => boardMember.memberId === entry.id)
+    );
     return (
       <div
-        className="flex min-w-[150px] flex-1 items-center gap-2 rounded-xl border border-[#3D3330] bg-[#232120] p-2.5"
+        className="flex min-w-[190px] flex-1 flex-col gap-2 rounded-2xl border border-[#3D3330] bg-[#232120] p-3"
         key={position}
       >
-        <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${member ? avatarBg(initialMembers.indexOf(member)) : "bg-[#3D3330]"} font-bold text-white text-xs`}
-        >
-          {member?.avatar ?? "?"}
+        <div className="flex items-center gap-2 border-[#3D3330] border-b pb-2">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-[#F0684D]" />
+          <span className="flex-1 truncate font-bold text-[#FFEDD1] text-xs">
+            {position === "Chair" ? "Lead" : position}
+          </span>
+          <span className="rounded bg-[#F0684D]/15 px-1.5 py-0.5 font-semibold text-[#F0684D] text-[9px]">
+            {member ? 1 : 0}
+          </span>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-semibold text-[#F0684D] text-[9px] uppercase tracking-wider">
-            {position}
+        {member ? (
+          <div className="flex items-center gap-2 rounded-xl border border-[#3D3330] bg-[#2A2724] px-2.5 py-2">
+            <div
+              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${avatarBg(initialMembers.indexOf(member))} font-bold text-[9px] text-white`}
+            >
+              {member.avatar}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-semibold text-[#FFEDD1] text-[11px]">
+                {member.name}
+              </div>
+              <div className="truncate text-[#7A6555] text-[9px]">
+                {member.role}
+              </div>
+            </div>
+            <button
+              aria-label={`Remove ${member.name} from ${position}`}
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[#7A6555] text-[9px] transition-colors hover:bg-rose-400/10 hover:text-rose-400"
+              onClick={() => savePosition(position, "").catch(() => undefined)}
+              title={`Remove ${member.name}`}
+              type="button"
+            >
+              ✕
+            </button>
           </div>
-          <div className="truncate text-[#FFEDD1] text-xs">
-            {member?.name ?? "Open position"}
-          </div>
-        </div>
-        <select
-          aria-label={`Assign ${position}`}
-          className="w-5 shrink-0 appearance-none rounded border border-[#3D3330] bg-[#2A2724] text-transparent outline-none"
-          onChange={(event) => savePosition(position, event.target.value)}
-          value={assignment?.memberId ?? ""}
-        >
-          <option value="">Open position</option>
-          {initialMembers.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.name}
-            </option>
-          ))}
-        </select>
+        ) : (
+          <select
+            aria-label={`Add member to ${position}`}
+            className="w-full rounded-xl border border-[#3D3330] border-dashed bg-[#2A2724] px-2.5 py-2 text-[#9C8272] text-[10px] outline-none focus:border-[#F0684D]/60"
+            onChange={(event) => {
+              if (event.target.value) {
+                savePosition(position, event.target.value).catch(
+                  () => undefined
+                );
+              }
+            }}
+            value=""
+          >
+            <option value="">Add board member</option>
+            {availableMembers.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
     );
   };
 
   async function savePosition(position: BoardPosition, memberId: string) {
     setSaveError(null);
-    const response = memberId
-      ? await fetch("/api/board-members", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            organizationId: initialOrganizationId,
-            memberId,
-            position,
-          }),
-        })
-      : await fetch(
-          `/api/board-members?organizationId=${encodeURIComponent(initialOrganizationId)}&position=${encodeURIComponent(position)}`,
-          {
-            method: "DELETE",
-          }
+    try {
+      const response = memberId
+        ? await fetch("/api/board-members", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              organizationId: initialOrganizationId,
+              memberId,
+              position,
+            }),
+          })
+        : await fetch(
+            `/api/board-members?organizationId=${encodeURIComponent(initialOrganizationId)}&position=${encodeURIComponent(position)}`,
+            {
+              method: "DELETE",
+            }
+          );
+      const result = (await response.json().catch(() => null)) as {
+        boardMember?: BoardMember;
+        error?: string;
+      } | null;
+      if (!response.ok) {
+        setSaveError(result?.error ?? "Unable to save board member.");
+        return;
+      }
+      setBoardMembers((current) => {
+        const withoutPosition = current.filter(
+          (entry) => entry.position !== position && entry.memberId !== memberId
         );
-    const result = (await response.json().catch(() => null)) as {
-      boardMember?: BoardMember;
-      error?: string;
-    } | null;
-    if (!response.ok) {
-      setSaveError(result?.error ?? "Unable to save board member.");
-      return;
+        return result?.boardMember
+          ? [...withoutPosition, result.boardMember]
+          : withoutPosition;
+      });
+    } catch {
+      setSaveError("Unable to save board member. Check your connection.");
     }
-    setBoardMembers((current) => {
-      const withoutPosition = current.filter(
-        (entry) => entry.position !== position && entry.memberId !== memberId
-      );
-      return result?.boardMember
-        ? [...withoutPosition, result.boardMember]
-        : withoutPosition;
-    });
   }
 
   return (
@@ -283,7 +320,7 @@ export function BoardMembersPage({
             </div>
           )}
           <div className="min-h-0 flex-1 overflow-auto p-4">
-            <div className="mx-auto flex max-w-3xl flex-col items-center gap-3">
+            <div className="mx-auto flex max-w-5xl flex-col items-center gap-3">
               <div className="w-full max-w-sm">{boardMemberCard("Chair")}</div>
               <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3">
                 {BOARD_POSITIONS.filter((position) => position !== "Chair").map(

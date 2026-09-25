@@ -2838,12 +2838,17 @@ export function OrdersPanel({
       throw new Error(body?.error ?? "Failed to submit reimbursement");
     }
     const created = (await response.json()) as {
-      reimbursement?: { id?: string; submittedAt?: Date | string };
+      reimbursement?: {
+        id?: string;
+        status?: string;
+        submittedAt?: Date | string;
+      };
     };
     setReimbursements((current) => [
       {
         ...reimbursement,
         id: created.reimbursement?.id ?? reimbursement.id,
+        status: created.reimbursement?.status ?? reimbursement.status,
         submittedAt:
           created.reimbursement?.submittedAt?.toString() ??
           reimbursement.submittedAt,
