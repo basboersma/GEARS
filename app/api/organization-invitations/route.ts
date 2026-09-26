@@ -9,6 +9,7 @@ import {
   member,
   organization,
   organizationDepartment,
+  user,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
@@ -52,6 +53,36 @@ export async function POST(request: Request) {
     );
   }
 
+  const normalizedEmail = parsed.data.email.toLowerCase();
+  const existingInvitation = await db.query.invitation.findFirst({
+    where: and(
+      eq(invitation.organizationId, parsed.data.organizationId),
+      eq(invitation.email, normalizedEmail),
+      eq(invitation.status, "pending")
+    ),
+  });
+  const existingUser = await db.query.user.findFirst({
+    where: eq(user.email, normalizedEmail),
+  });
+  const existingMember = existingUser
+    ? await db.query.member.findFirst({
+        where: and(
+          eq(member.organizationId, parsed.data.organizationId),
+          eq(member.userId, existingUser.id)
+        ),
+      })
+    : null;
+  if (existingMember || existingInvitation) {
+    return NextResponse.json(
+      {
+        error: existingMember
+          ? "This person is already a member of the organization."
+          : "An invitation is already pending for this email address.",
+      },
+      { status: 409 }
+    );
+  }
+
   const selectedOrganization = await db.query.organization.findFirst({
     where: eq(organization.id, parsed.data.organizationId),
   });
@@ -91,7 +122,7 @@ export async function POST(request: Request) {
     process.env.BETTER_AUTH_URL?.trim() ||
     "https://gearsnl.org"
   ).replace(trailingSlashPattern, "");
-  const recipient = parsed.data.email;
+  const recipient = normalizedEmail;
   const invitationId = crypto.randomUUID();
   const invitationUrl = `${appUrl}/api/accept-invitation/${invitationId}`;
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);

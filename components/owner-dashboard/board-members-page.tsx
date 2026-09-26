@@ -8,6 +8,7 @@ import {
   PieStatsWidget,
 } from "./MembersPage";
 import type {
+  BoardHistorySnapshot,
   BoardMember,
   BoardPosition,
   Member,
@@ -227,6 +228,7 @@ export function BoardMembersPage({
   initialMembers,
   initialOrganizationId,
   teamHistory,
+  boardHistory,
 }: {
   initialBoardMembers: BoardMember[];
   initialDepartments: string[];
@@ -234,6 +236,7 @@ export function BoardMembersPage({
   initialMembers: Member[];
   initialOrganizationId: string;
   teamHistory: TeamHistorySnapshot[];
+  boardHistory: BoardHistorySnapshot[];
 }) {
   const [boardMembers, setBoardMembers] = useState(initialBoardMembers);
   const [showInvite, setShowInvite] = useState(false);
@@ -243,10 +246,31 @@ export function BoardMembersPage({
   );
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const historicalBoardMembers = historySnapshot
+    ? (() => {
+        const snapshotAt = boardHistory
+          .filter((entry) => entry.snapshotAt <= historySnapshot)
+          .map((entry) => entry.snapshotAt)
+          .sort()
+          .at(-1);
+        return snapshotAt
+          ? boardHistory
+              .filter(
+                (entry) => entry.snapshotAt === snapshotAt && !entry.removed
+              )
+              .map((entry) => ({
+                id: entry.id,
+                memberId: entry.memberId,
+                position: entry.position,
+                createdAt: entry.snapshotAt,
+              }))
+          : [];
+      })()
+    : boardMembers;
   const boardMemberFor = (position: BoardPosition) =>
-    boardMembers.find((entry) => entry.position === position);
+    historicalBoardMembers.find((entry) => entry.position === position);
   const boardMembersOnly = initialMembers.filter((member) =>
-    boardMembers.some((entry) => entry.memberId === member.id)
+    historicalBoardMembers.some((entry) => entry.memberId === member.id)
   );
   async function savePosition(position: BoardPosition, memberId: string) {
     setSaveError(null);
@@ -303,6 +327,7 @@ export function BoardMembersPage({
               <MembersOverTimeChart
                 activeSnapshot={historySnapshot}
                 boardHistory={boardMembers}
+                boardMemberHistory={boardHistory}
                 departmentIds={initialDepartmentIds}
                 departments={initialDepartments}
                 deptColors={Object.fromEntries(

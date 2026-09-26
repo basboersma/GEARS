@@ -9,7 +9,12 @@ import { feature } from "topojson-client";
 import worldTopoRaw from "world-atlas/countries-110m.json";
 import { countryForIso, isoForCountry } from "@/lib/countries";
 import { avatarBg } from "./data";
-import type { Member, TeamAssignment, TeamHistorySnapshot } from "./types";
+import type {
+  BoardHistorySnapshot,
+  Member,
+  TeamAssignment,
+  TeamHistorySnapshot,
+} from "./types";
 
 const WORLD_FEATURES: any[] = (
   feature(worldTopoRaw as any, (worldTopoRaw as any).objects.countries) as any
@@ -261,6 +266,7 @@ const historyBuckets = (range: HistoryRange) => {
 
 export function MembersOverTimeChart({
   boardHistory,
+  boardMemberHistory,
   departmentIds,
   departments,
   deptColors,
@@ -269,6 +275,7 @@ export function MembersOverTimeChart({
   onSnapshotChange,
 }: {
   boardHistory?: { createdAt: string }[];
+  boardMemberHistory?: BoardHistorySnapshot[];
   departmentIds: Record<string, string>;
   departments: string[];
   deptColors: Record<string, string>;
@@ -288,6 +295,22 @@ export function MembersOverTimeChart({
     (entry) => entry.departmentId !== null && !entry.removed
   );
   const values = buckets.map(({ cutoff }) => {
+    if (boardMemberHistory !== undefined) {
+      const snapshotAt = boardMemberHistory
+        .filter((entry) => new Date(entry.snapshotAt) <= cutoff)
+        .map((entry) => entry.snapshotAt)
+        .sort()
+        .at(-1);
+      return snapshotAt
+        ? new Set(
+            boardMemberHistory
+              .filter(
+                (entry) => entry.snapshotAt === snapshotAt && !entry.removed
+              )
+              .map((entry) => entry.memberId)
+          ).size
+        : 0;
+    }
     if (boardHistory !== undefined) {
       return boardHistory.filter((entry) => new Date(entry.createdAt) <= cutoff)
         .length;

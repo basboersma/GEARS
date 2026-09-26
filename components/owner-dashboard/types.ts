@@ -133,6 +133,15 @@ export interface BoardMember {
   createdAt: string;
 }
 
+export interface BoardHistorySnapshot {
+  id: string;
+  organizationId: string;
+  snapshotAt: string;
+  memberId: string;
+  position: BoardPosition;
+  removed: boolean;
+}
+
 export interface RoadmapItem {
   id: string;
   title: string;

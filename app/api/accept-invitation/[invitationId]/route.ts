@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import {
+  recordCurrentBoardSnapshot,
   recordCurrentTeamSnapshot,
   recordMembershipJoin,
 } from "@/server/membership-history";
@@ -45,14 +46,7 @@ export async function GET(
   let inviteStatus: "accepted" | "error" = "accepted";
 
   try {
-    await auth.api.acceptInvitation({
-      body: {
-        invitationId,
-      },
-      headers: await headers(),
-    });
-
-    const newMember = invitationRecord
+    const existingMember = invitationRecord
       ? await db.query.member.findFirst({
           where: and(
             eq(member.organizationId, invitationRecord.organizationId),
@@ -60,6 +54,23 @@ export async function GET(
           ),
         })
       : null;
+    if (!existingMember) {
+      await auth.api.acceptInvitation({
+        body: { invitationId },
+        headers: await headers(),
+      });
+    }
+
+    const newMember =
+      existingMember ??
+      (invitationRecord
+        ? await db.query.member.findFirst({
+            where: and(
+              eq(member.organizationId, invitationRecord.organizationId),
+              eq(member.userId, session.user.id)
+            ),
+          })
+        : null);
     if (newMember) {
       await recordMembershipJoin(newMember);
     }
@@ -99,6 +110,7 @@ export async function GET(
           position: invitationRecord.boardPosition,
         })
         .onConflictDoNothing();
+      await recordCurrentBoardSnapshot(invitationRecord.organizationId);
     }
   } catch (error) {
     console.error("Failed to accept invitation", error);

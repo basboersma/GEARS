@@ -171,7 +171,10 @@ export async function getOwnerDashboardData(
       .from(member)
       .innerJoin(user, eq(member.userId, user.id))
       .leftJoin(studentProfile, eq(studentProfile.userId, user.id))
-      .where(eq(member.organizationId, organizationId)),
+      .where(eq(member.organizationId, organizationId))
+      .then((rows) =>
+        Array.from(new Map(rows.map((row) => [row.userId, row])).values())
+      ),
     db.select().from(team).where(eq(team.organizationId, organizationId)),
     db
       .select()

@@ -22,7 +22,9 @@ function formatBudget(value: number) {
 function BudgetCard({ organization }: { organization: TeamOrganization }) {
   const [budget, setBudget] = useState(String(organization.budget));
   const [lock, setLock] = useState(organization.boardLock);
-  const [passwords, setPasswords] = useState<string[]>([]);
+  const [passwords, setPasswords] = useState<string[]>(() =>
+    Array.from({ length: organization.boardLock.requiredPasswords }, () => "")
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -162,11 +164,11 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
               <input
                 className="min-w-0 flex-1 rounded-lg border border-[#3D3330] bg-[#1A1919] px-2 py-1.5 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
                 onChange={(event) =>
-                  setPasswords((current) =>
-                    current.map((value, valueIndex) =>
-                      valueIndex === index ? event.target.value : value
-                    )
-                  )
+                  setPasswords((current) => {
+                    const next = [...current];
+                    next[index] = event.target.value;
+                    return next;
+                  })
                 }
                 placeholder={`Board password ${index + 1}`}
                 type="password"

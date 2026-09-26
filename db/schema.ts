@@ -200,18 +200,27 @@ export const boardPosition = pgEnum("board_position", [
 
 export type Role = (typeof role.enumValues)[number];
 
-export const member = pgTable("member", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  role: role("role").default("member").notNull(),
-  password: text("password"),
-  createdAt: timestamp("created_at").notNull(),
-});
+export const member = pgTable(
+  "member",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: role("role").default("member").notNull(),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    unique("member_organization_user_unique").on(
+      table.organizationId,
+      table.userId
+    ),
+  ]
+);
 
 export const studentProfile = pgTable("student_profile", {
   id: text("id").primaryKey(),
@@ -385,6 +394,17 @@ export const teamHistory = pgTable("team_history", {
   isSubLead: boolean("is_sub_lead").notNull().default(false),
   isAdvisor: boolean("is_advisor").notNull().default(false),
   isTreasurer: boolean("is_treasurer").notNull().default(false),
+  removed: boolean("removed").notNull().default(false),
+});
+
+export const boardHistory = pgTable("board_history", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  snapshotAt: timestamp("snapshot_at").notNull(),
+  memberId: text("member_id").notNull(),
+  position: boardPosition("position").notNull(),
   removed: boolean("removed").notNull().default(false),
 });
 
@@ -783,4 +803,5 @@ export const schema = {
   boardRelations,
   teamRelations,
   teamHistory,
+  boardHistory,
 };

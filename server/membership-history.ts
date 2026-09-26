@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db/drizzle";
-import { member, team, teamHistory } from "@/db/schema";
+import { board, boardHistory, member, team, teamHistory } from "@/db/schema";
 
 type Membership = typeof member.$inferSelect;
 
@@ -36,6 +36,43 @@ export async function recordCurrentTeamSnapshot(
       isSubLead: assignment.isSubLead,
       isAdvisor: assignment.isAdvisor,
       isTreasurer: assignment.isTreasurer,
+      removed: false,
+    }))
+  );
+}
+
+export async function recordCurrentBoardSnapshot(
+  organizationId: string,
+  snapshotAt = new Date()
+) {
+  const assignments = await db.query.board.findMany({
+    where: eq(board.organizationId, organizationId),
+  });
+  if (assignments.length === 0) {
+    const previousAssignments = await db.query.boardHistory.findMany({
+      where: eq(boardHistory.organizationId, organizationId),
+    });
+    if (previousAssignments.length > 0) {
+      await db.insert(boardHistory).values(
+        previousAssignments.map((assignment) => ({
+          id: crypto.randomUUID(),
+          organizationId,
+          snapshotAt,
+          memberId: assignment.memberId,
+          position: assignment.position,
+          removed: true,
+        }))
+      );
+    }
+    return;
+  }
+  await db.insert(boardHistory).values(
+    assignments.map((assignment) => ({
+      id: crypto.randomUUID(),
+      organizationId,
+      snapshotAt,
+      memberId: assignment.memberId,
+      position: assignment.position,
       removed: false,
     }))
   );

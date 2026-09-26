@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { board, member } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { recordCurrentBoardSnapshot } from "@/server/membership-history";
 
 const positions = [
   "Chair",
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     });
+    await recordCurrentBoardSnapshot(parsed.data.organizationId, now);
   } catch (error) {
     console.error("Unable to save board member", {
       error,
@@ -138,5 +140,6 @@ export async function DELETE(request: Request) {
         eq(board.position, parsed.data.position)
       )
     );
+  await recordCurrentBoardSnapshot(parsed.data.organizationId);
   return NextResponse.json({ success: true });
 }

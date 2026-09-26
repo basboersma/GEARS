@@ -5,7 +5,7 @@ import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-da
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import type { BoardMember } from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
-import { board } from "@/db/schema";
+import { board, boardHistory as boardHistoryTable } from "@/db/schema";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -38,19 +38,33 @@ export default async function OrganizationBoardMembersPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const [dashboardData, organizations, boardRows] = await Promise.all([
-    getOwnerDashboardData(organization.id),
-    getOrganizations(),
-    db.query.board.findMany({
-      where: eq(board.organizationId, organization.id),
-    }),
-  ]);
+  const [dashboardData, organizations, boardRows, boardHistoryRows] =
+    await Promise.all([
+      getOwnerDashboardData(organization.id),
+      getOrganizations(),
+      db.query.board.findMany({
+        where: eq(board.organizationId, organization.id),
+      }),
+      db.query.boardHistory.findMany({
+        where: eq(boardHistoryTable.organizationId, organization.id),
+      }),
+    ]);
   const boardMembers: BoardMember[] = boardRows.map((row) => ({
     id: row.id,
     memberId: row.memberId,
     position: row.position,
     createdAt: row.createdAt.toISOString(),
   }));
+  const boardHistory = boardHistoryRows.length
+    ? boardHistoryRows
+    : boardRows.map((row) => ({
+        id: row.id,
+        organizationId: row.organizationId,
+        snapshotAt: row.createdAt,
+        memberId: row.memberId,
+        position: row.position,
+        removed: false,
+      }));
 
   return (
     <DashboardDataProvider value={dashboardData}>
@@ -65,6 +79,10 @@ export default async function OrganizationBoardMembersPage({
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <BoardMembersPage
+            boardHistory={boardHistory.map((row) => ({
+              ...row,
+              snapshotAt: row.snapshotAt.toISOString(),
+            }))}
             initialBoardMembers={boardMembers}
             initialDepartmentIds={dashboardData.departmentIds}
             initialDepartments={dashboardData.departments}
