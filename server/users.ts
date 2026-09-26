@@ -1,10 +1,10 @@
 "use server";
 
-import { eq, inArray, not } from "drizzle-orm";
+import { and, eq, inArray, not } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/drizzle";
-import { member, user } from "@/db/schema";
+import { invitation, member, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export const getCurrentUser = async () => {
@@ -22,6 +22,36 @@ export const getCurrentUser = async () => {
 
   if (!currentUser) {
     redirect("/login");
+  }
+
+  const memberships = await db.query.member.findMany({
+    where: eq(member.userId, currentUser.id),
+  });
+  if (memberships.length === 0) {
+    const acceptedInvitations = await db.query.invitation.findMany({
+      where: and(
+        eq(invitation.email, currentUser.email.toLowerCase()),
+        eq(invitation.status, "accepted")
+      ),
+    });
+    for (const acceptedInvitation of acceptedInvitations) {
+      const restoredRole =
+        acceptedInvitation.role === "owner" ||
+        acceptedInvitation.role === "admin" ||
+        acceptedInvitation.role === "sub_owner"
+          ? acceptedInvitation.role
+          : "member";
+      await db
+        .insert(member)
+        .values({
+          id: crypto.randomUUID(),
+          organizationId: acceptedInvitation.organizationId,
+          userId: currentUser.id,
+          role: restoredRole,
+          createdAt: new Date(),
+        })
+        .onConflictDoNothing();
+    }
   }
 
   return {
