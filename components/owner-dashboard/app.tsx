@@ -171,6 +171,14 @@ function NotificationsBlock() {
                     setPhotoNotificationId(n.id);
                     return;
                   }
+                  if (n.link) {
+                    markRead(n.id)
+                      .catch(() => undefined)
+                      .finally(() => {
+                        window.location.href = n.link as string;
+                      });
+                    return;
+                  }
                   markRead(n.id).catch(() => undefined);
                 }}
               >

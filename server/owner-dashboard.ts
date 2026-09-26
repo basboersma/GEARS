@@ -1,4 +1,4 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import type { DashboardData } from "@/components/owner-dashboard/dashboard-data-context";
 import type { FileTreeNode } from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
@@ -193,7 +193,13 @@ export async function getOwnerDashboardData(
       orderBy: [asc(dashboardFile.name)],
     }),
     db.query.dashboardNotification.findMany({
-      where: eq(dashboardNotification.organizationId, organizationId),
+      where: and(
+        eq(dashboardNotification.organizationId, organizationId),
+        or(
+          isNull(dashboardNotification.expiresAt),
+          gt(dashboardNotification.expiresAt, new Date())
+        )
+      ),
       orderBy: [asc(dashboardNotification.createdAt)],
     }),
     db.query.agendaEvent.findMany({
@@ -451,6 +457,8 @@ export async function getOwnerDashboardData(
         type: row.type as DashboardData["notifications"][number]["type"],
         title: row.title,
         body: row.body,
+        link: row.link ?? undefined,
+        requestId: row.requestId ?? undefined,
         time: row.createdAt.toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",

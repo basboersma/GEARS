@@ -11,6 +11,9 @@ const notificationSchema = z.object({
   type: z.enum(["order", "member", "event", "todo", "budget"]),
   title: z.string().min(1),
   body: z.string().min(1),
+  link: z.string().optional(),
+  requestId: z.string().optional(),
+  expiresAt: z.coerce.date().optional(),
 });
 
 export async function POST(request: Request) {

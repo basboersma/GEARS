@@ -3,7 +3,16 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
-import { board, boardDecision, member } from "@/db/schema";
+import {
+  board,
+  boardDecision,
+  boardPermissionRequest,
+  boardPermissionVote,
+  dashboardNotification,
+  gmaSession,
+  member,
+  organization,
+} from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { getMemberPasswords } from "@/lib/organization-password";
 
@@ -12,6 +21,7 @@ const payloadSchema = z.discriminatedUnion("action", [
     action: z.literal("verify"),
     organizationId: z.string().min(1),
     password: z.string().min(1),
+    permissionRequestId: z.string().optional(),
   }),
   z.object({
     action: z.literal("toggle"),
@@ -33,6 +43,71 @@ function getAdminMembership(userId: string, organizationId: string) {
       inArray(member.role, ["owner", "admin"])
     ),
   });
+}
+
+async function recordPermissionVote(
+  request: typeof boardPermissionRequest.$inferSelect,
+  memberId: string
+) {
+  await db
+    .insert(boardPermissionVote)
+    .values({
+      id: crypto.randomUUID(),
+      requestId: request.id,
+      memberId,
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing();
+  const [votes, assignments] = await Promise.all([
+    db.query.boardPermissionVote.findMany({
+      where: eq(boardPermissionVote.requestId, request.id),
+    }),
+    db.query.board.findMany({
+      where: eq(board.organizationId, request.organizationId),
+    }),
+  ]);
+  if (votes.length < Math.floor(assignments.length / 2) + 1) {
+    return;
+  }
+
+  const target = JSON.parse(request.target) as {
+    budget?: number;
+    startDate?: string;
+    startTime?: string;
+    endTime?: string;
+  };
+  if (request.action === "budget" && target.budget !== undefined) {
+    await db
+      .update(organization)
+      .set({ budget: target.budget.toFixed(2) })
+      .where(eq(organization.id, request.organizationId));
+  }
+  if (
+    request.action === "gma" &&
+    target.startDate &&
+    target.startTime &&
+    target.endTime
+  ) {
+    await db.insert(gmaSession).values({
+      id: crypto.randomUUID(),
+      organizationId: request.organizationId,
+      createdByUserId: request.requestedByUserId,
+      startDate: target.startDate,
+      startTime: target.startTime,
+      endTime: target.endTime,
+      status: "active",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+  await db
+    .update(boardPermissionRequest)
+    .set({ status: "approved", updatedAt: new Date() })
+    .where(eq(boardPermissionRequest.id, request.id));
+  await db
+    .update(dashboardNotification)
+    .set({ read: true })
+    .where(eq(dashboardNotification.requestId, request.id));
 }
 
 async function getDecisions(organizationId: string, currentUserId: string) {
@@ -87,6 +162,7 @@ export async function GET(request: Request) {
   });
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Handles two authenticated board-lock actions.
 export async function POST(request: Request) {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
@@ -99,9 +175,15 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  if (!(await getAdminMembership(currentUser.id, parsed.data.organizationId))) {
+  const organizationMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, currentUser.id),
+      eq(member.organizationId, parsed.data.organizationId)
+    ),
+  });
+  if (!organizationMembership) {
     return NextResponse.json(
-      { error: "Owner access required" },
+      { error: "Organization membership required" },
       { status: 403 }
     );
   }
@@ -135,13 +217,45 @@ export async function POST(request: Request) {
       );
     }
 
+    const permissionRequest = parsed.data.permissionRequestId
+      ? await db.query.boardPermissionRequest.findFirst({
+          where: and(
+            eq(boardPermissionRequest.id, parsed.data.permissionRequestId),
+            eq(
+              boardPermissionRequest.organizationId,
+              parsed.data.organizationId
+            ),
+            eq(boardPermissionRequest.status, "pending")
+          ),
+        })
+      : null;
+    if (parsed.data.permissionRequestId && !permissionRequest) {
+      return NextResponse.json(
+        {
+          valid: false,
+          error: "This board permission request is no longer active.",
+        },
+        { status: 410 }
+      );
+    }
+    if (permissionRequest && permissionRequest.expiresAt <= new Date()) {
+      await db
+        .update(boardPermissionRequest)
+        .set({ status: "expired", updatedAt: new Date() })
+        .where(eq(boardPermissionRequest.id, permissionRequest.id));
+      return NextResponse.json(
+        { valid: false, error: "This board permission request has expired." },
+        { status: 410 }
+      );
+    }
+
     const existingDecision = await db.query.boardDecision.findFirst({
       where: and(
         eq(boardDecision.organizationId, parsed.data.organizationId),
         eq(boardDecision.memberId, matchingBoardMember.memberId)
       ),
     });
-    if (existingDecision?.approval) {
+    if (existingDecision?.approval && !permissionRequest) {
       return NextResponse.json(
         { valid: false, error: "This board member has already approved." },
         { status: 400 }
@@ -162,6 +276,13 @@ export async function POST(request: Request) {
         target: [boardDecision.organizationId, boardDecision.memberId],
         set: { approval: true, updatedAt: new Date() },
       });
+
+    if (permissionRequest) {
+      await recordPermissionVote(
+        permissionRequest,
+        matchingBoardMember.memberId
+      );
+    }
 
     return NextResponse.json({
       valid: true,
@@ -219,6 +340,9 @@ export async function POST(request: Request) {
     });
 
   return NextResponse.json({
+    valid: true,
+    memberId: parsed.data.memberId,
+    position: assignedBoardMember.position,
     decisions: await getDecisions(parsed.data.organizationId, currentUser.id),
   });
 }

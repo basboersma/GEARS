@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BitJsonQrCode } from "./BitJsonQrCode";
+import { BoardPermissionDialog } from "./board-permission-dialog";
 import { useDashboardData } from "./dashboard-data-context";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -916,9 +917,11 @@ function AddVotePopup({
 // ── GMA Page ───────────────────────────────────────────────────────────────────
 export function GMAPage({
   organizationId: organizationIdProp,
+  permissionRequestId,
   organizationSlug,
 }: {
   organizationId?: string;
+  permissionRequestId?: string;
   organizationSlug?: string;
 } = {}) {
   const { members, organizationId: dashboardOrganizationId } =
@@ -938,6 +941,7 @@ export function GMAPage({
   >([]);
   const [boardLockRequirements, setBoardLockRequirements] =
     useState<BoardLockRequirements | null>(null);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
 
   const votePath = organizationSlug
     ? `/dashboard/organization/${organizationSlug}/gma/vote`
@@ -1051,7 +1055,12 @@ export function GMAPage({
     const response = await fetch("/api/board-decisions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "verify", organizationId, password }),
+      body: JSON.stringify({
+        action: "verify",
+        organizationId,
+        password,
+        permissionRequestId,
+      }),
     });
     const data = (await response.json().catch(() => null)) as {
       valid?: boolean;
@@ -1079,7 +1088,7 @@ export function GMAPage({
   const toggleBoardDecision = async (index: number) => {
     const decision = verifiedBoardDecisions[index];
     if (!decision) return;
-    await fetch("/api/board-decisions", {
+    const response = await fetch("/api/board-decisions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1088,6 +1097,15 @@ export function GMAPage({
         memberId: decision.memberId,
       }),
     });
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setCreateError(
+        data?.error ?? "That board approval could not be revoked."
+      );
+      return;
+    }
     setVerifiedBoardDecisions((current) =>
       current.map((entry, entryIndex) => (entryIndex === index ? null : entry))
     );
@@ -1182,9 +1200,7 @@ export function GMAPage({
                   verifiedBoardDecisions.filter(Boolean).length <
                   boardLockRequirements.requiredPasswords
                 ) {
-                  setCreateError(
-                    `Get approval from ${boardLockRequirements.requiredPasswords} board members first.`
-                  );
+                  setPermissionDialogOpen(true);
                   return;
                 }
 
@@ -1313,6 +1329,43 @@ export function GMAPage({
               {createError}
             </p>
           )}
+          <BoardPermissionDialog
+            onCancel={() => setPermissionDialogOpen(false)}
+            onContinue={() => {
+              setPermissionDialogOpen(false);
+              fetch("/api/board-permission-requests", {
+                body: JSON.stringify({
+                  action: "gma",
+                  organizationId,
+                  target: JSON.stringify({
+                    endTime,
+                    startDate,
+                    startTime,
+                  }),
+                }),
+                headers: { "Content-Type": "application/json" },
+                method: "POST",
+              })
+                .then(async (response) => {
+                  if (!response.ok) {
+                    const data = (await response.json().catch(() => null)) as {
+                      error?: string;
+                    } | null;
+                    throw new Error(
+                      data?.error ?? "Unable to request board permission."
+                    );
+                  }
+                })
+                .catch((error: unknown) => {
+                  setCreateError(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to request board permission."
+                  );
+                });
+            }}
+            open={permissionDialogOpen}
+          />
         </div>
       </div>
     );

@@ -2836,11 +2836,15 @@ export function OrdersPanel({
   data,
   userName,
   mode = "owner",
+  permissionOrganizationId,
+  permissionRequestId,
   teamOrganizations = [],
 }: {
   data: BudgetData;
   userName: string;
   mode?: "owner" | "treasurer";
+  permissionOrganizationId?: string;
+  permissionRequestId?: string;
   teamOrganizations?: TeamOrganization[];
 }) {
   const router = useRouter();
@@ -3469,7 +3473,11 @@ export function OrdersPanel({
               </div>
             )}
             {tab === "teams" && isTreasurer && (
-              <TeamsPanel organizations={teamOrganizations} />
+              <TeamsPanel
+                organizations={teamOrganizations}
+                permissionOrganizationId={permissionOrganizationId}
+                permissionRequestId={permissionRequestId}
+              />
             )}
             {tab === "past" && (
               <div>

@@ -11,8 +11,15 @@ import { getCurrentUser } from "@/server/users";
 
 type Params = Promise<{ slug: string }>;
 
-export default async function GMARoute({ params }: { params: Params }) {
+export default async function GMARoute({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Promise<{ permissionRequestId?: string }>;
+}) {
   const { slug } = await params;
+  const query = await searchParams;
   const { user } = await getCurrentUser();
   const selectedOrganization = await db.query.organization.findFirst({
     where: eq(organization.slug, slug),
@@ -53,6 +60,7 @@ export default async function GMARoute({ params }: { params: Params }) {
           <GMAPage
             organizationId={selectedOrganization.id}
             organizationSlug={slug}
+            permissionRequestId={query.permissionRequestId}
           />
         </main>
       </OwnerDashboardFrame>

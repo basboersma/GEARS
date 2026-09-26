@@ -333,6 +333,37 @@ export const boardDecision = pgTable(
   ]
 );
 
+export const boardPermissionRequest = pgTable("board_permission_request", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  requestedByUserId: text("requested_by_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  target: text("target").notNull(),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+});
+
+export const boardPermissionVote = pgTable(
+  "board_permission_vote",
+  {
+    id: text("id").primaryKey(),
+    requestId: text("request_id")
+      .notNull()
+      .references(() => boardPermissionRequest.id, { onDelete: "cascade" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => member.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [unique().on(table.requestId, table.memberId)]
+);
+
 export const team = pgTable(
   "team",
   {
@@ -763,6 +794,9 @@ export const dashboardNotification = pgTable("dashboard_notification", {
   type: text("type").notNull(),
   title: text("title").notNull(),
   body: text("body").notNull(),
+  link: text("link"),
+  requestId: text("request_id"),
+  expiresAt: timestamp("expires_at"),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
@@ -779,6 +813,8 @@ export const schema = {
   member,
   board,
   boardDecision,
+  boardPermissionRequest,
+  boardPermissionVote,
   invitation,
   departmentInvitation,
   orderRequest,

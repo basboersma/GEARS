@@ -8,7 +8,15 @@ import { getOrganizations } from "@/server/organizations";
 import { getTreasurerDashboardData } from "@/server/treasurer";
 import { getCurrentUser } from "@/server/users";
 
-export default async function TreasurerPage() {
+export default async function TreasurerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    organizationId?: string;
+    permissionRequestId?: string;
+  }>;
+}) {
+  const query = await searchParams;
   const { user } = await getCurrentUser();
   const adminMemberships = await db.query.member.findMany({
     where: (membership, { and, eq }) =>
@@ -55,6 +63,8 @@ export default async function TreasurerPage() {
           <OrdersPanel
             data={{ total: 0, spent: 0, departments: [] }}
             mode="treasurer"
+            permissionOrganizationId={query.organizationId}
+            permissionRequestId={query.permissionRequestId}
             teamOrganizations={teamOrganizations}
             userName={user.name}
           />

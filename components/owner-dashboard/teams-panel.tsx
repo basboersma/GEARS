@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BoardLockRequirements } from "@/lib/board-lock";
+import { BoardPermissionDialog } from "./board-permission-dialog";
 
 export interface TeamOrganization {
   id: string;
@@ -19,7 +20,15 @@ function formatBudget(value: number) {
   }).format(value);
 }
 
-function BudgetCard({ organization }: { organization: TeamOrganization }) {
+function BudgetCard({
+  organization,
+  permissionOrganizationId,
+  permissionRequestId,
+}: {
+  organization: TeamOrganization;
+  permissionOrganizationId?: string;
+  permissionRequestId?: string;
+}) {
   const [budget, setBudget] = useState(String(organization.budget));
   const [lock, setLock] = useState(organization.boardLock);
   const [passwords, setPasswords] = useState<string[]>(() =>
@@ -34,6 +43,7 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
 
   const verifiedCount = verifiedDecisions.filter(Boolean).length;
   const verify = async (index: number) => {
@@ -47,6 +57,10 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
         action: "verify",
         organizationId: organization.id,
         password,
+        permissionRequestId:
+          organization.id === permissionOrganizationId
+            ? permissionRequestId
+            : undefined,
       }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
@@ -65,7 +79,12 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
       );
       return;
     }
-    setLock({ ...lock, decisions: result.decisions });
+    setLock({
+      ...lock,
+      approvedCount: result.decisions.filter((decision) => decision.approval)
+        .length,
+      decisions: result.decisions,
+    });
     setVerifiedDecisions((current) => {
       const next = [...current];
       next[index] = {
@@ -104,7 +123,12 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
       setError(result?.error ?? "That board approval could not be revoked.");
       return;
     }
-    setLock({ ...lock, decisions: result.decisions });
+    setLock({
+      ...lock,
+      approvedCount: result.decisions.filter((decision) => decision.approval)
+        .length,
+      decisions: result.decisions,
+    });
     setVerifiedDecisions((current) =>
       current.map((entry, entryIndex) => (entryIndex === index ? null : entry))
     );
@@ -117,9 +141,7 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
       return;
     }
     if (verifiedCount < lock.requiredPasswords) {
-      setError(
-        `Unlock this team with ${lock.requiredPasswords} board member passwords first.`
-      );
+      setPermissionDialogOpen(true);
       return;
     }
     setSaving(true);
@@ -157,6 +179,26 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
       setError("Unable to save the team budget. Check your connection.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const requestPermission = async () => {
+    setPermissionDialogOpen(false);
+    setError(null);
+    const response = await fetch("/api/board-permission-requests", {
+      body: JSON.stringify({
+        action: "budget",
+        organizationId: organization.id,
+        target: JSON.stringify({ budget: Number(budget) }),
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    if (!response.ok) {
+      const result = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setError(result?.error ?? "Unable to request board permission.");
     }
   };
 
@@ -258,25 +300,43 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
       {error && <p className="mt-3 text-[10px] text-rose-400">{error}</p>}
       <button
         className="mt-3 w-full rounded-lg bg-[#F0684D] px-3 py-2 font-semibold text-white text-xs hover:bg-[#E05538] disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={saving || verifiedCount < lock.requiredPasswords}
+        disabled={saving}
         onClick={() => save()}
         type="button"
       >
         {saving ? "Saving..." : "Save budget"}
       </button>
+      <BoardPermissionDialog
+        onCancel={() => setPermissionDialogOpen(false)}
+        onContinue={() => {
+          requestPermission().catch(() =>
+            setError("Unable to request board permission.")
+          );
+        }}
+        open={permissionDialogOpen}
+      />
     </section>
   );
 }
 
 export function TeamsPanel({
   organizations,
+  permissionOrganizationId,
+  permissionRequestId,
 }: {
   organizations: TeamOrganization[];
+  permissionOrganizationId?: string;
+  permissionRequestId?: string;
 }) {
   return (
     <div className="flex flex-wrap items-start gap-5">
       {organizations.map((organization) => (
-        <BudgetCard key={organization.id} organization={organization} />
+        <BudgetCard
+          key={organization.id}
+          organization={organization}
+          permissionOrganizationId={permissionOrganizationId}
+          permissionRequestId={permissionRequestId}
+        />
       ))}
     </div>
   );

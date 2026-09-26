@@ -159,6 +159,7 @@ export interface OrderLineItem {
   qty: number;
   price: number;
   link?: string;
+  requestId?: string;
   orderType?: string;
   urgency?: string;
   comments?: string;
@@ -226,6 +227,7 @@ export interface AppNotification {
   time: string;
   read: boolean;
   orderRequestId?: string;
+  link?: string;
 }
 
 export interface ReimbursementRequest {
