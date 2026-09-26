@@ -1,10 +1,11 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { member } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getMemberPasswords } from "@/lib/organization-password";
 
 const payloadSchema = z.object({
   organizationId: z.string().min(1),
@@ -32,7 +33,8 @@ export async function GET(request: Request) {
   ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  return NextResponse.json({ hasPassword: Boolean(membership.password) });
+  const passwords = await getMemberPasswords(session.user.id);
+  return NextResponse.json({ hasPassword: passwords.length > 0 });
 }
 
 export async function PATCH(request: Request) {
@@ -62,15 +64,16 @@ export async function PATCH(request: Request) {
       { status: 403 }
     );
   }
-  if (membership.password && !parsed.data.previousPassword) {
+  const passwords = await getMemberPasswords(session.user.id);
+  if (passwords.length > 0 && !parsed.data.previousPassword) {
     return NextResponse.json(
       { error: "Old password is required" },
       { status: 400 }
     );
   }
   if (
-    membership.password &&
-    parsed.data.previousPassword !== membership.password
+    passwords.length > 0 &&
+    !passwords.includes(parsed.data.previousPassword ?? "")
   ) {
     return NextResponse.json(
       { error: "Previous password is incorrect" },
@@ -81,7 +84,7 @@ export async function PATCH(request: Request) {
     await db
       .update(member)
       .set({ password: parsed.data.newPassword })
-      .where(eq(member.id, membership.id));
+      .where(eq(member.userId, session.user.id));
   } catch (error) {
     console.error("Failed to save user password", error);
     return NextResponse.json(
@@ -126,8 +129,7 @@ export async function POST(request: Request) {
     where: and(
       eq(member.organizationId, parsed.data.organizationId),
       eq(member.userId, session.user.id),
-      inArray(member.role, ["owner", "admin"]),
-      isNotNull(member.password)
+      inArray(member.role, ["owner", "admin"])
     ),
   });
   if (!membership) {
@@ -170,7 +172,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const passwordMatches = membership.password === parsed.data.password;
+  const passwords = await getMemberPasswords(session.user.id);
+  if (passwords.length === 0) {
+    return NextResponse.json(
+      {
+        valid: false,
+        code: "PASSWORD_NOT_SET",
+        error: "No password is set for your membership in this organization.",
+      },
+      { status: 403 }
+    );
+  }
+
+  const passwordMatches = passwords.includes(parsed.data.password);
 
   return NextResponse.json({
     valid: passwordMatches,

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/db/drizzle";
 import { board, boardDecision, member } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getMemberPasswords } from "@/lib/organization-password";
 
 const payloadSchema = z.discriminatedUnion("action", [
   z.object({
@@ -34,12 +35,13 @@ function getAdminMembership(userId: string, organizationId: string) {
   });
 }
 
-async function getDecisions(organizationId: string) {
+async function getDecisions(organizationId: string, currentUserId: string) {
   const rows = await db
     .select({
       memberId: board.memberId,
       position: board.position,
       approval: boardDecision.approval,
+      userId: member.userId,
     })
     .from(board)
     .leftJoin(
@@ -55,6 +57,7 @@ async function getDecisions(organizationId: string) {
     memberId: row.memberId,
     position: row.position,
     approval: row.approval ?? false,
+    canRevoke: row.userId === currentUserId,
   }));
 }
 
@@ -79,7 +82,9 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({ decisions: await getDecisions(organizationId) });
+  return NextResponse.json({
+    decisions: await getDecisions(organizationId, currentUser.id),
+  });
 }
 
 export async function POST(request: Request) {
@@ -102,17 +107,26 @@ export async function POST(request: Request) {
   }
 
   if (parsed.data.action === "verify") {
-    const matchingBoardMember = await db
-      .select({ memberId: board.memberId, position: board.position })
+    const boardMembers = await db
+      .select({
+        memberId: board.memberId,
+        position: board.position,
+        userId: member.userId,
+      })
       .from(board)
       .innerJoin(member, eq(board.memberId, member.id))
-      .where(
-        and(
-          eq(board.organizationId, parsed.data.organizationId),
-          eq(member.password, parsed.data.password)
+      .where(eq(board.organizationId, parsed.data.organizationId));
+    let matchingBoardMember: (typeof boardMembers)[number] | undefined;
+    for (const boardMember of boardMembers) {
+      if (
+        (await getMemberPasswords(boardMember.userId)).includes(
+          parsed.data.password
         )
-      )
-      .then((rows) => rows[0]);
+      ) {
+        matchingBoardMember = boardMember;
+        break;
+      }
+    }
 
     if (!matchingBoardMember) {
       return NextResponse.json(
@@ -153,7 +167,7 @@ export async function POST(request: Request) {
       valid: true,
       memberId: matchingBoardMember.memberId,
       position: matchingBoardMember.position,
-      decisions: await getDecisions(parsed.data.organizationId),
+      decisions: await getDecisions(parsed.data.organizationId, currentUser.id),
     });
   }
 
@@ -167,6 +181,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Board member not found" },
       { status: 404 }
+    );
+  }
+
+  const assignedMember = await db.query.member.findFirst({
+    where: eq(member.id, assignedBoardMember.memberId),
+  });
+  if (!assignedMember || assignedMember.userId !== currentUser.id) {
+    return NextResponse.json(
+      { error: "Only the approving board member can revoke this vote." },
+      { status: 403 }
     );
   }
 
@@ -195,6 +219,6 @@ export async function POST(request: Request) {
     });
 
   return NextResponse.json({
-    decisions: await getDecisions(parsed.data.organizationId),
+    decisions: await getDecisions(parsed.data.organizationId, currentUser.id),
   });
 }

@@ -25,13 +25,18 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
   const [passwords, setPasswords] = useState<string[]>(() =>
     Array.from({ length: organization.boardLock.requiredPasswords }, () => "")
   );
+  const [verifiedDecisions, setVerifiedDecisions] = useState<
+    Array<BoardLockRequirements["decisions"][number] | null>
+  >(() =>
+    organization.boardLock.decisions
+      .filter((decision) => decision.approval)
+      .slice(0, organization.boardLock.requiredPasswords)
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const verifiedCount = lock.decisions.filter(
-    (decision) => decision.approval
-  ).length;
-  const unlock = async (index: number) => {
+  const verifiedCount = verifiedDecisions.filter(Boolean).length;
+  const verify = async (index: number) => {
     const password = passwords[index];
     if (!password) {
       return;
@@ -48,22 +53,60 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
     });
     const result = (await response.json().catch(() => null)) as {
       decisions?: BoardLockRequirements["decisions"];
+      memberId?: string;
+      position?: string;
       error?: string;
     } | null;
-    if (!(response.ok && result?.decisions)) {
+    if (
+      !(response.ok && result?.decisions && result.memberId && result.position)
+    ) {
       setError(
         result?.error ?? "That board password could not unlock the budget."
       );
       return;
     }
-    setLock({
-      ...lock,
-      decisions: result.decisions,
-      approvedCount: result.decisions.filter((decision) => decision.approval)
-        .length,
+    setLock({ ...lock, decisions: result.decisions });
+    setVerifiedDecisions((current) => {
+      const next = [...current];
+      next[index] = {
+        memberId: result.memberId as string,
+        position: result.position as string,
+        approval: true,
+        canRevoke: true,
+      };
+      return next;
     });
     setPasswords((current) =>
       current.map((value, valueIndex) => (valueIndex === index ? "" : value))
+    );
+  };
+
+  const revoke = async (index: number) => {
+    const decision = verifiedDecisions[index];
+    if (!decision || decision.canRevoke === false) {
+      return;
+    }
+    setError(null);
+    const response = await fetch("/api/board-decisions", {
+      body: JSON.stringify({
+        action: "toggle",
+        organizationId: organization.id,
+        memberId: decision.memberId,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const result = (await response.json().catch(() => null)) as {
+      decisions?: BoardLockRequirements["decisions"];
+      error?: string;
+    } | null;
+    if (!(response.ok && result?.decisions)) {
+      setError(result?.error ?? "That board approval could not be revoked.");
+      return;
+    }
+    setLock({ ...lock, decisions: result.decisions });
+    setVerifiedDecisions((current) =>
+      current.map((entry, entryIndex) => (entryIndex === index ? null : entry))
     );
   };
 
@@ -109,6 +152,7 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
           approval: false,
         })),
       });
+      setVerifiedDecisions([]);
     } catch {
       setError("Unable to save the team budget. Check your connection.");
     } finally {
@@ -161,26 +205,52 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
               className="flex gap-1.5"
               key={`${organization.id}-password-${index}`}
             >
-              <input
-                className="min-w-0 flex-1 rounded-lg border border-[#3D3330] bg-[#1A1919] px-2 py-1.5 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
-                onChange={(event) =>
-                  setPasswords((current) => {
-                    const next = [...current];
-                    next[index] = event.target.value;
-                    return next;
-                  })
-                }
-                placeholder={`Board password ${index + 1}`}
-                type="password"
-                value={passwords[index] ?? ""}
-              />
-              <button
-                className="rounded-lg border border-[#3D3330] px-2 text-[#F0684D] text-xs hover:bg-[#F0684D]/10"
-                onClick={() => unlock(index)}
-                type="button"
-              >
-                Unlock
-              </button>
+              {verifiedDecisions[index] ? (
+                <button
+                  className="flex min-h-9 w-full flex-col items-center justify-center rounded-lg border border-emerald-400/50 bg-emerald-400/10 text-emerald-400 disabled:cursor-default disabled:opacity-70"
+                  disabled={verifiedDecisions[index]?.canRevoke === false}
+                  onClick={() => {
+                    revoke(index).catch(() =>
+                      setError("That board approval could not be revoked.")
+                    );
+                  }}
+                  title={
+                    verifiedDecisions[index]?.canRevoke === false
+                      ? "Only this board member can revoke the approval"
+                      : "Revoke this approval"
+                  }
+                  type="button"
+                >
+                  <span className="text-base leading-4">✓</span>
+                  <span className="font-mono text-[8px] uppercase tracking-widest">
+                    {verifiedDecisions[index]?.position}
+                  </span>
+                </button>
+              ) : (
+                <input
+                  className="min-w-0 flex-1 rounded-lg border border-[#3D3330] bg-[#1A1919] px-2 py-1.5 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]"
+                  onChange={(event) =>
+                    setPasswords((current) => {
+                      const next = [...current];
+                      next[index] = event.target.value;
+                      return next;
+                    })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      verify(index).catch(() =>
+                        setError(
+                          "That board password could not unlock the budget."
+                        )
+                      );
+                    }
+                  }}
+                  placeholder={`Board password ${index + 1}`}
+                  type="password"
+                  value={passwords[index] ?? ""}
+                />
+              )}
             </div>
           ))}
         </div>

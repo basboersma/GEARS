@@ -1,6 +1,15 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db/drizzle";
 import { member } from "@/db/schema";
+
+export async function getMemberPasswords(userId: string) {
+  const rows = await db
+    .select({ password: member.password })
+    .from(member)
+    .where(and(eq(member.userId, userId), isNotNull(member.password)));
+
+  return rows.flatMap((row) => (row.password ? [row.password] : []));
+}
 
 export async function verifyMemberPassword(
   organizationId: string,
@@ -15,5 +24,9 @@ export async function verifyMemberPassword(
     ),
   });
 
-  return membership?.password === password;
+  if (!membership) {
+    return false;
+  }
+
+  return (await getMemberPasswords(userId)).includes(password);
 }

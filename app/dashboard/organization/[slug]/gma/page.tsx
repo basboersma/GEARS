@@ -50,7 +50,10 @@ export default async function GMARoute({ params }: { params: Params }) {
         viewerRole="owner"
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <GMAPage organizationSlug={slug} />
+          <GMAPage
+            organizationId={selectedOrganization.id}
+            organizationSlug={slug}
+          />
         </main>
       </OwnerDashboardFrame>
     </DashboardDataProvider>

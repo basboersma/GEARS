@@ -59,6 +59,7 @@ interface BoardDecision {
   memberId: string;
   position: string;
   approval: boolean;
+  canRevoke?: boolean;
 }
 
 const SEAT_NAMES = [
@@ -914,11 +915,15 @@ function AddVotePopup({
 
 // ── GMA Page ───────────────────────────────────────────────────────────────────
 export function GMAPage({
+  organizationId: organizationIdProp,
   organizationSlug,
 }: {
+  organizationId?: string;
   organizationSlug?: string;
 } = {}) {
-  const { members, organizationId } = useDashboardData();
+  const { members, organizationId: dashboardOrganizationId } =
+    useDashboardData();
+  const organizationId = organizationIdProp ?? dashboardOrganizationId;
   // ── GMA creation gate ──
   const [gmaCreated, setGmaCreated] = useState(false);
   const [startDate, setStartDate] = useState("");
@@ -1252,9 +1257,14 @@ export function GMAPage({
                       >
                         {decision ? (
                           <button
-                            className="flex min-h-10 w-full flex-col items-center justify-center rounded-lg border border-[#10b981]/50 bg-[#10b981]/10 text-[#10b981]"
+                            className="flex min-h-10 w-full flex-col items-center justify-center rounded-lg border border-[#10b981]/50 bg-[#10b981]/10 text-[#10b981] disabled:cursor-default disabled:opacity-70"
+                            disabled={decision.canRevoke === false}
                             onClick={() => void toggleBoardDecision(index)}
-                            title="Revoke this approval"
+                            title={
+                              decision.canRevoke === false
+                                ? "Only this board member can revoke the approval"
+                                : "Revoke this approval"
+                            }
                             type="button"
                           >
                             <span className="text-lg leading-4">✓</span>

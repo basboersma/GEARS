@@ -35,7 +35,7 @@ export default async function TreasurerPage() {
       id: organization.id,
       name: organization.name,
       budget: Number(organization.budget ?? 0),
-      boardLock: await getBoardLockRequirements(organization.id),
+      boardLock: await getBoardLockRequirements(organization.id, user.id),
     }))
   );
   const organization = organizations[0];

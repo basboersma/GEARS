@@ -175,7 +175,10 @@ export async function GET(request: Request) {
       { status: 403 }
     );
   const session = await getLatestSession(organizationId);
-  const boardLockRequirements = await getBoardLockRequirements(organizationId);
+  const boardLockRequirements = await getBoardLockRequirements(
+    organizationId,
+    currentUser.id
+  );
   return NextResponse.json(
     session
       ? {
@@ -209,7 +212,7 @@ export async function POST(request: Request) {
         { error: "Admin access required" },
         { status: 403 }
       );
-    const lock = await boardLock(parsed.data.organizationId);
+    const lock = await boardLock(parsed.data.organizationId, currentUser.id);
     if (!lock.unlocked) {
       return NextResponse.json(
         {
