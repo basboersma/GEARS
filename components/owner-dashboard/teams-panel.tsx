@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { Logout } from "@/components/logout";
 import type { BoardLockRequirements } from "@/lib/board-lock";
 
-interface TeamOrganization {
+export interface TeamOrganization {
   id: string;
   name: string;
   budget: number;
@@ -129,7 +127,6 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
           Current: {formatBudget(Number(budget) || 0)}
         </p>
       </div>
-
       <label className="mt-5 block space-y-1">
         <span className="text-[#9C8272] text-[10px] uppercase tracking-widest">
           Team budget
@@ -143,7 +140,6 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
           value={budget}
         />
       </label>
-
       <div className="mt-4 border-[#3D3330] border-t pt-3">
         <div className="flex items-center justify-between text-[10px]">
           <span className="text-[#9C8272]">Board lock</span>
@@ -187,7 +183,6 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
           ))}
         </div>
       </div>
-
       {error && <p className="mt-3 text-[10px] text-rose-400">{error}</p>}
       <button
         className="mt-3 w-full rounded-lg bg-[#F0684D] px-3 py-2 font-semibold text-white text-xs hover:bg-[#E05538] disabled:cursor-not-allowed disabled:opacity-50"
@@ -201,69 +196,16 @@ function BudgetCard({ organization }: { organization: TeamOrganization }) {
   );
 }
 
-export function TeamManagementPage({
+export function TeamsPanel({
   organizations,
 }: {
   organizations: TeamOrganization[];
 }) {
   return (
-    <div
-      className="flex min-h-screen bg-[#1A1919] text-[#FFEDD1]"
-      style={{ fontFamily: "'Inter',sans-serif" }}
-    >
-      <aside className="flex w-56 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
-        <div className="border-white/8 border-b p-4">
-          <p className="font-semibold text-sm">Administration</p>
-          <p className="mt-1 text-[#7A6555] text-[10px] uppercase tracking-widest">
-            Admin workspace
-          </p>
-        </div>
-        <nav className="flex-1 space-y-1 p-3">
-          <Link
-            className="block rounded-lg px-3 py-2 text-[#9C8272] text-xs hover:bg-white/5 hover:text-[#FFEDD1]"
-            href="/dashboard/admin"
-          >
-            Admin dashboard
-          </Link>
-          <Link
-            className="block rounded-lg bg-[#F0684D]/20 px-3 py-2 text-[#F0684D] text-xs"
-            href="/dashboard/admin/team-management"
-          >
-            Team management
-          </Link>
-          <Link
-            className="block rounded-lg px-3 py-2 text-[#9C8272] text-xs hover:bg-white/5 hover:text-[#FFEDD1]"
-            href="/dashboard/admin/orders"
-          >
-            Upcoming orders
-          </Link>
-        </nav>
-        <div className="flex items-center justify-between border-white/8 border-t p-3">
-          <span className="text-[#7A6555] text-xs">Admin</span>
-          <Logout />
-        </div>
-      </aside>
-      <main className="min-w-0 flex-1">
-        <header className="flex items-center justify-between border-white/8 border-b bg-[#141212] px-6 py-4">
-          <div>
-            <p className="text-[#F0684D] text-[10px] uppercase tracking-[0.2em]">
-              Administration
-            </p>
-            <h1 className="mt-1 font-semibold text-xl">Team management</h1>
-          </div>
-          <Link
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[#9C8272] text-xs hover:text-[#FFEDD1]"
-            href="/dashboard"
-          >
-            Back to dashboard
-          </Link>
-        </header>
-        <div className="flex flex-wrap items-start gap-5 p-6">
-          {organizations.map((organization) => (
-            <BudgetCard key={organization.id} organization={organization} />
-          ))}
-        </div>
-      </main>
+    <div className="flex flex-wrap items-start gap-5">
+      {organizations.map((organization) => (
+        <BudgetCard key={organization.id} organization={organization} />
+      ))}
     </div>
   );
 }

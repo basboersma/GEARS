@@ -64,31 +64,29 @@ export async function POST(request: Request) {
   const id = crypto.randomUUID();
   const now = new Date();
   try {
-    await db.transaction(async (tx) => {
-      await tx
-        .delete(board)
-        .where(
-          and(
-            eq(board.organizationId, parsed.data.organizationId),
-            eq(board.position, parsed.data.position)
-          )
-        );
-      await tx
-        .delete(board)
-        .where(
-          and(
-            eq(board.organizationId, parsed.data.organizationId),
-            eq(board.memberId, parsed.data.memberId)
-          )
-        );
-      await tx.insert(board).values({
-        id,
-        organizationId: parsed.data.organizationId,
-        memberId: parsed.data.memberId,
-        position: parsed.data.position,
-        createdAt: now,
-        updatedAt: now,
-      });
+    await db
+      .delete(board)
+      .where(
+        and(
+          eq(board.organizationId, parsed.data.organizationId),
+          eq(board.position, parsed.data.position)
+        )
+      );
+    await db
+      .delete(board)
+      .where(
+        and(
+          eq(board.organizationId, parsed.data.organizationId),
+          eq(board.memberId, parsed.data.memberId)
+        )
+      );
+    await db.insert(board).values({
+      id,
+      organizationId: parsed.data.organizationId,
+      memberId: parsed.data.memberId,
+      position: parsed.data.position,
+      createdAt: now,
+      updatedAt: now,
     });
   } catch (error) {
     console.error("Unable to save board member", {

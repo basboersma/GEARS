@@ -7,10 +7,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { BitJsonQrCode } from "./BitJsonQrCode";
 import { useDashboardData } from "./dashboard-data-context";
+import { type TeamOrganization, TeamsPanel } from "./teams-panel";
 import type { BudgetData, Order } from "./types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Tab = "submit" | "overview" | "incoming" | "past" | "reimburse";
+type Tab = "submit" | "overview" | "incoming" | "past" | "teams" | "reimburse";
 type OrderStatus =
   | "draft"
   | "owner_review"
@@ -2835,10 +2836,12 @@ export function OrdersPanel({
   data,
   userName,
   mode = "owner",
+  teamOrganizations = [],
 }: {
   data: BudgetData;
   userName: string;
   mode?: "owner" | "treasurer";
+  teamOrganizations?: TeamOrganization[];
 }) {
   const router = useRouter();
   const {
@@ -3222,6 +3225,7 @@ export function OrdersPanel({
     { id: "overview", label: "Overview" },
     { id: "incoming", label: "Incoming" },
     { id: "past", label: "Past Orders" },
+    ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
     ...(!isTreasurer ? [{ id: "reimburse" as const, label: "Reimburse" }] : []),
   ];
 
@@ -3463,6 +3467,9 @@ export function OrdersPanel({
                   </div>
                 )}
               </div>
+            )}
+            {tab === "teams" && isTreasurer && (
+              <TeamsPanel organizations={teamOrganizations} />
             )}
             {tab === "past" && (
               <div>

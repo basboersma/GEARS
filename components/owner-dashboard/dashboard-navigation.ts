@@ -14,8 +14,7 @@ export interface DashboardNavigationItem {
     | "inventory"
     | "gma"
     | "treasurer"
-    | "board"
-    | "team-management";
+    | "board";
   label: string;
   href: string;
 }
@@ -64,11 +63,6 @@ export function getDashboardNavigation({
         key: "board",
         label: "Board Members",
         href: `${dashboardHref}/board-members`,
-      },
-      {
-        key: "team-management",
-        label: "Team management",
-        href: "/dashboard/admin/team-management",
       }
     );
   }
