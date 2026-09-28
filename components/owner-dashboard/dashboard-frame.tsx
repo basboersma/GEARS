@@ -126,7 +126,9 @@ export function OwnerDashboardFrame({
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
   const showNotifications =
-    activePage !== "treasurer" && activePage !== "orders";
+    activePage !== "treasurer" &&
+    activePage !== "orders" &&
+    activePage !== "inventory";
 
   return (
     <div

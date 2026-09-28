@@ -52,6 +52,7 @@ interface Reimbursement {
   isPast: boolean;
   imageUrl?: string;
   ibanNumber?: string;
+  inventoryAdded?: boolean;
 }
 
 interface OrderItem {
@@ -3209,18 +3210,40 @@ function ReimbursementIncomingRow({
   onAccept,
   onMarkPaid,
   onDeny,
+  onInventoryChange,
 }: {
   reimbursement: Reimbursement;
   isTreasurer: boolean;
   onAccept: () => void;
   onMarkPaid: () => void;
   onDeny: (comment: string) => Promise<void>;
+  onInventoryChange: (added: boolean) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [denying, setDenying] = useState(false);
   const [denyComment, setDenyComment] = useState("");
   const [submittingDeny, setSubmittingDeny] = useState(false);
+  const [updatingInventory, setUpdatingInventory] = useState(false);
+  const [inventoryAdded, setInventoryAdded] = useState(
+    Boolean(reimbursement.inventoryAdded)
+  );
   const total = reimbursement.pricePerPiece * reimbursement.quantity;
+
+  async function handleInventoryChange(added: boolean) {
+    if (updatingInventory) return;
+    setInventoryAdded(added);
+    setUpdatingInventory(true);
+    try {
+      await onInventoryChange(added);
+    } catch (error) {
+      setInventoryAdded(!added);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update inventory"
+      );
+    } finally {
+      setUpdatingInventory(false);
+    }
+  }
 
   async function submitDenial(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3244,33 +3267,48 @@ function ReimbursementIncomingRow({
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
-      <button
-        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/5"
-        onClick={() => setExpanded((current) => !current)}
-        type="button"
-      >
-        {reimbursement.imageUrl ? (
-          <img
-            src={reimbursement.imageUrl}
-            alt=""
-            className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
-          />
-        ) : (
-          <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <button
+          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors hover:bg-white/5"
+          onClick={() => setExpanded((current) => !current)}
+          type="button"
+        >
+          {reimbursement.imageUrl ? (
+            <img
+              src={reimbursement.imageUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
+            />
+          ) : (
+            <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
+          )}
+          <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
+            {reimbursement.orderName || reimbursement.name}
+          </span>
+          <span className="shrink-0 text-[10px] text-[#9C8272]">
+            {reimbursement.submittedBy}
+          </span>
+          <span className="shrink-0 font-mono text-[11px] text-[#C4A882]">
+            {fmt(total)}
+          </span>
+          <span className="shrink-0 text-[#7A6555] text-[10px]">
+            {expanded ? "⌃" : "⌄"}
+          </span>
+        </button>
+        {isTreasurer && (
+          <label className="flex shrink-0 items-center gap-2 text-[10px] text-[#9C8272]">
+            <input
+              checked={inventoryAdded}
+              disabled={updatingInventory}
+              onChange={(event) =>
+                void handleInventoryChange(event.target.checked)
+              }
+              type="checkbox"
+            />
+            Add to inventory
+          </label>
         )}
-        <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
-          {reimbursement.orderName || reimbursement.name}
-        </span>
-        <span className="shrink-0 text-[10px] text-[#9C8272]">
-          {reimbursement.submittedBy}
-        </span>
-        <span className="shrink-0 font-mono text-[11px] text-[#C4A882]">
-          {fmt(total)}
-        </span>
-        <span className="shrink-0 text-[#7A6555] text-[10px]">
-          {expanded ? "⌃" : "⌄"}
-        </span>
-      </button>
+      </div>
       {expanded && (
         <div className="space-y-3 border-t border-[#3D3330] px-4 py-3">
           {reimbursement.imageUrl ? (
@@ -3565,6 +3603,29 @@ export function OrdersPanel({
           : item
       )
     );
+  }
+
+  async function updateReimbursementInventory(
+    reimbursement: Reimbursement,
+    added: boolean
+  ) {
+    const response = await fetch(`/api/reimbursements/${reimbursement.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ addToInventory: added }),
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to update inventory");
+    }
+    setReimbursements((current) =>
+      current.map((item) =>
+        item.id === reimbursement.id ? { ...item, inventoryAdded: added } : item
+      )
+    );
+    router.refresh();
   }
 
   // Filtered past orders for search
@@ -4146,6 +4207,9 @@ export function OrdersPanel({
                             "declined",
                             comment
                           )
+                        }
+                        onInventoryChange={(added) =>
+                          updateReimbursementInventory(reimbursement, added)
                         }
                       />
                     ))}

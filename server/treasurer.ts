@@ -1,4 +1,4 @@
-import { and, asc, eq, or } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import type { DashboardData } from "@/components/owner-dashboard/dashboard-data-context";
 import { db } from "@/db/drizzle";
 import {
@@ -83,6 +83,19 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
       )
     )
     .orderBy(asc(reimbursementRequest.createdAt));
+  const inventoryRequestIds = new Set(
+    (
+      await db
+        .select({ id: orderRequest.id })
+        .from(orderRequest)
+        .where(
+          inArray(
+            orderRequest.id,
+            reimbursements.map(({ reimbursement }) => reimbursement.id)
+          )
+        )
+    ).map(({ id }) => id)
+  );
   const reimbursementTrees = new Map<
     string,
     Awaited<ReturnType<typeof listGoogleDriveTree>>
@@ -244,6 +257,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
           row.orderName || row.name
         ),
         ibanNumber: ibanNumber ?? "",
+        inventoryAdded: inventoryRequestIds.has(row.id),
       })
     ),
     monthlySpend: {

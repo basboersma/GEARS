@@ -17,10 +17,12 @@ interface InventoryItem {
   pricePerPiece: number;
   quantity: number;
   additionalCosts: number;
+  comments: string;
   owner: string;
   location: string;
   createdAt: string;
   approvedBy: string;
+  type: string;
   state: "Functional" | "Broken" | "Discarded";
 }
 
@@ -85,17 +87,19 @@ function toInventoryItem(
   return {
     id: order.id,
     name: line?.description?.trim() || order.title,
-    description: line?.name ?? "",
+    description: order.title,
     imageUrl: photo?.imageUrl ?? null,
     photoDriveUrl: photo?.driveUrl ?? null,
-    link: order.link ?? line?.link ?? "",
+    link: line?.link ?? order.link ?? "",
     pricePerPiece: line?.price ?? 0,
     quantity: line?.qty ?? 0,
     additionalCosts: order.additionalCosts ?? line?.additionalCosts ?? 0,
+    comments: line?.comments ?? "",
     owner: order.submittedBy ?? "",
     location: order.department,
     createdAt: order.date,
     approvedBy: order.approvedBy ?? "",
+    type: line?.orderType ?? "",
     state: order.state ?? "Functional",
   };
 }
@@ -224,6 +228,8 @@ function ItemDetail({
           ["Submitted by", item.owner || "—"],
           ["Approved by", item.approvedBy || "—"],
           ["Department", item.location || "—"],
+          ["Type", item.type || "—"],
+          ["Comments", item.comments || "—"],
         ].map(([label, value]) => (
           <div
             key={label}
@@ -232,7 +238,9 @@ function ItemDetail({
             <p className="mb-1 font-mono text-[9px] uppercase tracking-wider text-[#7A6555]">
               {label}
             </p>
-            <p className="text-xs font-semibold text-[#FFEDD1]">{value}</p>
+            <p className="break-words text-xs font-semibold text-[#FFEDD1]">
+              {value}
+            </p>
           </div>
         ))}
       </div>
@@ -263,6 +271,8 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
       item.owner,
       item.approvedBy,
       item.location,
+      item.type,
+      item.comments,
       item.createdAt,
       formatDate(item.createdAt),
       String(item.pricePerPiece),

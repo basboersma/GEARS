@@ -6,6 +6,7 @@ import { db } from "@/db/drizzle";
 import {
   dashboardNotification,
   member,
+  orderRequest,
   reimbursementRequest,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -13,6 +14,10 @@ import { auth } from "@/lib/auth";
 const statusSchema = z.object({
   status: z.enum(["accepted", "declined", "successful"]),
   denyComment: z.string().trim().max(500).optional(),
+});
+
+const inventorySchema = z.object({
+  addToInventory: z.boolean(),
 });
 
 const paymentResponseSchema = z
@@ -70,6 +75,68 @@ export async function PATCH(
     typeof payload === "object" &&
     payload !== null &&
     "paymentReceived" in payload;
+
+  if (
+    isManager &&
+    typeof payload === "object" &&
+    payload !== null &&
+    "addToInventory" in payload
+  ) {
+    const parsed = inventorySchema.safeParse(payload);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid inventory update" },
+        { status: 400 }
+      );
+    }
+    if (item.status !== "accepted") {
+      return NextResponse.json(
+        { error: "Only accepted reimbursements can be added to inventory" },
+        { status: 409 }
+      );
+    }
+    const existingInventoryItem = await db.query.orderRequest.findFirst({
+      where: eq(orderRequest.id, item.id),
+    });
+    if (parsed.data.addToInventory && !existingInventoryItem) {
+      const now = new Date();
+      await db.insert(orderRequest).values({
+        id: item.id,
+        organizationId: item.organizationId,
+        userId: item.userId,
+        submittedBy: item.submittedBy,
+        approvedBy: session.user.name,
+        department: item.department,
+        orderName: item.orderName || item.name,
+        description: item.name,
+        link: item.link,
+        pricePerPiece: item.pricePerPiece,
+        amount: item.quantity,
+        typeOfOrder: item.orderType as
+          | "Hardware"
+          | "Electronic"
+          | "Software"
+          | "Social",
+        urgency: item.urgency as "1 day" | "2 days" | "3 days" | "7 days",
+        comments: item.comments,
+        additionalCosts: "0",
+        totalCosts: (Number(item.pricePerPiece) * item.quantity).toFixed(2),
+        orderedDate: item.createdAt,
+        ordered: true,
+        finalized: true,
+        status: "accepted",
+        accepted: "accepted",
+        createdAt: item.createdAt,
+        updatedAt: now,
+      });
+    } else if (!parsed.data.addToInventory && existingInventoryItem) {
+      await db.delete(orderRequest).where(eq(orderRequest.id, item.id));
+    }
+    return NextResponse.json({
+      success: true,
+      addedToInventory: parsed.data.addToInventory,
+    });
+  }
 
   if (!(isManager || isSubmitter)) {
     return NextResponse.json(

@@ -261,4 +261,5 @@ export interface ReimbursementRequest {
   submittedAt: string;
   imageUrl?: string;
   ibanNumber?: string;
+  inventoryAdded?: boolean;
 }
