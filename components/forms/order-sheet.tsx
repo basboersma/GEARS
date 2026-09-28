@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -66,6 +66,7 @@ export function OrderSheet({
   const [department, setDepartment] = useState<string>("");
   const [submitted, setSubmitted] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   function updateRow(index: number, patch: Partial<Row>) {
     setSubmitted(null);
@@ -76,6 +77,9 @@ export function OrderSheet({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmittingRef.current) {
+      return;
+    }
 
     if (!orderName.trim()) {
       toast.error("Add an order list name before submitting");
@@ -113,6 +117,7 @@ export function OrderSheet({
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -151,6 +156,7 @@ export function OrderSheet({
       const message = error instanceof Error ? error.message : "Unknown error";
       toast.error(message);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }

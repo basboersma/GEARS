@@ -1,0 +1,1 @@
+ALTER TABLE "reimbursement_request" ADD COLUMN "order_name" text DEFAULT '' NOT NULL;

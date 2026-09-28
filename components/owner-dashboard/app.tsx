@@ -7,6 +7,7 @@
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Preserves the reference dashboard component structure.
 // biome-ignore-all lint/complexity/noForEach: Preserves the reference dashboard data flow.
 // biome-ignore-all lint/correctness/useExhaustiveDependencies: Preserves the reference dashboard interaction timing.
+// biome-ignore-all lint/performance/noImgElement: Reimbursement photos use user-configured Google Drive URLs.
 // biome-ignore-all lint/suspicious/noArrayIndexKey: Preserves the reference dashboard list rendering.
 // biome-ignore-all lint/suspicious/noExplicitAny: Preserves the reference dashboard chart library contract.
 // biome-ignore-all lint/style/noNestedTernary: Preserves the reference dashboard visual state expressions.
@@ -30,7 +31,11 @@ import { getDashboardNavigation } from "./dashboard-navigation";
 import { FilesBlock } from "./FilesBlock";
 import { IcicleChart } from "./IcicleChart";
 import { TodoBlock } from "./TodoBlock";
-import type { AppNotification, BudgetData } from "./types";
+import type {
+  AppNotification,
+  BudgetData,
+  ReimbursementRequest,
+} from "./types";
 
 // ─── Notifications block ──────────────────────────────────────────────────────
 const NOTIF_TYPE_COLOR: Record<AppNotification["type"], string> = {
@@ -116,10 +121,12 @@ function PhotoNotificationPopup({
 }
 
 function ReimbursementPaymentPopup({
+  reimbursement,
   reimbursementRequestId,
   onClose,
   onSubmitted,
 }: {
+  reimbursement: ReimbursementRequest;
   reimbursementRequestId: string;
   onClose: () => void;
   onSubmitted: () => void;
@@ -176,8 +183,8 @@ function ReimbursementPaymentPopup({
             <h3 className="font-semibold text-[#FFEDD1] text-sm">
               Money properly received
             </h3>
-            <p className="mt-0.5 text-[#7A6555] text-[10px]">
-              Confirm whether the reimbursement reached your account.
+            <p className="mt-0.5 truncate text-[#C4A882] text-[11px]">
+              {reimbursement.orderName || reimbursement.name}
             </p>
           </div>
           <button
@@ -189,6 +196,36 @@ function ReimbursementPaymentPopup({
             ×
           </button>
         </div>
+        <div className="mb-4 space-y-3 rounded-xl border border-[#3D3330] bg-[#1A1919] p-3">
+          {reimbursement.imageUrl ? (
+            <img
+              alt={`${reimbursement.orderName || reimbursement.name} reimbursement`}
+              className="max-h-48 w-full rounded-lg border border-[#3D3330] object-contain"
+              height={360}
+              src={reimbursement.imageUrl}
+              width={640}
+            />
+          ) : (
+            <div className="rounded-lg border border-[#3D3330] bg-[#232120] p-5 text-center text-[#7A6555] text-[10px]">
+              No reimbursement photo attached
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3 text-[10px]">
+            <span className="text-[#9C8272]">Total costs</span>
+            <span className="font-mono font-semibold text-[#FFD142]">
+              €
+              {(
+                reimbursement.pricePerPiece * reimbursement.quantity
+              ).toLocaleString("nl-NL", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+          </div>
+        </div>
+        <p className="mb-3 text-[#7A6555] text-[10px]">
+          Confirm whether the reimbursement reached your account.
+        </p>
         <form className="space-y-3" onSubmit={submit}>
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -245,7 +282,8 @@ function ReimbursementPaymentPopup({
 }
 
 export function NotificationsBlock() {
-  const { dismissNotification, notifications } = useDashboardData();
+  const { dismissNotification, notifications, reimbursements } =
+    useDashboardData();
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [photoNotificationId, setPhotoNotificationId] = useState<string | null>(
     null
@@ -281,6 +319,12 @@ export function NotificationsBlock() {
   const reimbursementNotification = notifications.find(
     (notification) => notification.id === reimbursementNotificationId
   );
+  const paymentReimbursement = reimbursementNotification?.reimbursementRequestId
+    ? reimbursements.find(
+        (reimbursement) =>
+          reimbursement.id === reimbursementNotification.reimbursementRequestId
+      )
+    : undefined;
   const unread = notifications.filter(
     (notification) => !notification.read
   ).length;
@@ -365,18 +409,20 @@ export function NotificationsBlock() {
           orderRequestId={photoNotification.orderRequestId}
         />
       )}
-      {reimbursementNotification?.reimbursementRequestId && (
-        <ReimbursementPaymentPopup
-          onClose={() => setReimbursementNotificationId(null)}
-          onSubmitted={() => {
-            markRead(reimbursementNotification.id).catch(() => undefined);
-            setReimbursementNotificationId(null);
-          }}
-          reimbursementRequestId={
-            reimbursementNotification.reimbursementRequestId
-          }
-        />
-      )}
+      {reimbursementNotification?.reimbursementRequestId &&
+        paymentReimbursement && (
+          <ReimbursementPaymentPopup
+            onClose={() => setReimbursementNotificationId(null)}
+            onSubmitted={() => {
+              markRead(reimbursementNotification.id).catch(() => undefined);
+              setReimbursementNotificationId(null);
+            }}
+            reimbursement={paymentReimbursement}
+            reimbursementRequestId={
+              reimbursementNotification.reimbursementRequestId
+            }
+          />
+        )}
     </div>
   );
 }

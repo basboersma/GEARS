@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export function ReimbursementForm({
   organizationId,
@@ -10,31 +10,38 @@ export function ReimbursementForm({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) {
+    if (submittingRef.current) {
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     setError("");
-    const form = new FormData(event.currentTarget);
-    form.set("organizationId", organizationId);
-    const response = await fetch("/api/reimbursements", {
-      method: "POST",
-      body: form,
-    });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      setError(body?.error ?? "Unable to submit reimbursement");
+    try {
+      const form = new FormData(event.currentTarget);
+      form.set("organizationId", organizationId);
+      const response = await fetch("/api/reimbursements", {
+        method: "POST",
+        body: form,
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setError(body?.error ?? "Unable to submit reimbursement");
+        return;
+      }
+      event.currentTarget.reset();
+      setSubmitted(true);
+    } catch {
+      setError("Unable to submit reimbursement");
+    } finally {
+      submittingRef.current = false;
       setSubmitting(false);
-      return;
     }
-    event.currentTarget.reset();
-    setSubmitted(true);
-    setSubmitting(false);
   }
 
   let submitLabel = "Submit reimbursement";

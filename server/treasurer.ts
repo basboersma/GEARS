@@ -204,6 +204,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
           status: item.status,
           photoNeeded: item.photoNeeded,
           photoUploaded: item.photoUploaded,
+          invoiceAdded: item.invoiceAdded,
         })),
       };
     }),

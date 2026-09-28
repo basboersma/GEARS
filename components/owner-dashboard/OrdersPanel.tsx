@@ -3,7 +3,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { BitJsonQrCode } from "./BitJsonQrCode";
 import { useDashboardData } from "./dashboard-data-context";
@@ -1315,6 +1315,7 @@ function IncomingPanel({
   currentUserName,
   onApprove,
   onDeny,
+  onPhotoNeeded,
   isTreasurer,
 }: {
   orders: OrderRecord[];
@@ -1323,10 +1324,23 @@ function IncomingPanel({
   currentUserName: string;
   onApprove: (order: OrderRecord) => Promise<void>;
   onDeny: (order: OrderRecord) => Promise<void>;
+  onPhotoNeeded: (order: OrderRecord, needed: boolean) => Promise<void>;
   isTreasurer: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(
     orders[0]?.id ?? null
+  );
+  const [requestedPhotoIds, setRequestedPhotoIds] = useState<Set<string>>(
+    () =>
+      new Set(
+        orders
+          .filter(
+            (order) =>
+              order.items.length > 0 &&
+              order.items.every((item) => item.requiresPhoto)
+          )
+          .map((order) => order.id)
+      )
   );
 
   if (!orders.length)
@@ -1352,49 +1366,78 @@ function IncomingPanel({
             }`}
           >
             {/* Collapsible header */}
-            <button
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/5 transition-colors text-left"
-              onClick={() => setExpandedId(isOpen ? null : order.id)}
-            >
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: STATUS_COLOR[order.status] }}
-              />
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-xs font-medium text-[#FFEDD1]">
-                  {order.name}
-                </span>
-                {order.isRecurring && (
-                  <span className="text-[9px] text-[#8b5cf6]">
-                    Scheduled {order.submittedAt}
+            <div className="flex items-center gap-2.5 px-3 py-2.5">
+              <button
+                className="flex min-w-0 flex-1 items-center gap-2.5 text-left hover:bg-white/5 transition-colors"
+                onClick={() => setExpandedId(isOpen ? null : order.id)}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: STATUS_COLOR[order.status] }}
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-xs font-medium text-[#FFEDD1]">
+                    {order.name}
                   </span>
-                )}
-              </span>
-              <span className="text-[10px] text-[#9C8272] shrink-0">
-                {order.submittedBy}
-              </span>
-              <span className="text-[11px] font-mono text-[#C4A882] shrink-0">
-                {fmt(total)}
-              </span>
-              <span
-                className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-                style={{
-                  background: STATUS_COLOR[order.status] + "22",
-                  color: STATUS_COLOR[order.status],
-                }}
-              >
-                {STATUS_LABEL[order.status]}
-              </span>
-              <svg
-                className={`w-3 h-3 text-[#7A6555] shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M2 4.5 6 8.5l4-4" />
-              </svg>
-            </button>
+                  {order.isRecurring && (
+                    <span className="text-[9px] text-[#8b5cf6]">
+                      Scheduled {order.submittedAt}
+                    </span>
+                  )}
+                </span>
+                <span className="text-[10px] text-[#9C8272] shrink-0">
+                  {order.submittedBy}
+                </span>
+                <span className="text-[11px] font-mono text-[#C4A882] shrink-0">
+                  {fmt(total)}
+                </span>
+                <span
+                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                  style={{
+                    background: STATUS_COLOR[order.status] + "22",
+                    color: STATUS_COLOR[order.status],
+                  }}
+                >
+                  {STATUS_LABEL[order.status]}
+                </span>
+                <svg
+                  className={`w-3 h-3 text-[#7A6555] shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M2 4.5 6 8.5l4-4" />
+                </svg>
+              </button>
+              {isTreasurer && (
+                <label className="flex shrink-0 items-center gap-1 text-[9px] text-[#9C8272] whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={requestedPhotoIds.has(order.id)}
+                    onChange={(event) => {
+                      const needed = event.target.checked;
+                      setRequestedPhotoIds((current) => {
+                        const next = new Set(current);
+                        if (needed) next.add(order.id);
+                        else next.delete(order.id);
+                        return next;
+                      });
+                      void onPhotoNeeded(order, needed).catch(() => {
+                        setRequestedPhotoIds((current) => {
+                          const next = new Set(current);
+                          if (needed) next.delete(order.id);
+                          else next.add(order.id);
+                          return next;
+                        });
+                        toast.error("Could not update photo request");
+                      });
+                    }}
+                  />
+                  Request photo
+                </label>
+              )}
+            </div>
 
             {/* Expanded form */}
             {isOpen && (
@@ -1428,11 +1471,57 @@ function AdditionalCostsPanel({
   onApply: (orders: OrderRecord[], total: number) => Promise<void>;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [organizationFilter, setOrganizationFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [amount, setAmount] = useState("");
   const [saving, setSaving] = useState(false);
 
   const selectedOrders = orders.filter((order) => selectedIds.has(order.id));
   const parsedAmount = Number(amount);
+  const organizations = Array.from(
+    new Set(
+      orders
+        .map((order) => order.organizationName)
+        .filter((name): name is string => Boolean(name))
+    )
+  ).sort((a, b) => a.localeCompare(b));
+  const departments = Array.from(
+    new Set(orders.map((order) => order.department).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+  const statuses = Array.from(
+    new Set(orders.map((order) => order.status))
+  ).sort((a, b) => STATUS_LABEL[a].localeCompare(STATUS_LABEL[b]));
+  const searchTerms = searchQuery
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const filteredOrders = orders.filter((order) => {
+    const searchableText = [
+      order.name,
+      order.department,
+      order.organizationName,
+      order.submittedBy,
+      ...order.items.flatMap((item) => [
+        item.description,
+        item.orderType,
+        item.comments,
+      ]),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return (
+      searchTerms.every((term) => searchableText.includes(term)) &&
+      (organizationFilter === "all" ||
+        order.organizationName === organizationFilter) &&
+      (departmentFilter === "all" || order.department === departmentFilter) &&
+      (statusFilter === "all" || order.status === statusFilter)
+    );
+  });
 
   async function apply() {
     if (
@@ -1468,6 +1557,16 @@ function AdditionalCostsPanel({
     });
   }
 
+  if (selectedOrder) {
+    return (
+      <OrderDetailView
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        isPast={selectedOrder.isPast}
+      />
+    );
+  }
+
   return (
     <div className="flex min-h-full flex-col gap-3 pb-20">
       <div className="flex items-start justify-between gap-3 border-b border-[#3D3330] pb-3">
@@ -1483,9 +1582,53 @@ function AdditionalCostsPanel({
           {selectedOrders.length} selected
         </span>
       </div>
+      <div className="grid gap-2 border-b border-[#3D3330] pb-3 md:grid-cols-[minmax(12rem,1fr)_repeat(3,minmax(8rem,auto))]">
+        <input
+          className={fieldCls}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search orders, people, items..."
+          value={searchQuery}
+        />
+        <select
+          className={selectCls}
+          onChange={(event) => setOrganizationFilter(event.target.value)}
+          value={organizationFilter}
+        >
+          <option value="all">All organizations</option>
+          {organizations.map((organization) => (
+            <option key={organization} value={organization}>
+              {organization}
+            </option>
+          ))}
+        </select>
+        <select
+          className={selectCls}
+          onChange={(event) => setDepartmentFilter(event.target.value)}
+          value={departmentFilter}
+        >
+          <option value="all">All departments</option>
+          {departments.map((department) => (
+            <option key={department} value={department}>
+              {department}
+            </option>
+          ))}
+        </select>
+        <select
+          className={selectCls}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          value={statusFilter}
+        >
+          <option value="all">All statuses</option>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {STATUS_LABEL[status]}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="space-y-1.5">
-        {orders.map((order) => (
-          <label
+        {filteredOrders.map((order) => (
+          <div
             className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#3D3330] bg-[#1A1919] px-3 py-2.5 transition-colors hover:border-[#4A3F38]"
             key={order.id}
           >
@@ -1495,9 +1638,18 @@ function AdditionalCostsPanel({
               onChange={() => toggleOrder(order.id)}
               type="checkbox"
             />
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
-              {order.name}
-            </span>
+            <button
+              className="min-w-0 flex-1 text-left"
+              onClick={() => setSelectedOrder(order)}
+              type="button"
+            >
+              <span className="block truncate text-xs font-medium text-[#FFEDD1]">
+                {order.name}
+              </span>
+              <span className="mt-0.5 block truncate text-[9px] text-[#7A6555]">
+                {order.items.map((item) => item.description).join(" · ")}
+              </span>
+            </button>
             <span className="shrink-0 text-[10px] text-[#9C8272]">
               {order.organizationName ?? order.department}
             </span>
@@ -1505,13 +1657,15 @@ function AdditionalCostsPanel({
               Current {fmt(order.additionalCosts)}
             </span>
             <span className="shrink-0 text-[9px] text-[#7A6555]">
-              {order.status}
+              {STATUS_LABEL[order.status]}
             </span>
-          </label>
+          </div>
         ))}
-        {orders.length === 0 && (
+        {filteredOrders.length === 0 && (
           <div className="py-16 text-center text-sm text-[#7A6555]">
-            No orders available
+            {orders.length === 0
+              ? "No orders available"
+              : "No orders match these filters"}
           </div>
         )}
       </div>
@@ -2196,9 +2350,15 @@ function OrderOverviewList({
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [openIntervals, setOpenIntervals] = useState<Set<string>>(new Set());
 
-  const regularOrders = orders.filter((o) => !o.isRecurring);
+  const invoiceNeededOrders = orders.filter((order) =>
+    order.items.some((item) => item.requiresInvoice && !item.invoiceAdded)
+  );
+  const regularOrders = orders.filter(
+    (order) => !order.isRecurring && !invoiceNeededOrders.includes(order)
+  );
   const recurringOrders = orders.filter(
-    (o) => o.isRecurring && !removedIds.has(o.id)
+    (o) =>
+      o.isRecurring && !removedIds.has(o.id) && !invoiceNeededOrders.includes(o)
   );
 
   // Group recurring by interval
@@ -2210,10 +2370,14 @@ function OrderOverviewList({
   }
 
   const sorted = [...regularOrders].sort((a, b) => {
-    const p = (s: OrderStatus) =>
-      s === "action_needed" ? 0 : s === "pending" ? 1 : 2;
-    return p(a.status) - p(b.status);
+    return (
+      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    );
   });
+  const sortedInvoiceNeeded = [...invoiceNeededOrders].sort(
+    (a, b) =>
+      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+  );
 
   function toggleInterval(key: string) {
     setOpenIntervals((prev) => {
@@ -2291,14 +2455,27 @@ function OrderOverviewList({
       )}
 
       {/* Regular orders */}
+      {sortedInvoiceNeeded.length > 0 && (
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[9px] font-semibold text-[#F0684D] uppercase tracking-widest">
+              Invoice needed
+            </span>
+            <div className="flex-1 h-px bg-[#3D3330]" />
+          </div>
+          {sortedInvoiceNeeded.map(orderRow)}
+        </div>
+      )}
       <div className="space-y-1.5 mb-4">
         {sorted.map(orderRow)}
-        {sorted.length === 0 && recurringOrders.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-[#4A3F38] gap-2">
-            <span className="text-3xl font-thin">—</span>
-            <span className="text-sm">No orders found</span>
-          </div>
-        )}
+        {sorted.length === 0 &&
+          recurringOrders.length === 0 &&
+          sortedInvoiceNeeded.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-[#4A3F38] gap-2">
+              <span className="text-3xl font-thin">—</span>
+              <span className="text-sm">No orders found</span>
+            </div>
+          )}
       </div>
 
       {/* Recurring groups */}
@@ -2596,6 +2773,7 @@ function ReimbursementForm({
   const [orderName, setOrderName] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [rows, setRows] = useState<ReimbRow[]>([
     mkReimbRow(),
@@ -2618,7 +2796,7 @@ function ReimbursementForm({
   }
 
   async function handleSubmit() {
-    if (submitting) return;
+    if (submittingRef.current) return;
     const filledRows = rows.filter(reimbRowHasContent);
     if (
       !filledRows.length ||
@@ -2628,6 +2806,7 @@ function ReimbursementForm({
       filledRows.some((row) => !reimbRowIsComplete(row))
     )
       return;
+    submittingRef.current = true;
     setSubmitting(true);
     const now = new Date();
     try {
@@ -2668,6 +2847,7 @@ function ReimbursementForm({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Submission failed");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -3612,6 +3792,28 @@ export function OrdersPanel({
     router.refresh();
   }
 
+  async function updateIncomingPhotoRequest(
+    order: OrderRecord,
+    needed: boolean
+  ) {
+    const responses = await Promise.all(
+      order.items.map((item) =>
+        fetch(`/api/order-requests/${item.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ photoNeeded: needed }),
+        })
+      )
+    );
+    const failed = responses.find((response) => !response.ok);
+    if (failed) {
+      const body = (await failed.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to update photo request");
+    }
+  }
+
   async function applyAdditionalCosts(
     selectedOrders: OrderRecord[],
     total: number
@@ -3906,6 +4108,9 @@ export function OrdersPanel({
                   currentUserName={userName}
                   onApprove={(order) => updateIncomingOrder(order, "accepted")}
                   onDeny={(order) => updateIncomingOrder(order, "declined")}
+                  onPhotoNeeded={(order, needed) =>
+                    updateIncomingPhotoRequest(order, needed)
+                  }
                   isTreasurer={isTreasurer}
                 />
                 {incomingReimbursements.length > 0 && (

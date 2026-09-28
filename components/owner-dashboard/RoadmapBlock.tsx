@@ -883,7 +883,7 @@ export function RoadmapBlock() {
                                     background: subtask.done
                                       ? item.color
                                       : "#232120",
-                                    borderColor: item.color,
+                                    borderColor: "#000000",
                                   }}
                                 />
                               ))}
