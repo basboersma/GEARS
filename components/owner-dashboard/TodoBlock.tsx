@@ -150,7 +150,10 @@ export function TodoBlock() {
     viewer,
   } = useDashboardData();
   const isManager =
-    !viewer || viewer.role === "owner" || viewer.role === "admin";
+    !viewer ||
+    viewer.role === "owner" ||
+    viewer.role === "admin" ||
+    viewer.role === "advisor";
   const isReadOnlyViewer = Boolean(viewer && !isManager);
   const canEditTodo = (_todo: TodoItem) => isManager;
   const memberIdx = (id: string) =>

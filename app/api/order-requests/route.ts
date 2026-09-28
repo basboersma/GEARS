@@ -66,6 +66,7 @@ const draftBodySchema = z.object({
   recurring: z.boolean().default(false),
 });
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Combines role, department, and recurring-order validation.
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -97,21 +98,28 @@ export async function POST(request: Request) {
       eq(member.userId, session.user.id)
     ),
   });
-  const subleadAssignments = await db.query.team.findMany({
-    where: and(
-      eq(team.organizationId, parsed.data.organizationId),
-      eq(team.memberId, submittingMembership?.id ?? ""),
-      eq(team.isSubLead, true)
-    ),
-  });
-  const isSublead = subleadAssignments.length > 0;
+  const isSublead =
+    submittingMembership?.role === "sublead" ||
+    submittingMembership?.role === "sub_owner";
+  const isTreasurer = submittingMembership?.role === "treasurer";
+  const isAdvisor = submittingMembership?.role === "advisor";
+  const subleadAssignments = isSublead
+    ? await db.query.team.findMany({
+        where: and(
+          eq(team.organizationId, parsed.data.organizationId),
+          eq(team.memberId, submittingMembership?.id ?? "")
+        ),
+      })
+    : [];
 
   if (
     !(
       submittingMembership &&
       (submittingMembership.role === "owner" ||
         submittingMembership.role === "admin" ||
-        isSublead)
+        isSublead ||
+        isTreasurer ||
+        isAdvisor)
     )
   ) {
     return NextResponse.json(
@@ -222,7 +230,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       submittedBy: session.user.name,
       approvedBy:
-        isDraft || submittingMembership.role === "sub_owner" || isSublead
+        isDraft || isSublead || isTreasurer || isAdvisor
           ? ""
           : session.user.name,
       department: parsed.data.department,

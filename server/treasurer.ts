@@ -36,7 +36,12 @@ function findReimbursementImageUrl(
     : undefined;
 }
 
-export async function getTreasurerDashboardData(): Promise<DashboardData> {
+export async function getTreasurerDashboardData(
+  organizationIds?: string[]
+): Promise<DashboardData> {
+  const organizationFilter = organizationIds?.length
+    ? inArray(orderRequest.organizationId, organizationIds)
+    : undefined;
   const rows = await db
     .select({
       order: orderRequest,
@@ -53,6 +58,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
       )
     )
     .innerJoin(user, eq(orderRequest.userId, user.id))
+    .where(organizationFilter)
     .orderBy(asc(orderRequest.orderedDate));
   const reimbursements = await db
     .select({
@@ -72,13 +78,22 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
       eq(reimbursementRequest.userId, studentProfile.userId)
     )
     .where(
-      or(
-        eq(reimbursementRequest.status, "accepted"),
-        eq(reimbursementRequest.status, "successful"),
-        eq(reimbursementRequest.status, "declined"),
-        and(
-          eq(reimbursementRequest.status, "pending"),
-          or(eq(member.role, "owner"), eq(member.role, "admin"))
+      and(
+        organizationIds?.length
+          ? inArray(reimbursementRequest.organizationId, organizationIds)
+          : undefined,
+        or(
+          eq(reimbursementRequest.status, "accepted"),
+          eq(reimbursementRequest.status, "successful"),
+          eq(reimbursementRequest.status, "declined"),
+          and(
+            eq(reimbursementRequest.status, "pending"),
+            or(
+              eq(member.role, "owner"),
+              eq(member.role, "admin"),
+              eq(member.role, "treasurer")
+            )
+          )
         )
       )
     )

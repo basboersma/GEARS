@@ -49,7 +49,9 @@ export async function POST(request: Request) {
     ),
   });
   const isManager =
-    membership?.role === "owner" || membership?.role === "admin";
+    membership?.role === "owner" ||
+    membership?.role === "admin" ||
+    membership?.role === "advisor";
   const canEditTodo =
     isManager ||
     todo.createdByUserId === session.user.id ||

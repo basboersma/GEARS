@@ -4,6 +4,8 @@ export type DashboardRole =
   | "sublead"
   | "treasurer"
   | "advisor"
+  | "board"
+  | "kas"
   | "member";
 
 export interface DashboardNavigationItem {

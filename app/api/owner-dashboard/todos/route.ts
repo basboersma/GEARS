@@ -55,7 +55,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Todo not found." }, { status: 404 });
     }
     const isManager =
-      membership.role === "owner" || membership.role === "admin";
+      membership.role === "owner" ||
+      membership.role === "admin" ||
+      membership.role === "advisor";
     const canEditExistingTodo = isManager || !existingTodo;
     if (!canEditExistingTodo) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

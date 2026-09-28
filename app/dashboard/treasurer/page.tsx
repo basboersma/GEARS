@@ -1,8 +1,10 @@
+import { and, eq, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
 import { db } from "@/db/drizzle";
+import { member } from "@/db/schema";
 import { getBoardLockRequirements } from "@/lib/board-lock";
 import { getOrganizations } from "@/server/organizations";
 import { getTreasurerDashboardData } from "@/server/treasurer";
@@ -18,25 +20,30 @@ export default async function TreasurerPage({
 }) {
   const query = await searchParams;
   const { user } = await getCurrentUser();
-  const adminMemberships = await db.query.member.findMany({
-    where: (membership, { and, eq }) =>
-      and(eq(membership.userId, user.id), eq(membership.role, "admin")),
-    columns: { organizationId: true },
+  const memberships = await db.query.member.findMany({
+    where: and(
+      eq(member.userId, user.id),
+      inArray(member.role, ["admin", "treasurer"])
+    ),
+    columns: { organizationId: true, role: true },
   });
 
-  if (adminMemberships.length === 0) {
+  if (memberships.length === 0) {
     redirect("/dashboard");
   }
 
+  const organizationIds = memberships.map(
+    (membership) => membership.organizationId
+  );
+  const isAdmin = memberships.some((membership) => membership.role === "admin");
+
   const [dashboardData, allOrganizations] = await Promise.all([
-    getTreasurerDashboardData(),
+    getTreasurerDashboardData(organizationIds),
     getOrganizations(),
   ]);
-  const adminOrganizationIds = new Set(
-    adminMemberships.map((membership) => membership.organizationId)
-  );
+  const allowedOrganizationIds = new Set(organizationIds);
   const organizations = allOrganizations.filter((organization) =>
-    adminOrganizationIds.has(organization.id)
+    allowedOrganizationIds.has(organization.id)
   );
   const teamOrganizations = await Promise.all(
     organizations.map(async (organization) => ({
@@ -57,7 +64,7 @@ export default async function TreasurerPage({
         organizations={organizations}
         userEmail={user.email}
         userName={user.name}
-        viewerRole="admin"
+        viewerRole={isAdmin ? "admin" : "treasurer"}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <OrdersPanel

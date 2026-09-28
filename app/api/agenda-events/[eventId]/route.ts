@@ -107,7 +107,20 @@ async function canManageEvent(userId: string, eventId: string) {
     };
   }
 
-  if (membership.role === "member") {
+  if (membership.role === "advisor") {
+    return {
+      allowed: true as const,
+      event,
+      isAdmin: false as const,
+      membership,
+    };
+  }
+
+  if (
+    ["member", "sublead", "treasurer", "board", "kas", "sub_owner"].includes(
+      membership.role
+    )
+  ) {
     return {
       allowed: event.createdByUserId === userId,
       event,
@@ -189,7 +202,9 @@ export async function PATCH(
     parsed.data.itemType ?? access.event?.itemType ?? "event";
   if (
     access.event &&
-    access.membership?.role === "member" &&
+    ["member", "sublead", "treasurer", "board", "kas", "sub_owner"].includes(
+      access.membership?.role ?? ""
+    ) &&
     (access.event.itemType !== "meeting" || nextItemType !== "meeting")
   ) {
     return NextResponse.json(

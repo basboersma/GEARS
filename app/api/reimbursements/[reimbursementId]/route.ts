@@ -68,7 +68,10 @@ export async function PATCH(
   }
 
   const payload = await request.json();
-  const isManager = membership.role === "owner" || membership.role === "admin";
+  const isManager =
+    membership.role === "owner" ||
+    membership.role === "admin" ||
+    membership.role === "treasurer";
   const isSubmitter = item.userId === session.user.id;
   const isPaymentResponse =
     isSubmitter &&

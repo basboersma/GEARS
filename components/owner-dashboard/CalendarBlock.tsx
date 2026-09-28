@@ -298,8 +298,15 @@ export function CalendarBlock() {
     viewer,
   } = useDashboardData();
   const isManager =
-    !viewer || viewer.role === "owner" || viewer.role === "admin";
-  const canCreateAgenda = isManager || viewer?.role === "member";
+    !viewer ||
+    viewer.role === "owner" ||
+    viewer.role === "admin" ||
+    viewer.role === "advisor";
+  const canCreateAgenda =
+    isManager ||
+    ["member", "sublead", "treasurer", "board", "kas"].includes(
+      viewer?.role ?? ""
+    );
   const canEditEvent = (event: CalEvent) =>
     isManager || event.createdByUserId === viewer?.userId;
   const [mode, setMode] = useState<"agenda" | "roadmap">("agenda");

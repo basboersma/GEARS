@@ -1,11 +1,8 @@
-import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { MembersPage } from "@/components/owner-dashboard/MembersPage";
 import type { Member } from "@/components/owner-dashboard/types";
-import { db } from "@/db/drizzle";
-import { team } from "@/db/schema";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -37,21 +34,18 @@ export default async function OrganizationMembersPage({
     (membership.role !== "owner" &&
       membership.role !== "admin" &&
       membership.role !== "member" &&
-      membership.role !== "sublead")
+      membership.role !== "sublead" &&
+      membership.role !== "sub_owner" &&
+      membership.role !== "treasurer" &&
+      membership.role !== "advisor" &&
+      membership.role !== "board" &&
+      membership.role !== "kas")
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const hasSubleadAssignment = Boolean(
-    await db.query.team.findFirst({
-      where: and(
-        eq(team.organizationId, organization.id),
-        eq(team.memberId, membership.id),
-        eq(team.isSubLead, true)
-      ),
-    })
-  );
-  const isSublead = membership.role === "sublead" || hasSubleadAssignment;
+  const isSublead =
+    membership.role === "sublead" || membership.role === "sub_owner";
 
   const [dashboardData, organizations] = await Promise.all([
     getOwnerDashboardData(organization.id, {
@@ -72,20 +66,34 @@ export default async function OrganizationMembersPage({
     role: entry.role,
     avatar: entry.user.name.slice(0, 1).toUpperCase(),
     status: "active",
-    isSubLead:
-      profileById.get(entry.id)?.isSubLead ?? entry.role === "sub_owner",
+    isSubLead: entry.role === "sublead" || entry.role === "sub_owner",
     strikes: 0,
     gender: profileById.get(entry.id)?.gender,
     nationality: profileById.get(entry.id)?.nationality,
     study: profileById.get(entry.id)?.study,
   }));
-  let viewerRole: "admin" | "owner" | "sublead" | "member" = "member";
+  let viewerRole:
+    | "admin"
+    | "owner"
+    | "sublead"
+    | "treasurer"
+    | "advisor"
+    | "board"
+    | "kas"
+    | "member" = "member";
   if (membership.role === "admin") {
     viewerRole = "admin";
   } else if (membership.role === "owner") {
     viewerRole = "owner";
   } else if (isSublead) {
     viewerRole = "sublead";
+  } else if (
+    membership.role === "treasurer" ||
+    membership.role === "advisor" ||
+    membership.role === "board" ||
+    membership.role === "kas"
+  ) {
+    viewerRole = membership.role;
   }
 
   return (
@@ -111,7 +119,7 @@ export default async function OrganizationMembersPage({
                 ?.id ?? null
             }
             organizationSlug={slug}
-            readOnly={isSublead || membership.role === "member"}
+            readOnly={viewerRole !== "owner" && viewerRole !== "admin"}
             teamHistory={dashboardData.teamHistory}
           />
         </main>

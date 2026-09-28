@@ -4,7 +4,7 @@ import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-da
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
 import { db } from "@/db/drizzle";
-import { member, orderRequest, organization, team } from "@/db/schema";
+import { member, orderRequest, organization } from "@/db/schema";
 import { getOrganizations } from "@/server/organizations";
 import { getOwnerDashboardData } from "@/server/owner-dashboard";
 import { getCurrentUser } from "@/server/users";
@@ -35,28 +35,37 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
     (membership.role !== "owner" &&
       membership.role !== "admin" &&
       membership.role !== "member" &&
-      membership.role !== "sublead")
+      membership.role !== "sublead" &&
+      membership.role !== "sub_owner" &&
+      membership.role !== "treasurer" &&
+      membership.role !== "advisor" &&
+      membership.role !== "board" &&
+      membership.role !== "kas")
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const hasSubleadAssignment = Boolean(
-    await db.query.team.findFirst({
-      where: and(
-        eq(team.organizationId, selectedOrganization.id),
-        eq(team.memberId, membership.id),
-        eq(team.isSubLead, true)
-      ),
-    })
-  );
-  const isSublead = membership.role === "sublead" || hasSubleadAssignment;
-  let viewerRole: "admin" | "owner" | "sublead" | "member" = "member";
+  const isSublead =
+    membership.role === "sublead" || membership.role === "sub_owner";
+  const isOrganizationTreasurer =
+    membership.role === "treasurer" || membership.role === "advisor";
+  let viewerRole:
+    | "admin"
+    | "owner"
+    | "sublead"
+    | "treasurer"
+    | "advisor"
+    | "member" = "member";
   if (membership.role === "admin") {
     viewerRole = "admin";
   } else if (membership.role === "owner") {
     viewerRole = "owner";
   } else if (isSublead) {
     viewerRole = "sublead";
+  } else if (membership.role === "treasurer") {
+    viewerRole = "treasurer";
+  } else if (membership.role === "advisor") {
+    viewerRole = "advisor";
   }
 
   const [dashboardData, organizations] = await Promise.all([
@@ -66,11 +75,14 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
     }),
     getOrganizations(),
   ]);
-  let orderMode: "owner" | "member" | "sublead" = "owner";
+  let orderMode: "owner" | "member" | "sublead" | "organization-treasurer" =
+    "owner";
   if (membership.role === "member") {
     orderMode = "member";
   } else if (isSublead) {
     orderMode = "sublead";
+  } else if (isOrganizationTreasurer) {
+    orderMode = "organization-treasurer";
   }
 
   const items = await db.query.orderRequest.findMany({

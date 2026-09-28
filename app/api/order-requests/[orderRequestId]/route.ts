@@ -109,6 +109,7 @@ export async function PATCH(
 
   const isOwnerOrAdmin =
     membership?.role === "owner" || membership?.role === "admin";
+  const isTreasurer = membership?.role === "treasurer";
   const isApprovalStatus =
     parsed.data.status === "accepted" || parsed.data.status === "declined";
   const isAcceptanceUpdate = parsed.data.accepted !== undefined;
@@ -124,6 +125,10 @@ export async function PATCH(
     isOwnerOrAdmin &&
     item.status === "owner_review" &&
     (isApprovalStatus || hasReviewFields);
+  const treasurerCanReview =
+    isTreasurer &&
+    (item.status === "owner_review" || item.status === "pending") &&
+    isApprovalStatus;
   const adminCanProcess =
     membership?.role === "admin" &&
     item.status !== "owner_review" &&
@@ -134,8 +139,17 @@ export async function PATCH(
       parsed.data.photoNeeded !== undefined ||
       parsed.data.state !== undefined ||
       parsed.data.reimbursementStatus !== undefined);
+  const treasurerCanProcess =
+    isTreasurer &&
+    (isApprovalStatus ||
+      isAcceptanceUpdate ||
+      parsed.data.ordered !== undefined ||
+      parsed.data.invoiceAdded !== undefined ||
+      parsed.data.photoNeeded !== undefined ||
+      parsed.data.reimbursementStatus !== undefined);
   const canUpdateAdditionalCosts =
-    isOwnerOrAdmin && parsed.data.additionalCosts !== undefined;
+    (isOwnerOrAdmin || isTreasurer) &&
+    parsed.data.additionalCosts !== undefined;
   const canUpdateRecurring =
     isOwnerOrAdmin && parsed.data.recurring !== undefined;
 
@@ -143,7 +157,9 @@ export async function PATCH(
   if (
     !(
       ownerCanReview ||
+      treasurerCanReview ||
       adminCanProcess ||
+      treasurerCanProcess ||
       canUpdateState ||
       canUpdateAdditionalCosts ||
       canUpdateRecurring

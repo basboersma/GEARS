@@ -1,4 +1,3 @@
-import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { OrganizationAgenda } from "@/components/organization-agenda";
@@ -6,8 +5,6 @@ import OwnerDashboard from "@/components/owner-dashboard/app";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { Button } from "@/components/ui/button";
-import { db } from "@/db/drizzle";
-import { team } from "@/db/schema";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -30,29 +27,40 @@ export default async function OrganizationPage({ params }: { params: Params }) {
 
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
-  const hasSubleadAssignment = Boolean(
-    await db.query.team.findFirst({
-      where: and(
-        eq(team.organizationId, organization.id),
-        eq(team.memberId, membership.id),
-        eq(team.isSubLead, true)
-      ),
-    })
-  );
-  const isSublead = membership.role === "sublead" || hasSubleadAssignment;
-  let viewerRole: "admin" | "owner" | "sublead" | "member" = "member";
+  const isSublead =
+    membership.role === "sublead" || membership.role === "sub_owner";
+  let viewerRole:
+    | "admin"
+    | "owner"
+    | "sublead"
+    | "treasurer"
+    | "advisor"
+    | "board"
+    | "kas"
+    | "member" = "member";
   if (isAdmin) {
     viewerRole = "admin";
   } else if (isOwner) {
     viewerRole = "owner";
   } else if (isSublead) {
     viewerRole = "sublead";
+  } else if (
+    membership.role === "treasurer" ||
+    membership.role === "advisor" ||
+    membership.role === "board" ||
+    membership.role === "kas"
+  ) {
+    viewerRole = membership.role;
   }
   const canUseDashboard =
     membership.role === "owner" ||
     membership.role === "admin" ||
     membership.role === "member" ||
-    isSublead;
+    isSublead ||
+    viewerRole === "treasurer" ||
+    viewerRole === "advisor" ||
+    viewerRole === "board" ||
+    viewerRole === "kas";
 
   if (canUseDashboard && organization) {
     const dashboardData = await getOwnerDashboardData(organization.id, {
@@ -121,7 +129,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         organizations={await getOrganizations()}
         userEmail={user.email}
         userName={user.name}
-        viewerRole={hasSubleadAssignment ? "sublead" : "member"}
+        viewerRole={viewerRole}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-auto p-5">
           <h1 className="font-bold text-2xl text-[#FFEDD1]">
@@ -150,7 +158,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
             </div>
           ) : null}
 
-          {hasSubleadAssignment ? (
+          {isSublead ? (
             <Button asChild className="w-fit" variant="outline">
               <Link href={`/dashboard/organization/${slug}/sub-owner-orders`}>
                 Submit Order List

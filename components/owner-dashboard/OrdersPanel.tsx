@@ -3286,7 +3286,12 @@ export function OrdersPanel({
 }: {
   data: BudgetData;
   userName: string;
-  mode?: "owner" | "treasurer" | "member" | "sublead";
+  mode?:
+    | "owner"
+    | "treasurer"
+    | "member"
+    | "sublead"
+    | "organization-treasurer";
   permissionOrganizationId?: string;
   permissionRequestId?: string;
   teamOrganizations?: TeamOrganization[];
@@ -3304,6 +3309,7 @@ export function OrdersPanel({
   const isTreasurer = mode === "treasurer";
   const isMember = mode === "member";
   const isSublead = mode === "sublead";
+  const isOrganizationTreasurer = mode === "organization-treasurer";
   const subleadDepartments =
     viewer?.role === "sublead"
       ? Object.entries(departmentIds)
@@ -3394,11 +3400,13 @@ export function OrdersPanel({
     isTreasurer
       ? !o.isPast &&
         !isFutureScheduledOrder(o) &&
-        o.workflowStatus === "pending"
+        (o.workflowStatus === "pending" || o.workflowStatus === "owner_review")
       : !o.isPast &&
         !isFutureScheduledOrder(o) &&
         (o.status === "owner_review" ||
-          (o.status === "pending" && o.submittedBy !== userName))
+          (o.status === "pending" &&
+            o.submittedBy !== userName &&
+            o.submittedByRole !== "treasurer"))
   );
   const incomingReimbursements = reimbursements.filter(
     (reimbursement) =>
@@ -3796,7 +3804,7 @@ export function OrdersPanel({
 
   const TABS: { id: Tab; label: string }[] = isMember
     ? [{ id: "reimburse", label: "Reimburse" }]
-    : isSublead
+    : isSublead || isOrganizationTreasurer
       ? [
           { id: "submit", label: "Submit" },
           { id: "overview", label: "Overview" },

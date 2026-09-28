@@ -1299,7 +1299,6 @@ function MemberActionModal({
   onAddToDept,
   onRemoveFromDept,
   onSetMembershipRole,
-  onSetRole,
 }: {
   member: Member;
   allDepts: string[];
@@ -1314,7 +1313,6 @@ function MemberActionModal({
   onSetMembershipRole: (
     role: AssignableMemberRole
   ) => Promise<{ success: boolean; error: string | null }>;
-  onSetRole: (department: string, role: "advisor" | "treasurer") => void;
 }) {
   const [tab, setTab] = useState<"strike" | "remove" | "depts">("strike");
   const [comment, setComment] = useState("");
@@ -1568,30 +1566,6 @@ function MemberActionModal({
                       + {d}
                     </button>
                   ))}
-              </div>
-              <div className="space-y-1 border-[#3D3330] border-t pt-2">
-                <div className="font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
-                  Leadership roles
-                </div>
-                {allDepts.map((dept) => (
-                  <div className="flex items-center gap-1.5" key={dept}>
-                    <span className="flex-1 truncate text-[#C4A882] text-[10px]">
-                      {dept}
-                    </span>
-                    <button
-                      className="rounded border border-cyan-500/30 px-1.5 py-0.5 text-[9px] text-cyan-400"
-                      onClick={() => onSetRole(dept, "advisor")}
-                    >
-                      Advisor
-                    </button>
-                    <button
-                      className="rounded border border-amber-500/30 px-1.5 py-0.5 text-[9px] text-amber-400"
-                      onClick={() => onSetRole(dept, "treasurer")}
-                    >
-                      Treasurer
-                    </button>
-                  </div>
-                ))}
               </div>
             </>
           )}
@@ -1876,27 +1850,13 @@ function DeptColumn({
             <div className="text-[9px] font-semibold text-[#7A6555] uppercase tracking-wider">
               Sub-lead
             </div>
-            {!readOnly && subLead && (
-              <button
-                onClick={() => setShowRemoveSublead(true)}
-                className="text-[9px] text-[#4A3F38] hover:text-rose-400 transition-colors px-1"
-              >
-                remove
-              </button>
-            )}
           </div>
           <DropSlot
             label="sub-lead"
-            active={!readOnly && isSubTarget}
-            onDragOver={() => {
-              if (!readOnly) setDragTarget({ kind: "sublead", dept });
-            }}
-            onDragLeave={() => {
-              if (!readOnly && isSubTarget) setDragTarget(null);
-            }}
-            onDrop={() => {
-              if (!readOnly) onDropSublead(dept);
-            }}
+            active={false}
+            onDragOver={() => undefined}
+            onDragLeave={() => undefined}
+            onDrop={() => undefined}
           >
             {subLead && (
               <MemberCard
@@ -2074,23 +2034,13 @@ function LeadershipTree({
     role: "advisor" | "treasurer",
     label: string
   ) => {
-    const active = dragTarget?.kind === role;
+    const active = false;
     return (
       <div
         className={`w-52 rounded-2xl border px-3 py-2.5 ${active ? "border-[#FFD142] bg-[#FFD142]/10" : "border-[#3D3330] bg-[#232120]"}`}
-        onDragOver={(event) => {
-          if (!readOnly && draggingId) {
-            event.preventDefault();
-            setDragTarget({ kind: role });
-          }
-        }}
-        onDragLeave={() => {
-          if (active) setDragTarget(null);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          if (!readOnly) onDropRole(role);
-        }}
+        onDragOver={() => undefined}
+        onDragLeave={() => undefined}
+        onDrop={() => undefined}
       >
         <div className="mb-1.5 font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
           {label}
@@ -2106,9 +2056,6 @@ function LeadershipTree({
             onDragStart={() => onDragStart(member.id)}
             onClick={
               readOnly ? () => undefined : () => onRoleClick(member, role)
-            }
-            onRemove={
-              readOnly ? undefined : () => onReleaseRole(member.id, role, true)
             }
             removeLabel={`Release ${member.name} as ${label.toLowerCase()}`}
           />
@@ -2507,12 +2454,8 @@ export function MembersPage({
     ).catch(() => undefined);
   };
 
-  const roleMember = (role: "isAdvisor" | "isTreasurer") => {
-    const assignment = historicalTeams.find((team) => team[role]);
-    return assignment
-      ? (members.find((member) => member.id === assignment.memberId) ?? null)
-      : null;
-  };
+  const roleMember = (role: "advisor" | "treasurer") =>
+    members.find((member) => member.role === role) ?? null;
 
   const handleDropRole = (role: "advisor" | "treasurer") => {
     if (!draggingId) return;
@@ -2893,7 +2836,7 @@ export function MembersPage({
             )}
             <div className="flex flex-col items-center min-w-max pb-8 pt-10">
               <LeadershipTree
-                advisor={roleMember("isAdvisor")}
+                advisor={roleMember("advisor")}
                 dragTarget={dragTarget}
                 draggingId={draggingId}
                 readOnly={readOnly}
@@ -2905,11 +2848,9 @@ export function MembersPage({
                 onReleaseRole={(memberId, role) =>
                   releaseTeamRole(memberId, role)
                 }
-                onRoleClick={(member, role) =>
-                  setLeadershipAction({ member, role })
-                }
+                onRoleClick={(member) => setActionMember(member)}
                 setDragTarget={setDragTarget}
-                treasurer={roleMember("isTreasurer")}
+                treasurer={roleMember("treasurer")}
               />
               <div className="relative flex gap-3 items-start">
                 {departments.length > 1 && (
@@ -2931,13 +2872,9 @@ export function MembersPage({
                       color={deptColors[dept] ?? "#888"}
                       members={membersByDept(dept)}
                       subLeadId={
-                        historicalTeams.find(
-                          (team) =>
-                            team.departmentId === departmentIds[dept] &&
-                            team.isSubLead
-                        )?.memberId ??
-                        subLeads[dept] ??
-                        null
+                        membersByDept(dept).find(
+                          (member) => member.role === "sublead"
+                        )?.id ?? null
                       }
                       q={q}
                       draggingId={draggingId}
@@ -3135,7 +3072,6 @@ export function MembersPage({
             }
             return result;
           }}
-          onSetRole={(dept, role) => setTeamRole(actionMember.id, dept, role)}
         />
       )}
     </div>

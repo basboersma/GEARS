@@ -91,7 +91,10 @@ async function canManageAgenda(userId: string, organizationId: string) {
     return null;
   }
 
-  const canManage = membership.role === "owner" || membership.role === "admin";
+  const canManage =
+    membership.role === "owner" ||
+    membership.role === "admin" ||
+    membership.role === "advisor";
 
   return {
     canManage,
@@ -122,7 +125,7 @@ export async function GET(request: Request) {
 
   if (!access) {
     return NextResponse.json(
-      { error: "Only organization owners and admins can view agenda" },
+      { error: "Organization membership is required to view agenda" },
       { status: 403 }
     );
   }
@@ -318,7 +321,9 @@ export async function POST(request: Request) {
   const access = await canManageAgenda(user.id, parsed.data.organizationId);
 
   const canCreateMeeting =
-    access?.membership.role === "member" &&
+    ["member", "sublead", "treasurer", "board", "kas", "sub_owner"].includes(
+      access?.membership.role ?? ""
+    ) &&
     parsed.data.itemType === "meeting" &&
     !parsed.data.isDeadline;
 
@@ -326,6 +331,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Members can only create meetings in the agenda" },
       { status: 403 }
+    );
+  }
+  if (!access) {
+    return NextResponse.json(
+      { error: "Organization membership required" },
+      {
+        status: 403,
+      }
     );
   }
 

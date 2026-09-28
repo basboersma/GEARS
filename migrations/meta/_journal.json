@@ -225,6 +225,13 @@
       "when": 1790612894486,
       "tag": "0031_short_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790617000000,
+      "tag": "0032_role_assignments_to_members",
+      "breakpoints": true
     }
   ]
 }

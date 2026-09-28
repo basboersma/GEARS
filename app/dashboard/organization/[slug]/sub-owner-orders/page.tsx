@@ -42,11 +42,14 @@ export default async function SubOwnerOrdersPage({
     redirect(`/dashboard/organization/${slug}`);
   }
 
+  if (membership.role !== "sublead" && membership.role !== "sub_owner") {
+    redirect(`/dashboard/organization/${slug}`);
+  }
+
   const assignments = await db.query.team.findMany({
     where: and(
       eq(team.organizationId, selectedOrganization.id),
-      eq(team.memberId, membership.id),
-      eq(team.isSubLead, true)
+      eq(team.memberId, membership.id)
     ),
   });
   const departments = await db.query.organizationDepartment.findMany({

@@ -326,7 +326,10 @@ export function RoadmapBlock() {
     viewer,
   } = useDashboardData();
   const readOnly = Boolean(
-    viewer && viewer.role !== "owner" && viewer.role !== "admin"
+    viewer &&
+      viewer.role !== "owner" &&
+      viewer.role !== "admin" &&
+      viewer.role !== "advisor"
   );
   const [items, setItems] = useState<RoadmapItem[]>(roadmap);
   const [viewStart, setViewStart] = useState<Date>(() => {

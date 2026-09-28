@@ -433,7 +433,8 @@ export async function getOwnerDashboardData(
     viewer &&
     viewerMemberId &&
     viewer.role !== "owner" &&
-    viewer.role !== "admin"
+    viewer.role !== "admin" &&
+    viewer.role !== "advisor"
       ? filterMemberFileTree(
           googleDriveTree,
           { userId: viewer.userId },
@@ -484,11 +485,7 @@ export async function getOwnerDashboardData(
       role: row.role,
       avatar: row.name.slice(0, 1).toUpperCase(),
       status: "active",
-      isSubLead:
-        row.role === "sub_owner" ||
-        teamRows.some(
-          (assignment) => assignment.memberId === row.id && assignment.isSubLead
-        ),
+      isSubLead: row.role === "sublead" || row.role === "sub_owner",
       strikes: 0,
       gender: row.gender,
       nationality: row.nationality,
@@ -605,6 +602,8 @@ export async function getOwnerDashboardData(
       title: row.orderName,
       department: row.department,
       submittedBy: row.submittedBy,
+      submittedByRole: memberRows.find((member) => member.userId === row.userId)
+        ?.role,
       approvedBy: row.approvedBy,
       status: row.status,
       ordered: row.ordered,

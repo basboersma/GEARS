@@ -521,7 +521,10 @@ export function FilesBlock() {
   const { driveFolderId, fileTree, organizationId, viewer } =
     useDashboardData();
   const readOnly = Boolean(
-    viewer && viewer.role !== "owner" && viewer.role !== "admin"
+    viewer &&
+      viewer.role !== "owner" &&
+      viewer.role !== "admin" &&
+      viewer.role !== "advisor"
   );
   const [source, setSource] = useState<"google" | "github">("google");
   const [githubTree, setGithubTree] = useState<FileTreeNode[] | null>(null);
