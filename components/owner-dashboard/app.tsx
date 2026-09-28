@@ -540,7 +540,9 @@ function Sidebar({
           <span>Dashboard</span>
         </button>
         <div className="space-y-0.5 pt-1">
-          {viewerRole !== "member" && <SubteamsNav />}
+          {(viewerRole === "owner" || viewerRole === "admin") && (
+            <SubteamsNav />
+          )}
           {getDashboardNavigation({
             organizationSlug,
             role: viewerRole,

@@ -1,9 +1,11 @@
+import { and, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { MembersPage } from "@/components/owner-dashboard/MembersPage";
-import { MembersReadOnlyPage } from "@/components/owner-dashboard/members-read-only-page";
 import type { Member } from "@/components/owner-dashboard/types";
+import { db } from "@/db/drizzle";
+import { team } from "@/db/schema";
 import {
   getOrganizationBySlug,
   getOrganizations,
@@ -34,15 +36,27 @@ export default async function OrganizationMembersPage({
     !membership ||
     (membership.role !== "owner" &&
       membership.role !== "admin" &&
-      membership.role !== "member")
+      membership.role !== "member" &&
+      membership.role !== "sublead")
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
+  const hasSubleadAssignment = Boolean(
+    await db.query.team.findFirst({
+      where: and(
+        eq(team.organizationId, organization.id),
+        eq(team.memberId, membership.id),
+        eq(team.isSubLead, true)
+      ),
+    })
+  );
+  const isSublead = membership.role === "sublead" || hasSubleadAssignment;
+
   const [dashboardData, organizations] = await Promise.all([
     getOwnerDashboardData(organization.id, {
       userId: user.id,
-      role: membership.role,
+      role: isSublead ? "sublead" : membership.role,
     }),
     getOrganizations(),
   ]);
@@ -58,17 +72,20 @@ export default async function OrganizationMembersPage({
     role: entry.role,
     avatar: entry.user.name.slice(0, 1).toUpperCase(),
     status: "active",
-    isSubLead: entry.role === "sub_owner",
+    isSubLead:
+      profileById.get(entry.id)?.isSubLead ?? entry.role === "sub_owner",
     strikes: 0,
     gender: profileById.get(entry.id)?.gender,
     nationality: profileById.get(entry.id)?.nationality,
     study: profileById.get(entry.id)?.study,
   }));
-  let viewerRole: "admin" | "owner" | "member" = "member";
+  let viewerRole: "admin" | "owner" | "sublead" | "member" = "member";
   if (membership.role === "admin") {
     viewerRole = "admin";
   } else if (membership.role === "owner") {
     viewerRole = "owner";
+  } else if (isSublead) {
+    viewerRole = "sublead";
   }
 
   return (
@@ -83,23 +100,20 @@ export default async function OrganizationMembersPage({
         viewerRole={viewerRole}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          {membership.role === "member" ? (
-            <MembersReadOnlyPage members={members} />
-          ) : (
-            <MembersPage
-              initialDepartmentIds={dashboardData.departmentIds}
-              initialDepartments={dashboardData.departments}
-              initialMembers={members}
-              initialOrganizationId={dashboardData.organizationId}
-              initialTeams={dashboardData.teams}
-              leadMemberId={
-                organization.members.find((entry) => entry.role === "owner")
-                  ?.id ?? null
-              }
-              organizationSlug={slug}
-              teamHistory={dashboardData.teamHistory}
-            />
-          )}
+          <MembersPage
+            initialDepartmentIds={dashboardData.departmentIds}
+            initialDepartments={dashboardData.departments}
+            initialMembers={members}
+            initialOrganizationId={dashboardData.organizationId}
+            initialTeams={dashboardData.teams}
+            leadMemberId={
+              organization.members.find((entry) => entry.role === "owner")
+                ?.id ?? null
+            }
+            organizationSlug={slug}
+            readOnly={isSublead || membership.role === "member"}
+            teamHistory={dashboardData.teamHistory}
+          />
         </main>
       </OwnerDashboardFrame>
     </DashboardDataProvider>

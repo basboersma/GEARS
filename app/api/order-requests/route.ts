@@ -66,7 +66,6 @@ const draftBodySchema = z.object({
   recurring: z.boolean().default(false),
 });
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Combines order validation with recurring occurrence creation.
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -98,14 +97,14 @@ export async function POST(request: Request) {
       eq(member.userId, session.user.id)
     ),
   });
-  const subleadAssignment = await db.query.team.findFirst({
+  const subleadAssignments = await db.query.team.findMany({
     where: and(
       eq(team.organizationId, parsed.data.organizationId),
       eq(team.memberId, submittingMembership?.id ?? ""),
       eq(team.isSubLead, true)
     ),
   });
-  const isSublead = Boolean(subleadAssignment);
+  const isSublead = subleadAssignments.length > 0;
 
   if (
     !(
@@ -145,19 +144,23 @@ export async function POST(request: Request) {
     }
   }
 
-  if (isSublead && !isDraft) {
-    if (!subleadAssignment?.departmentId) {
+  if (isSublead) {
+    const subleadDepartmentIds = new Set(
+      subleadAssignments
+        .map((assignment) => assignment.departmentId)
+        .filter((departmentId): departmentId is string => Boolean(departmentId))
+    );
+    if (subleadDepartmentIds.size === 0) {
       return NextResponse.json(
         { error: "No sublead department is assigned to this member." },
         { status: 403 }
       );
     }
-    const subleadDepartment = await db.query.organizationDepartment.findFirst({
-      where: and(
-        eq(organizationDepartment.id, subleadAssignment.departmentId),
-        eq(organizationDepartment.name, parsed.data.department)
-      ),
-    });
+    const subleadDepartment = allowedDepartments.find(
+      (department) =>
+        department.name === parsed.data.department &&
+        subleadDepartmentIds.has(department.id)
+    );
     if (!subleadDepartment) {
       return NextResponse.json(
         { error: "You can only submit orders for your sublead departments." },
@@ -219,7 +222,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       submittedBy: session.user.name,
       approvedBy:
-        isDraft || submittingMembership.role === "sub_owner"
+        isDraft || submittingMembership.role === "sub_owner" || isSublead
           ? ""
           : session.user.name,
       department: parsed.data.department,

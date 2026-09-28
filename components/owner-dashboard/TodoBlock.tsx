@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useDashboardData } from "./dashboard-data-context";
 import { avatarBg } from "./data";
 import { TodoModal } from "./TodoModal";
+import { TodoReadOnlyModal } from "./todo-read-only-modal";
 import type { TodoItem } from "./types";
 
 function daysUntil(dateStr: string): number {
@@ -150,13 +151,12 @@ export function TodoBlock() {
   } = useDashboardData();
   const isManager =
     !viewer || viewer.role === "owner" || viewer.role === "admin";
-  const canEditTodo = (todo: TodoItem) =>
-    isManager ||
-    todo.createdByUserId === viewer?.userId ||
-    Boolean(viewer && todo.assignedMembers.includes(viewer.memberId));
+  const isReadOnlyViewer = Boolean(viewer && !isManager);
+  const canEditTodo = (_todo: TodoItem) => isManager;
   const memberIdx = (id: string) =>
     members.findIndex((member) => member.id === id);
   const [modal, setModal] = useState<"new" | TodoItem | null>(null);
+  const [readOnlyTodo, setReadOnlyTodo] = useState<TodoItem | null>(null);
   const [tab, setTab] = useState<"active" | "previous">("active");
 
   const save = async (item: TodoItem, attachments: File[]) => {
@@ -228,6 +228,9 @@ export function TodoBlock() {
     const todo = todos.find((item) => item.id === todoId);
     const subtask = todo?.subtasks.find((item) => item.id === stId);
     if (!(todo && subtask)) {
+      return;
+    }
+    if (!canEditTodo(todo)) {
       return;
     }
     const updatedTodo = {
@@ -327,8 +330,14 @@ export function TodoBlock() {
                       )}
                     </button>
                     <span
-                      className={`flex-1 truncate font-medium text-sm ${editable ? "cursor-pointer" : "cursor-default"} ${t.done ? "text-[#7A6555] line-through" : "text-[#FFEDD1]"}`}
-                      onClick={editable ? () => setModal(t) : undefined}
+                      className={`flex-1 truncate font-medium text-sm ${editable || isReadOnlyViewer ? "cursor-pointer" : "cursor-default"} ${t.done ? "text-[#7A6555] line-through" : "text-[#FFEDD1]"}`}
+                      onClick={() => {
+                        if (isReadOnlyViewer) {
+                          setReadOnlyTodo(t);
+                        } else if (editable) {
+                          setModal(t);
+                        }
+                      }}
                     >
                       {t.text}
                     </span>
@@ -395,6 +404,12 @@ export function TodoBlock() {
             modal !== "new" && isManager ? () => remove(modal.id) : undefined
           }
           onSave={save}
+        />
+      )}
+      {readOnlyTodo && (
+        <TodoReadOnlyModal
+          onClose={() => setReadOnlyTodo(null)}
+          todo={readOnlyTodo}
         />
       )}
     </div>

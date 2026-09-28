@@ -6,18 +6,6 @@ import { db } from "@/db/drizzle";
 import { dashboardTodo, dashboardTodoAssignee, member } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
-function parseStringArray(value: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) &&
-      parsed.every((entry) => typeof entry === "string")
-      ? parsed
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 const todoSchema = z.object({
   id: z.string().optional(),
   organizationId: z.string().min(1),
@@ -68,11 +56,7 @@ export async function POST(request: Request) {
     }
     const isManager =
       membership.role === "owner" || membership.role === "admin";
-    const canEditExistingTodo =
-      isManager ||
-      !existingTodo ||
-      existingTodo.createdByUserId === session.user.id ||
-      parseStringArray(existingTodo.assignedMemberIds).includes(membership.id);
+    const canEditExistingTodo = isManager || !existingTodo;
     if (!canEditExistingTodo) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

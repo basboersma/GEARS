@@ -900,6 +900,7 @@ const FORM_GRID =
 function OrderForm({
   onTotalChange,
   onDeptChange,
+  allowedDepartments,
   initialData,
   draftInitial,
   incomingSubmitter,
@@ -912,6 +913,7 @@ function OrderForm({
 }: {
   onTotalChange: (n: number) => void;
   onDeptChange?: (d: string) => void;
+  allowedDepartments?: string[];
   initialData?: OrderRecord;
   draftInitial?: Draft;
   incomingSubmitter?: string;
@@ -928,6 +930,7 @@ function OrderForm({
   onSaveDraft?: (d: Draft) => void | Promise<void>;
 }) {
   const { departments } = useDashboardData();
+  const selectableDepartments = allowedDepartments ?? departments;
   const isIncoming = incomingSubmitter !== undefined;
 
   const [rows, setRows] = useState<FormRow[]>(() => {
@@ -1070,7 +1073,7 @@ function OrderForm({
               }}
             >
               <option value="">Select department</option>
-              {departments.map((d) => (
+              {selectableDepartments.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
@@ -3283,20 +3286,37 @@ export function OrdersPanel({
 }: {
   data: BudgetData;
   userName: string;
-  mode?: "owner" | "treasurer" | "member";
+  mode?: "owner" | "treasurer" | "member" | "sublead";
   permissionOrganizationId?: string;
   permissionRequestId?: string;
   teamOrganizations?: TeamOrganization[];
 }) {
   const router = useRouter();
   const {
+    departmentIds,
     monthlySpend,
     orders,
     organizationId,
     reimbursements: persistedReimbursements,
+    teams,
+    viewer,
   } = useDashboardData();
   const isTreasurer = mode === "treasurer";
   const isMember = mode === "member";
+  const isSublead = mode === "sublead";
+  const subleadDepartments =
+    viewer?.role === "sublead"
+      ? Object.entries(departmentIds)
+          .filter(([, departmentId]) =>
+            teams.some(
+              (assignment) =>
+                assignment.memberId === viewer.memberId &&
+                assignment.departmentId === departmentId &&
+                assignment.isSubLead
+            )
+          )
+          .map(([department]) => department)
+      : [];
   const isPastReimbursement = (status: string) =>
     isTreasurer
       ? status === "successful" || status === "declined"
@@ -3776,19 +3796,26 @@ export function OrdersPanel({
 
   const TABS: { id: Tab; label: string }[] = isMember
     ? [{ id: "reimburse", label: "Reimburse" }]
-    : [
-        ...(!isTreasurer ? [{ id: "submit" as const, label: "Submit" }] : []),
-        { id: "overview", label: "Overview" },
-        { id: "incoming", label: "Incoming" },
-        { id: "past", label: "Past Orders" },
-        ...(isTreasurer
-          ? [{ id: "additional-costs" as const, label: "Additional costs" }]
-          : []),
-        ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
-        ...(!isTreasurer
-          ? [{ id: "reimburse" as const, label: "Reimburse" }]
-          : []),
-      ];
+    : isSublead
+      ? [
+          { id: "submit", label: "Submit" },
+          { id: "overview", label: "Overview" },
+          { id: "past", label: "Past Orders" },
+          { id: "reimburse", label: "Reimburse" },
+        ]
+      : [
+          ...(!isTreasurer ? [{ id: "submit" as const, label: "Submit" }] : []),
+          { id: "overview", label: "Overview" },
+          { id: "incoming", label: "Incoming" },
+          { id: "past", label: "Past Orders" },
+          ...(isTreasurer
+            ? [{ id: "additional-costs" as const, label: "Additional costs" }]
+            : []),
+          ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
+          ...(!isTreasurer
+            ? [{ id: "reimburse" as const, label: "Reimburse" }]
+            : []),
+        ];
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3">
@@ -3857,6 +3884,7 @@ export function OrdersPanel({
           <>
             {tab === "submit" && (
               <OrderForm
+                allowedDepartments={isSublead ? subleadDepartments : undefined}
                 key={submitKey}
                 onTotalChange={setFormTotal}
                 onDeptChange={setFormDept}

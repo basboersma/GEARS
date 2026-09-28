@@ -5,7 +5,6 @@ import { useState } from "react";
 import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import type { Organization } from "@/db/schema";
-import { NotificationsBlock } from "./app";
 import { useDashboardData } from "./dashboard-data-context";
 import {
   type DashboardRole,
@@ -123,12 +122,6 @@ export function OwnerDashboardFrame({
   });
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
-  const showNotifications =
-    viewerRole === "member" ||
-    (activePage !== "treasurer" &&
-      activePage !== "orders" &&
-      activePage !== "inventory");
-
   return (
     <div
       className="flex h-screen overflow-hidden bg-[#1A1919]"
@@ -160,7 +153,9 @@ export function OwnerDashboardFrame({
             <span>Dashboard</span>
           </Link>
           <div className="space-y-0.5 pt-1">
-            {viewerRole !== "member" && <SubteamsNav />}
+            {(viewerRole === "owner" || viewerRole === "admin") && (
+              <SubteamsNav />
+            )}
             {navigation.slice(1).map((item) => (
               <Link
                 className={navClass(activePage === item.key)}
@@ -210,11 +205,6 @@ export function OwnerDashboardFrame({
         </header>
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
-          {showNotifications && (
-            <aside className="flex h-56 shrink-0 flex-col border-white/8 border-t bg-[#141212] p-3 lg:h-auto lg:w-72 lg:border-t-0 lg:border-l">
-              <NotificationsBlock />
-            </aside>
-          )}
         </div>
       </div>
     </div>

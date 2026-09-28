@@ -60,6 +60,7 @@ export interface TodoItem {
   calendarDate: string;
   subtasks: Subtask[];
   dueDate?: string;
+  linkedFileDetails?: DriveFile[];
 }
 
 export interface DriveFile {

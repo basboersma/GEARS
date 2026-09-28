@@ -1,6 +1,10 @@
 import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import type { DashboardData } from "@/components/owner-dashboard/dashboard-data-context";
-import type { FileTreeNode, Subtask } from "@/components/owner-dashboard/types";
+import type {
+  DriveFile,
+  FileTreeNode,
+  Subtask,
+} from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
 import {
   agendaDiscussionPoint,
@@ -445,6 +449,13 @@ export async function getOwnerDashboardData(
       return [{ ...node }];
     }
   );
+  const allFiles = googleDriveTree.flatMap(function flatten(node): DriveFile[] {
+    if (node.kind === "folder") {
+      return node.children.flatMap(flatten);
+    }
+    return [{ ...node }];
+  });
+  const allFilesById = new Map(allFiles.map((file) => [file.id, file]));
   const todosById = new Map(todoRows.map((row) => [row.id, row]));
 
   return {
@@ -473,7 +484,11 @@ export async function getOwnerDashboardData(
       role: row.role,
       avatar: row.name.slice(0, 1).toUpperCase(),
       status: "active",
-      isSubLead: row.role === "sub_owner",
+      isSubLead:
+        row.role === "sub_owner" ||
+        teamRows.some(
+          (assignment) => assignment.memberId === row.id && assignment.isSubLead
+        ),
       strikes: 0,
       gender: row.gender,
       nationality: row.nationality,
@@ -561,6 +576,9 @@ export async function getOwnerDashboardData(
       color: row.color,
       assignedMembers: parseArray(row.assignedMemberIds),
       linkedFiles: parseArray(row.linkedFileIds),
+      linkedFileDetails: parseArray(row.linkedFileIds)
+        .map((fileId) => allFilesById.get(fileId))
+        .filter((file): file is DriveFile => Boolean(file)),
       addToCalendar: row.addToCalendar,
       calendarDate: row.calendarDate,
       dueDate: row.dueDate ?? undefined,

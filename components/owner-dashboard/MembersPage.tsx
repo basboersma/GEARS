@@ -1655,6 +1655,7 @@ function MemberCard({
   member,
   q,
   isDragging,
+  readOnly = false,
   crossDept,
   highlightedIso,
   onDragStart,
@@ -1665,6 +1666,7 @@ function MemberCard({
   member: Member;
   q: string;
   isDragging: boolean;
+  readOnly?: boolean;
   crossDept: boolean;
   highlightedIso: string | null;
   onDragStart: () => void;
@@ -1680,13 +1682,14 @@ function MemberCard({
     isoForCountry(member.nationality) === highlightedIso;
   return (
     <div
-      draggable
+      draggable={!readOnly}
       onDragStart={(e) => {
+        if (readOnly) return;
         e.dataTransfer.effectAllowed = "move";
         onDragStart();
       }}
       onClick={onClick}
-      className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border cursor-pointer select-none transition-all duration-150 ${isDragging ? "opacity-30 scale-95" : "hover:border-[#4A3F38]"} ${countryMatch ? "bg-cyan-500/10 border-cyan-500/40" : crossDept ? "bg-[#FFD142]/5 border-[#FFD142]/25" : match ? "border-[#F0684D] bg-[#F0684D]/10" : highlightedIso ? "opacity-30 border-[#3D3330] bg-[#2A2724]" : "border-[#3D3330] bg-[#2A2724]"}`}
+      className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border ${readOnly ? "cursor-default" : "cursor-pointer"} select-none transition-all duration-150 ${isDragging ? "opacity-30 scale-95" : "hover:border-[#4A3F38]"} ${countryMatch ? "bg-cyan-500/10 border-cyan-500/40" : crossDept ? "bg-[#FFD142]/5 border-[#FFD142]/25" : match ? "border-[#F0684D] bg-[#F0684D]/10" : highlightedIso ? "opacity-30 border-[#3D3330] bg-[#2A2724]" : "border-[#3D3330] bg-[#2A2724]"}`}
     >
       <Avatar member={member} size="sm" crossDept={crossDept} />
       <div className="flex-1 min-w-0">
@@ -1778,6 +1781,7 @@ function DropSlot({
 function DeptColumn({
   organizationId,
   dept,
+  readOnly = false,
   color,
   members,
   subLeadId,
@@ -1798,6 +1802,7 @@ function DeptColumn({
 }: {
   organizationId: string;
   dept: string;
+  readOnly?: boolean;
   color: string;
   members: Member[];
   subLeadId: string | null;
@@ -1828,7 +1833,7 @@ function DeptColumn({
     <>
       <div
         onDragOver={(e) => {
-          if (draggingId) {
+          if (!readOnly && draggingId) {
             e.preventDefault();
             setDragTarget({ kind: "dept", dept });
           }
@@ -1839,7 +1844,7 @@ function DeptColumn({
         }}
         onDrop={(e) => {
           e.preventDefault();
-          onDrop(dept);
+          if (!readOnly) onDrop(dept);
         }}
         className={`flex flex-col gap-2 rounded-2xl border p-3 transition-all min-w-[190px] max-w-[230px] flex-1 ${isDeptTarget ? "border-[#F0684D] bg-[#F0684D]/5" : "border-[#3D3330] bg-[#232120]"}`}
       >
@@ -1857,19 +1862,21 @@ function DeptColumn({
           >
             {members.length}
           </span>
-          <button
-            onClick={() => setShowRemoveDept(true)}
-            className="w-4 h-4 flex items-center justify-center rounded text-[#4A3F38] hover:text-rose-400 hover:bg-rose-400/10 text-[10px] shrink-0"
-          >
-            ✕
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setShowRemoveDept(true)}
+              className="w-4 h-4 flex items-center justify-center rounded text-[#4A3F38] hover:text-rose-400 hover:bg-rose-400/10 text-[10px] shrink-0"
+            >
+              ✕
+            </button>
+          )}
         </div>
         <div>
           <div className="flex items-center justify-between mb-1">
             <div className="text-[9px] font-semibold text-[#7A6555] uppercase tracking-wider">
               Sub-lead
             </div>
-            {subLead && (
+            {!readOnly && subLead && (
               <button
                 onClick={() => setShowRemoveSublead(true)}
                 className="text-[9px] text-[#4A3F38] hover:text-rose-400 transition-colors px-1"
@@ -1880,23 +1887,30 @@ function DeptColumn({
           </div>
           <DropSlot
             label="sub-lead"
-            active={isSubTarget}
-            onDragOver={() => setDragTarget({ kind: "sublead", dept })}
-            onDragLeave={() => {
-              if (isSubTarget) setDragTarget(null);
+            active={!readOnly && isSubTarget}
+            onDragOver={() => {
+              if (!readOnly) setDragTarget({ kind: "sublead", dept });
             }}
-            onDrop={() => onDropSublead(dept)}
+            onDragLeave={() => {
+              if (!readOnly && isSubTarget) setDragTarget(null);
+            }}
+            onDrop={() => {
+              if (!readOnly) onDropSublead(dept);
+            }}
           >
             {subLead && (
               <MemberCard
                 member={subLead}
                 q={q}
                 isDragging={draggingId === subLead.id}
+                readOnly={readOnly}
                 crossDept={isCrossDept(subLead)}
                 highlightedIso={highlightedIso}
                 onDragStart={() => onDragStart(subLead.id)}
                 onClick={() => onMemberClick(subLead)}
-                onRemove={() => onRemoveSubLead(subLead.id, dept)}
+                onRemove={
+                  readOnly ? undefined : () => onRemoveSubLead(subLead.id, dept)
+                }
                 removeLabel={`Release ${subLead.name} as sub-lead of ${dept}`}
               />
             )}
@@ -1912,11 +1926,14 @@ function DeptColumn({
               member={m}
               q={q}
               isDragging={draggingId === m.id}
+              readOnly={readOnly}
               crossDept={isCrossDept(m)}
               highlightedIso={highlightedIso}
               onDragStart={() => onDragStart(m.id)}
               onClick={() => onMemberClick(m)}
-              onRemove={() => onRemoveMemberFromDept(m.id, dept)}
+              onRemove={
+                readOnly ? undefined : () => onRemoveMemberFromDept(m.id, dept)
+              }
               removeLabel={`Remove ${m.name} from ${dept}`}
             />
           ))}
@@ -2027,6 +2044,7 @@ function LeadershipTree({
   advisor,
   lead,
   treasurer,
+  readOnly = false,
   draggingId,
   dragTarget,
   onDragStart,
@@ -2038,6 +2056,7 @@ function LeadershipTree({
   advisor: Member | null;
   lead: Member | null;
   treasurer: Member | null;
+  readOnly?: boolean;
   draggingId: string | null;
   dragTarget: DragTarget | null;
   onDragStart: (id: string) => void;
@@ -2060,7 +2079,7 @@ function LeadershipTree({
       <div
         className={`w-52 rounded-2xl border px-3 py-2.5 ${active ? "border-[#FFD142] bg-[#FFD142]/10" : "border-[#3D3330] bg-[#232120]"}`}
         onDragOver={(event) => {
-          if (draggingId) {
+          if (!readOnly && draggingId) {
             event.preventDefault();
             setDragTarget({ kind: role });
           }
@@ -2070,7 +2089,7 @@ function LeadershipTree({
         }}
         onDrop={(event) => {
           event.preventDefault();
-          onDropRole(role);
+          if (!readOnly) onDropRole(role);
         }}
       >
         <div className="mb-1.5 font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
@@ -2081,11 +2100,16 @@ function LeadershipTree({
             member={member}
             q=""
             isDragging={draggingId === member.id}
+            readOnly={readOnly}
             crossDept={false}
             highlightedIso={null}
             onDragStart={() => onDragStart(member.id)}
-            onClick={() => onRoleClick(member, role)}
-            onRemove={() => onReleaseRole(member.id, role, true)}
+            onClick={
+              readOnly ? () => undefined : () => onRoleClick(member, role)
+            }
+            onRemove={
+              readOnly ? undefined : () => onReleaseRole(member.id, role, true)
+            }
             removeLabel={`Release ${member.name} as ${label.toLowerCase()}`}
           />
         ) : (
@@ -2117,6 +2141,7 @@ function LeadershipTree({
                 member={lead}
                 q=""
                 isDragging={false}
+                readOnly={readOnly}
                 crossDept={false}
                 highlightedIso={null}
                 onDragStart={() => onDragStart(lead.id)}
@@ -2143,6 +2168,7 @@ function LeadershipTree({
 
 function NonAssignedMembers({
   members,
+  readOnly = false,
   q,
   draggingId,
   active,
@@ -2153,6 +2179,7 @@ function NonAssignedMembers({
   setDragTarget,
 }: {
   members: Member[];
+  readOnly?: boolean;
   q: string;
   draggingId: string | null;
   active: boolean;
@@ -2169,7 +2196,7 @@ function NonAssignedMembers({
         if (active) setDragTarget(null);
       }}
       onDragOver={(event) => {
-        if (draggingId) {
+        if (!readOnly && draggingId) {
           event.preventDefault();
           setDragTarget({ kind: "unassigned" });
         }
@@ -2196,6 +2223,7 @@ function NonAssignedMembers({
             isDragging={draggingId === member.id}
             key={member.id}
             member={member}
+            readOnly={readOnly}
             onClick={() => onMemberClick(member)}
             onDragStart={() => onDragStart(member.id)}
             q={q}
@@ -2277,6 +2305,7 @@ export function MembersPage({
   initialDepartmentIds,
   initialOrganizationId,
   organizationSlug,
+  readOnly = false,
   initialMembers,
   initialDepartments,
   initialTeams,
@@ -2288,6 +2317,7 @@ export function MembersPage({
   initialDepartmentIds: Record<string, string>;
   initialOrganizationId: string;
   organizationSlug: string;
+  readOnly?: boolean;
   initialTeams: TeamAssignment[];
   teamHistory: TeamHistorySnapshot[];
   leadMemberId: string | null;
@@ -2759,12 +2789,14 @@ export function MembersPage({
     >
       {/* Toolbar */}
       <div className="flex items-center gap-2 mb-3 shrink-0">
-        <button
-          onClick={() => setAddingDept(true)}
-          className="px-3 py-2 rounded-xl bg-[#2A2724] border border-[#3D3330] text-xs text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] transition-colors"
-        >
-          + Add Department
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setAddingDept(true)}
+            className="px-3 py-2 rounded-xl bg-[#2A2724] border border-[#3D3330] text-xs text-[#9C8272] hover:text-[#FFEDD1] hover:border-[#4A3F38] transition-colors"
+          >
+            + Add Department
+          </button>
+        )}
         <div className="flex-1" />
         <div className="relative">
           <input
@@ -2785,12 +2817,14 @@ export function MembersPage({
             </button>
           )}
         </div>
-        <button
-          onClick={() => setShowInvite((o) => !o)}
-          className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${showInvite ? "bg-[#F0684D] text-white border-[#F0684D]" : "bg-[#2A2724] border-[#3D3330] text-[#FFEDD1] hover:border-[#4A3F38]"}`}
-        >
-          Invite Members
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setShowInvite((o) => !o)}
+            className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${showInvite ? "bg-[#F0684D] text-white border-[#F0684D]" : "bg-[#2A2724] border-[#3D3330] text-[#FFEDD1] hover:border-[#4A3F38]"}`}
+          >
+            Invite Members
+          </button>
+        )}
       </div>
 
       {/* Body */}
@@ -2862,6 +2896,7 @@ export function MembersPage({
                 advisor={roleMember("isAdvisor")}
                 dragTarget={dragTarget}
                 draggingId={draggingId}
+                readOnly={readOnly}
                 lead={
                   members.find((member) => member.id === leadMemberId) ?? null
                 }
@@ -2892,6 +2927,7 @@ export function MembersPage({
                     <DeptColumn
                       organizationId={initialOrganizationId}
                       dept={dept}
+                      readOnly={readOnly}
                       color={deptColors[dept] ?? "#888"}
                       members={membersByDept(dept)}
                       subLeadId={
@@ -2913,7 +2949,9 @@ export function MembersPage({
                       onDrop={handleDrop}
                       onDropSublead={handleDropSublead}
                       onDragStart={setDraggingId}
-                      onMemberClick={setActionMember}
+                      onMemberClick={
+                        readOnly ? () => undefined : setActionMember
+                      }
                       onRemoveDept={(d, password) =>
                         removeDepartment(d, password).catch(() => undefined)
                       }
@@ -2929,9 +2967,10 @@ export function MembersPage({
                     draggingId={draggingId}
                     highlightedIso={selectedCountryIso}
                     members={unassignedMembers}
+                    readOnly={readOnly}
                     onDragStart={setDraggingId}
                     onDrop={handleDropUnassigned}
-                    onMemberClick={setActionMember}
+                    onMemberClick={readOnly ? () => undefined : setActionMember}
                     q={q}
                     setDragTarget={setDragTarget}
                   />
@@ -2942,7 +2981,7 @@ export function MembersPage({
         </div>
 
         {/* Right invite panel */}
-        {showInvite && (
+        {!readOnly && showInvite && (
           <InvitePanel
             departmentIds={departmentIds}
             depts={departments.filter(
