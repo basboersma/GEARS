@@ -42,6 +42,8 @@ export interface DashboardData {
 interface DashboardDataContextValue extends DashboardData {
   addNotification: (notification: AppNotification) => void;
   dismissNotification: (id: string) => void;
+  upsertTodo: (todo: TodoItem) => void;
+  removeTodo: (id: string) => void;
 }
 
 const DashboardDataContext = createContext<DashboardDataContextValue | null>(
@@ -56,11 +58,13 @@ export function DashboardDataProvider({
   value: DashboardData;
 }) {
   const [notifications, setNotifications] = useState(value.notifications);
+  const [todos, setTodos] = useState(value.todos);
 
   return (
     <DashboardDataContext.Provider
       value={{
         ...value,
+        todos,
         notifications,
         addNotification: (notification) =>
           setNotifications((current) => [notification, ...current]),
@@ -68,6 +72,14 @@ export function DashboardDataProvider({
           setNotifications((current) =>
             current.filter((notification) => notification.id !== id)
           ),
+        upsertTodo: (todo) =>
+          setTodos((current) =>
+            current.some((item) => item.id === todo.id)
+              ? current.map((item) => (item.id === todo.id ? todo : item))
+              : [...current, todo]
+          ),
+        removeTodo: (id) =>
+          setTodos((current) => current.filter((todo) => todo.id !== id)),
       }}
     >
       {children}

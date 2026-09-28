@@ -17,7 +17,7 @@ import { useDashboardData } from "./dashboard-data-context";
 import { addDays, diffDays, formatDate, MONTH_NAMES, parseDate } from "./data";
 import { MiniCalPicker } from "./MiniCalPicker";
 import { Field, Inp, ModalHeader, ModalShell, Sel } from "./shared";
-import type { RoadmapItem } from "./types";
+import type { RoadmapItem, Subtask, TodoItem } from "./types";
 
 const DEPT_COL_W = 110;
 const ROW_H = 26;
@@ -66,7 +66,7 @@ function assignRows(items: RoadmapItem[]): (RoadmapItem & { row: number })[] {
 interface FormProps {
   initial?: RoadmapItem;
   departments: string[];
-  onSave: (item: RoadmapItem) => Promise<void>;
+  onSave: (item: RoadmapItem, subtasks: Subtask[] | null) => Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -88,10 +88,25 @@ function RoadmapForm({
     progress: 0,
   };
   const [item, setItem] = useState<RoadmapItem>(initial ?? blank);
+  const [todoEnabled, setTodoEnabled] = useState(initial?.todoEnabled ?? true);
+  const [subtasks, setSubtasks] = useState<Subtask[]>(
+    initial?.todoSubtasks ?? []
+  );
+  const [newSubtask, setNewSubtask] = useState("");
   const [showStart, setShowStart] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
   const set = (p: Partial<RoadmapItem>) =>
     setItem((prev) => ({ ...prev, ...p }));
+  const addSubtask = () => {
+    if (!newSubtask.trim()) {
+      return;
+    }
+    setSubtasks((current) => [
+      ...current,
+      { id: Date.now().toString(), text: newSubtask.trim(), done: false },
+    ]);
+    setNewSubtask("");
+  };
   const fmtBtn = (d: string) =>
     d
       ? parseDate(d).toLocaleDateString("en-GB", {
@@ -188,6 +203,73 @@ function RoadmapForm({
             value={item.progress}
           />
         </Field>
+        <div className="space-y-2 border-[#3D3330] border-t pt-3">
+          <label className="flex items-center gap-2 font-semibold text-[#C4A882] text-sm">
+            <input
+              checked={todoEnabled}
+              className="h-4 w-4 accent-[#F0684D]"
+              onChange={(e) => setTodoEnabled(e.target.checked)}
+              type="checkbox"
+            />
+            Add to Todo list
+          </label>
+          {todoEnabled && (
+            <div className="space-y-2 rounded-lg border border-[#3D3330] bg-[#232120] p-3">
+              <div className="text-[#7A6555] text-xs">
+                Todo title:{" "}
+                <span className="text-[#FFEDD1]">
+                  {item.title || "Item title"}
+                </span>
+              </div>
+              {subtasks.map((subtask) => (
+                <div className="group flex items-center gap-2" key={subtask.id}>
+                  <button
+                    className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${subtask.done ? "border-[#F0684D] bg-[#F0684D]" : "border-[#D4B896] bg-transparent"}`}
+                    onClick={() =>
+                      setSubtasks((current) =>
+                        current.map((entry) =>
+                          entry.id === subtask.id
+                            ? { ...entry, done: !entry.done }
+                            : entry
+                        )
+                      )
+                    }
+                  />
+                  <span
+                    className={`flex-1 text-xs ${subtask.done ? "text-[#7A6555] line-through" : "text-[#FFEDD1]"}`}
+                  >
+                    {subtask.text}
+                  </span>
+                  <button
+                    className="text-[#7A6555] text-xs opacity-0 transition-opacity hover:text-[#F0684D] group-hover:opacity-100"
+                    onClick={() =>
+                      setSubtasks((current) =>
+                        current.filter((entry) => entry.id !== subtask.id)
+                      )
+                    }
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input
+                  className="min-w-0 flex-1 rounded-lg border border-[#3D3330] bg-[#141212] px-3 py-1.5 text-[#FFEDD1] text-xs placeholder:text-[#7A6555] focus:border-[#F0684D] focus:outline-none"
+                  onChange={(e) => setNewSubtask(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSubtask()}
+                  placeholder="Add subtask…"
+                  value={newSubtask}
+                />
+                <button
+                  className="rounded-lg border border-[#3D3330] bg-[#141212] px-3 py-1.5 text-[#C4A882] text-xs transition-colors hover:border-[#F0684D]/40 hover:text-[#F0684D]"
+                  onClick={addSubtask}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-[#C4A882] text-sm">
           <span
             className="h-3 w-3 rounded-full"
@@ -215,7 +297,7 @@ function RoadmapForm({
           className="flex-1 rounded-xl bg-[#F0684D] py-2 font-medium text-sm text-white transition-colors hover:bg-[#E05538]"
           onClick={async () => {
             if (item.title.trim()) {
-              await onSave(item);
+              await onSave(item, todoEnabled ? subtasks : null);
             }
           }}
         >
@@ -235,7 +317,8 @@ interface DragState {
 }
 
 export function RoadmapBlock() {
-  const { departments, organizationId, roadmap } = useDashboardData();
+  const { departments, organizationId, removeTodo, roadmap, upsertTodo } =
+    useDashboardData();
   const [items, setItems] = useState<RoadmapItem[]>(roadmap);
   const [viewStart, setViewStart] = useState<Date>(() => {
     const d = new Date();
@@ -318,27 +401,56 @@ export function RoadmapBlock() {
   const shiftDate = (dateStr: string, days: number): string =>
     formatDate(addDays(parseDate(dateStr), days));
 
-  const saveItem = async (item: RoadmapItem) => {
+  const saveItem = async (
+    item: RoadmapItem,
+    todoSubtasks?: Subtask[] | null
+  ) => {
     const isExisting = items.some((existing) => existing.id === item.id);
-    const { id: temporaryId, ...newItem } = item;
+    const temporaryId = item.id;
+    const newItem = {
+      title: item.title,
+      department: item.department,
+      startDate: item.startDate,
+      endDate: item.endDate,
+      color: item.color,
+      progress: item.progress,
+    };
     const response = await fetch("/api/owner-dashboard/roadmap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...(isExisting ? { ...newItem, id: temporaryId } : newItem),
         organizationId,
+        ...(todoSubtasks !== undefined ? { todoSubtasks } : {}),
       }),
     });
     if (!response.ok) {
       return;
     }
-    const { id } = (await response.json()) as { id: string };
-    const persistedItem = { ...item, id };
+    const { id, todo } = (await response.json()) as {
+      id: string;
+      todo?: TodoItem | null;
+    };
+    const persistedItem = {
+      ...item,
+      id,
+      ...(todoSubtasks !== undefined
+        ? {
+            todoEnabled: todoSubtasks !== null,
+            todoSubtasks: todoSubtasks ?? undefined,
+          }
+        : {}),
+    };
     setItems((prev) =>
       prev.some((x) => x.id === item.id)
         ? prev.map((x) => (x.id === item.id ? persistedItem : x))
         : [...prev, persistedItem]
     );
+    if (todo) {
+      upsertTodo(todo);
+    } else if (todoSubtasks === null) {
+      removeTodo(`roadmap:${id}`);
+    }
     setCreating(false);
     setEditing(null);
   };

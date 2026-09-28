@@ -7,7 +7,7 @@ import {
   lastLoginMethod,
   organization as organizationPlugin,
 } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { ReactElement } from "react";
 import { Resend } from "resend";
 import OrganizationInvitationEmail from "@/components/emails/organization-invitation";
@@ -20,6 +20,7 @@ import {
   organization as organizationTable,
   schema,
 } from "@/db/schema";
+import { createOrganizationGithubRepository } from "@/lib/github";
 import { createOrganizationDriveFolders } from "@/lib/google-drive";
 import { recordMembershipJoin } from "@/server/membership-history";
 import {
@@ -223,6 +224,18 @@ export const auth = betterAuth({
     organizationPlugin({
       //organizationOnly: false,
       organizationCreation: {
+        beforeCreate: async ({ organization }) => {
+          const organizationName = organization.name.trim();
+          const existingOrganization = await db.query.organization.findFirst({
+            where: sql`lower(${organizationTable.name}) = lower(${organizationName})`,
+          });
+
+          if (existingOrganization) {
+            throw new Error("An organization with this name already exists.");
+          }
+
+          return { data: { name: organizationName } };
+        },
         afterCreate: async ({ organization }) => {
           const ownerMembership = await db.query.member.findFirst({
             where: eq(memberTable.organizationId, organization.id),
@@ -230,6 +243,11 @@ export const auth = betterAuth({
           if (ownerMembership) {
             await recordMembershipJoin(ownerMembership);
           }
+
+          await createOrganizationGithubRepository({
+            name: organization.slug,
+            description: `${organization.name} organization repository`,
+          });
 
           const result = await createOrganizationDriveFolders({
             name: organization.name,

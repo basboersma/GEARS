@@ -1,6 +1,6 @@
 import { and, asc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import type { DashboardData } from "@/components/owner-dashboard/dashboard-data-context";
-import type { FileTreeNode } from "@/components/owner-dashboard/types";
+import type { FileTreeNode, Subtask } from "@/components/owner-dashboard/types";
 import { db } from "@/db/drizzle";
 import {
   agendaDiscussionPoint,
@@ -31,6 +31,24 @@ function parseArray(value: string): string[] {
     return Array.isArray(parsed) &&
       parsed.every((item) => typeof item === "string")
       ? parsed
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseSubtasks(value: string): Subtask[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item): item is Subtask =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof item.id === "string" &&
+            typeof item.text === "string" &&
+            typeof item.done === "boolean"
+        )
       : [];
   } catch {
     return [];
@@ -293,6 +311,7 @@ export async function getOwnerDashboardData(
       return [{ ...node }];
     }
   );
+  const todosById = new Map(todoRows.map((row) => [row.id, row]));
 
   return {
     organizationId,
@@ -411,6 +430,10 @@ export async function getOwnerDashboardData(
       endDate: row.endDate,
       color: row.color,
       progress: row.progress,
+      todoEnabled: todosById.has(`roadmap:${row.id}`),
+      todoSubtasks: parseSubtasks(
+        todosById.get(`roadmap:${row.id}`)?.subtasks ?? "[]"
+      ),
     })),
     orders: orderRows.map((row) => ({
       id: row.id,

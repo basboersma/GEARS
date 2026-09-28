@@ -1,18 +1,10 @@
-// biome-ignore-all lint/a11y/noLabelWithoutControl: Preserves the reference dashboard interaction design.
-// biome-ignore-all lint/a11y/noNoninteractiveElementInteractions: Preserves the reference dashboard modal interaction design.
-// biome-ignore-all lint/a11y/noStaticElementInteractions: Preserves the reference dashboard modal interaction design.
+// biome-ignore-all lint/a11y/noNoninteractiveElementInteractions: Preserves the reference dashboard drag-and-drop interaction design.
+// biome-ignore-all lint/a11y/noStaticElementInteractions: Preserves the reference dashboard drag-and-drop interaction design.
 // biome-ignore-all lint/a11y/noSvgWithoutTitle: Preserves the reference dashboard visual assets.
 // biome-ignore-all lint/a11y/useButtonType: Preserves the reference dashboard controls.
-// biome-ignore-all lint/a11y/useKeyWithClickEvents: Preserves the reference dashboard modal interaction design.
+// biome-ignore-all lint/a11y/useKeyWithClickEvents: Preserves the reference dashboard interaction design.
 // biome-ignore-all lint/complexity/noExcessiveCognitiveComplexity: Preserves the reference dashboard component structure.
-// biome-ignore-all lint/complexity/noForEach: Preserves the reference dashboard data flow.
-// biome-ignore-all lint/correctness/useExhaustiveDependencies: Preserves the reference dashboard interaction timing.
-// biome-ignore-all lint/suspicious/noArrayIndexKey: Preserves the reference dashboard list rendering.
-// biome-ignore-all lint/suspicious/noExplicitAny: Preserves the reference dashboard chart library contract.
-// biome-ignore-all lint/style/noNestedTernary: Preserves the reference dashboard visual state expressions.
-// biome-ignore-all lint/style/noNonNullAssertion: Preserves the reference dashboard data contract.
 // biome-ignore-all lint/style/useFilenamingConvention: Preserves the reference dashboard source names.
-// biome-ignore-all lint/a11y/noAutofocus: Preserves the reference dashboard rename workflow.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDashboardData } from "./dashboard-data-context";
 import type { FileTreeNode } from "./types";
@@ -50,13 +42,15 @@ function addToFolder(
   if (folderId === null) {
     return [...nodes, node];
   }
-  return nodes.map((n) =>
-    n.kind === "folder"
-      ? n.id === folderId
-        ? { ...n, children: [...n.children, node] }
-        : { ...n, children: addToFolder(n.children, folderId, node) }
-      : n
-  );
+  return nodes.map((n) => {
+    if (n.kind !== "folder") {
+      return n;
+    }
+    if (n.id === folderId) {
+      return { ...n, children: [...n.children, node] };
+    }
+    return { ...n, children: addToFolder(n.children, folderId, node) };
+  });
 }
 
 function renameNode(
@@ -427,10 +421,95 @@ function ConnectedTreeNode(
   );
 }
 
+function GithubTreeNode({
+  node,
+  depth,
+  q,
+}: {
+  node: FileTreeNode;
+  depth: number;
+  q: string;
+}) {
+  const [open, setOpen] = useState(depth === 0);
+  if (!matchesSearch(node, q)) {
+    return null;
+  }
+  const indent = depth * 14;
+
+  if (node.kind === "file") {
+    return (
+      <a
+        className="group flex items-center gap-2 rounded-lg py-1 hover:bg-[#2A2724]"
+        href={node.url}
+        rel="noreferrer"
+        style={{ paddingLeft: indent + 8, paddingRight: 6 }}
+        target="_blank"
+      >
+        <span
+          className={`w-6 shrink-0 font-bold text-[9px] ${FILE_COLOR[node.type]}`}
+        >
+          {FILE_ICON[node.type]}
+        </span>
+        <span className="flex-1 truncate text-[#C4A882] text-[11px] group-hover:text-[#FFEDD1]">
+          {node.name}
+        </span>
+        <span className="mr-1 shrink-0 text-[#4A3F38] text-[9px]">
+          {node.size}
+        </span>
+      </a>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        className="group flex w-full items-center gap-2 rounded-lg py-1 text-left hover:bg-[#2A2724]"
+        onClick={() => setOpen((value) => !value)}
+        style={{ paddingLeft: indent + 8, paddingRight: 6 }}
+        type="button"
+      >
+        <span
+          className="w-3 shrink-0 text-[#7A6555] text-[9px] transition-transform duration-150"
+          style={{ transform: open ? "rotate(90deg)" : "none" }}
+        >
+          ▶
+        </span>
+        <span className="text-[#FFD142]/70 text-xs">■</span>
+        <span className="flex-1 truncate font-medium text-[#FFEDD1] text-[11px]">
+          {node.name}
+        </span>
+        <span className="shrink-0 text-[#4A3F38] text-[9px]">
+          {node.children?.length ?? 0}
+        </span>
+      </button>
+      {open && node.children && (
+        <div className="relative">
+          <div
+            className="absolute top-0 bottom-0 w-px bg-[#3D3330]"
+            style={{ left: indent + 16 }}
+          />
+          {node.children.map((child) => (
+            <GithubTreeNode
+              depth={depth + 1}
+              key={child.id}
+              node={child}
+              q={q}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── FilesBlock ───────────────────────────────────────────────────────────────
 
 export function FilesBlock() {
   const { driveFolderId, fileTree, organizationId } = useDashboardData();
+  const [source, setSource] = useState<"google" | "github">("google");
+  const [githubTree, setGithubTree] = useState<FileTreeNode[] | null>(null);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const [githubError, setGithubError] = useState<string | null>(null);
   const [tree, setTree] = useState<FileTreeNode[]>(fileTree);
   const [q, setQ] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -442,6 +521,72 @@ export function FilesBlock() {
     FileTreeNode,
     { kind: "file" }
   > | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setGithubLoading(true);
+    fetch(`/api/owner-dashboard/github-files?organizationId=${organizationId}`)
+      .then(async (response) => {
+        const payload = (await response.json()) as {
+          available?: boolean;
+          tree?: {
+            kind: "folder" | "file";
+            id: string;
+            name: string;
+            size?: number;
+            url: string;
+            children?: unknown[];
+          }[];
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(
+            payload.error ?? "The GitHub tree could not be loaded."
+          );
+        }
+        if (!cancelled && payload.available) {
+          const mapNode = (
+            node: NonNullable<typeof payload.tree>[number]
+          ): FileTreeNode =>
+            node.kind === "folder"
+              ? {
+                  kind: "folder",
+                  id: node.id,
+                  name: node.name,
+                  children: (node.children ?? []).map((child) =>
+                    mapNode(child as NonNullable<typeof payload.tree>[number])
+                  ),
+                }
+              : {
+                  kind: "file",
+                  id: node.id,
+                  name: node.name,
+                  type: "other",
+                  size: node.size ? `${node.size} bytes` : "",
+                  modified: "",
+                  url: node.url,
+                };
+          setGithubTree((payload.tree ?? []).map(mapNode));
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setGithubError(
+            error instanceof Error
+              ? error.message
+              : "The GitHub tree could not be loaded."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setGithubLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
 
   const handleDrop = useCallback(
     (targetFolderId: string) => {
@@ -560,9 +705,23 @@ export function FilesBlock() {
 
   return (
     <div className="flex h-full flex-col" onDragEnd={() => setDraggingId(null)}>
-      <h2 className="mb-2 shrink-0 font-semibold text-[#FFEDD1] text-sm">
-        Files
-      </h2>
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+        <h2 className="font-semibold text-[#FFEDD1] text-sm">Files</h2>
+        {githubTree && (
+          <div className="flex rounded-lg border border-[#3D3330] bg-[#232120] p-0.5">
+            {(["google", "github"] as const).map((value) => (
+              <button
+                className={`rounded-md px-2 py-1 font-medium text-[10px] transition-colors ${source === value ? "bg-[#F0684D] text-white" : "text-[#7A6555] hover:text-[#FFEDD1]"}`}
+                key={value}
+                onClick={() => setSource(value)}
+                type="button"
+              >
+                {value === "google" ? "Google Drive" : "GitHub"}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="relative mb-2 shrink-0">
         <input
           className="w-full rounded-lg border border-[#3D3330] bg-[#232120] py-1.5 pr-3 pl-3 text-[#FFEDD1] text-xs transition-colors placeholder:text-[#7A6555] focus:border-[#F0684D] focus:outline-none"
@@ -574,49 +733,65 @@ export function FilesBlock() {
 
       {/* Tree */}
       <div className="-mx-1 min-h-0 flex-1 overflow-auto px-1">
-        {tree.map((node) => (
-          <ConnectedTreeNode
-            depth={0}
-            draggingId={draggingId}
-            key={node.id}
-            node={node}
-            onDragStart={setDraggingId}
-            onDrop={handleDrop}
-            onLocalDrop={handleLocalDrop}
-            onMenuOpen={(nodeId, x, y) => {
-              setMenu({ nodeId, x, y });
-            }}
-            onPreview={setPreview}
-            onRenameCommit={handleRenameCommit}
-            q={q}
-            renamingId={renamingId}
-          />
-        ))}
+        {source === "github"
+          ? githubTree?.map((node) => (
+              <GithubTreeNode depth={0} key={node.id} node={node} q={q} />
+            ))
+          : tree.map((node) => (
+              <ConnectedTreeNode
+                depth={0}
+                draggingId={draggingId}
+                key={node.id}
+                node={node}
+                onDragStart={setDraggingId}
+                onDrop={handleDrop}
+                onLocalDrop={handleLocalDrop}
+                onMenuOpen={(nodeId, x, y) => {
+                  setMenu({ nodeId, x, y });
+                }}
+                onPreview={setPreview}
+                onRenameCommit={handleRenameCommit}
+                q={q}
+                renamingId={renamingId}
+              />
+            ))}
       </div>
 
       {/* Root drop zone for local files */}
-      <div
-        className={`mt-2 shrink-0 rounded-xl border border-dashed py-2 text-center text-[9px] transition-colors ${rootDragOver ? "border-[#F0684D] bg-[#F0684D]/8 text-[#F0684D]" : "border-[#3D3330] text-[#4A3F38]"}`}
-        onDragLeave={() => setRootDragOver(false)}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (e.dataTransfer.types.includes("Files")) {
-            setRootDragOver(true);
-          }
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setRootDragOver(false);
-          if (e.dataTransfer.files.length) {
-            handleLocalDrop(null, e.dataTransfer.files);
-          }
-        }}
-      >
-        Drop file here to add to root
-      </div>
-      {uploadError && (
+      {source === "google" && (
+        <div
+          className={`mt-2 shrink-0 rounded-xl border border-dashed py-2 text-center text-[9px] transition-colors ${rootDragOver ? "border-[#F0684D] bg-[#F0684D]/8 text-[#F0684D]" : "border-[#3D3330] text-[#4A3F38]"}`}
+          onDragLeave={() => setRootDragOver(false)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (e.dataTransfer.types.includes("Files")) {
+              setRootDragOver(true);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setRootDragOver(false);
+            if (e.dataTransfer.files.length) {
+              handleLocalDrop(null, e.dataTransfer.files);
+            }
+          }}
+        >
+          Drop file here to add to root
+        </div>
+      )}
+      {source === "google" && uploadError && (
         <p className="mt-1 text-[#F0684D] text-[10px]" role="alert">
           {uploadError}
+        </p>
+      )}
+      {source === "github" && githubLoading && (
+        <p className="mt-1 text-[#7A6555] text-[10px]">
+          Loading GitHub tree...
+        </p>
+      )}
+      {source === "github" && githubError && (
+        <p className="mt-1 text-[#F0684D] text-[10px]" role="alert">
+          {githubError}
         </p>
       )}
 

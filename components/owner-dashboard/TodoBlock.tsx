@@ -138,11 +138,12 @@ export function TodoBlock() {
     addNotification,
     members,
     organizationId,
-    todos: initialTodos,
+    removeTodo,
+    todos,
+    upsertTodo,
   } = useDashboardData();
   const memberIdx = (id: string) =>
     members.findIndex((member) => member.id === id);
-  const [todos, setTodos] = useState<TodoItem[]>(initialTodos);
   const [modal, setModal] = useState<"new" | TodoItem | null>(null);
   const [tab, setTab] = useState<"active" | "previous">("active");
 
@@ -193,20 +194,20 @@ export function TodoBlock() {
         );
       }
     }
-    setTodos((p) =>
-      p.some((t) => t.id === item.id)
-        ? p.map((t) => (t.id === item.id ? persistedItem : t))
-        : [...p, persistedItem]
-    );
+    upsertTodo(persistedItem);
     setModal(null);
     return null;
   };
   const remove = (id: string) => {
-    setTodos((p) => p.filter((t) => t.id !== id));
+    removeTodo(id);
     setModal(null);
   };
-  const toggle = (id: string) =>
-    setTodos((p) => p.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  const toggle = (id: string) => {
+    const todo = todos.find((item) => item.id === id);
+    if (todo) {
+      upsertTodo({ ...todo, done: !todo.done });
+    }
+  };
   const toggleSubtask = async (todoId: string, stId: string) => {
     const todo = todos.find((item) => item.id === todoId);
     const subtask = todo?.subtasks.find((item) => item.id === stId);

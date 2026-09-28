@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 
 const formSchema = z.object({
-  name: z.string().min(2).max(50),
-  slug: z.string().min(2).max(50),
+  name: z.string().trim().min(2).max(50),
+  slug: z.string().trim().min(2).max(50),
 });
 
 export function CreateOrganizationForm() {
@@ -37,10 +37,14 @@ export function CreateOrganizationForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true);
-      await authClient.organization.create({
+      const result = await authClient.organization.create({
         name: values.name,
         slug: values.slug,
       });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
 
       toast.success("Organization created successfully");
     } catch (error) {

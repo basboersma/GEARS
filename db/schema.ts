@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   integer,
@@ -8,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -72,17 +73,25 @@ export const verification = pgTable("verification", {
   ),
 });
 
-export const organization = pgTable("organization", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  slug: text("slug").unique(),
-  logo: text("logo"),
-  createdAt: timestamp("created_at").notNull(),
-  metadata: text("metadata"),
-  budget: numeric("budget", { precision: 12, scale: 2 }).notNull().default("0"),
-  driveFolderId: text("drive_folder_id"),
-  driveMeetingsFolderId: text("drive_meetings_folder_id"),
-});
+export const organization = pgTable(
+  "organization",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").unique(),
+    logo: text("logo"),
+    createdAt: timestamp("created_at").notNull(),
+    metadata: text("metadata"),
+    budget: numeric("budget", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0"),
+    driveFolderId: text("drive_folder_id"),
+    driveMeetingsFolderId: text("drive_meetings_folder_id"),
+  },
+  (table) => [
+    uniqueIndex("organization_name_lower_unique").on(sql`lower(${table.name})`),
+  ]
+);
 
 export const organizationDepartment = pgTable("organization_department", {
   id: text("id").primaryKey(),

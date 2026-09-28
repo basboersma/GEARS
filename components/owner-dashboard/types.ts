@@ -150,6 +150,8 @@ export interface RoadmapItem {
   endDate: string;
   color: string;
   progress: number;
+  todoEnabled?: boolean;
+  todoSubtasks?: Subtask[];
 }
 
 export interface OrderLineItem {
