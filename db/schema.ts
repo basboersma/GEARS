@@ -549,6 +549,7 @@ export const reimbursementRequest = pgTable("reimbursement_request", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
+  orderName: text("order_name").notNull().default(""),
   name: text("name").notNull(),
   department: text("department").notNull().default(""),
   submittedBy: text("submitted_by").notNull(),

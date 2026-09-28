@@ -125,6 +125,8 @@ export function OwnerDashboardFrame({
   });
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
+  const showNotifications =
+    activePage !== "treasurer" && activePage !== "orders";
 
   return (
     <div
@@ -207,9 +209,11 @@ export function OwnerDashboardFrame({
         </header>
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
-          <aside className="flex h-56 shrink-0 flex-col border-white/8 border-t bg-[#141212] p-3 lg:h-auto lg:w-72 lg:border-t-0 lg:border-l">
-            <NotificationsBlock />
-          </aside>
+          {showNotifications && (
+            <aside className="flex h-56 shrink-0 flex-col border-white/8 border-t bg-[#141212] p-3 lg:h-auto lg:w-72 lg:border-t-0 lg:border-l">
+              <NotificationsBlock />
+            </aside>
+          )}
         </div>
       </div>
     </div>

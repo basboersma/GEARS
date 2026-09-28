@@ -51,13 +51,22 @@ export function ReimbursementForm({
         <span className="font-medium text-sm">Order name</span>
         <input
           aria-label="Order name"
-          name="name"
+          name="orderName"
           placeholder="Order name"
           required
         />
       </label>
+      <label className="grid gap-1">
+        <span className="font-medium text-sm">Item description</span>
+        <input
+          aria-label="Item description"
+          name="name"
+          placeholder="Item description"
+          required
+        />
+      </label>
       <input name="department" placeholder="Department" required />
-      <input name="link" placeholder="Link / URL" required />
+      <input name="link" placeholder="Link / URL (optional)" />
       <div className="grid grid-cols-2 gap-3">
         <input
           min="0"

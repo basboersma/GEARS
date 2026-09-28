@@ -245,6 +245,7 @@ export interface AppNotification {
 export interface ReimbursementRequest {
   id: string;
   organizationId: string;
+  orderName: string;
   name: string;
   department: string;
   submittedBy: string;

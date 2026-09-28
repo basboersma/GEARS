@@ -15,9 +15,10 @@ import { uploadReimbursementAttachment } from "@/lib/google-drive";
 const payloadSchema = z.object({
   id: z.string().uuid().optional(),
   organizationId: z.string().min(1),
+  orderName: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1).max(200),
   department: z.string().trim().min(1),
-  link: z.string().trim().min(1),
+  link: z.string().trim().default(""),
   pricePerPiece: z.coerce.number().nonnegative(),
   quantity: z.coerce.number().int().positive(),
   orderType: z.string().trim().min(1),
@@ -35,9 +36,10 @@ export async function POST(request: Request) {
   const parsed = payloadSchema.safeParse({
     id: form.get("id") || undefined,
     organizationId: form.get("organizationId"),
+    orderName: form.get("orderName"),
     name: form.get("name"),
     department: form.get("department"),
-    link: form.get("link"),
+    link: form.get("link") || "",
     pricePerPiece: form.get("pricePerPiece"),
     quantity: form.get("quantity"),
     orderType: form.get("orderType"),
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
   }
   const upload = await uploadReimbursementAttachment({
     organizationFolderId: organizationRow.driveFolderId,
-    orderName: parsed.data.name,
+    orderName: parsed.data.orderName,
     file,
   });
   if (!upload.success) {
@@ -120,6 +122,7 @@ export async function POST(request: Request) {
       id: parsed.data.id ?? crypto.randomUUID(),
       organizationId: parsed.data.organizationId,
       userId: session.user.id,
+      orderName: parsed.data.orderName,
       name: parsed.data.name,
       department: parsed.data.department,
       submittedBy: session.user.name,

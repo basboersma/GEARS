@@ -542,6 +542,7 @@ export async function getOwnerDashboardData(
     reimbursements: reimbursementRows.map((row) => ({
       id: row.id,
       organizationId: row.organizationId,
+      orderName: row.orderName,
       name: row.name,
       department: row.department,
       submittedBy: row.submittedBy,
@@ -555,7 +556,10 @@ export async function getOwnerDashboardData(
       denyComment: row.denyComment,
       paymentComment: row.paymentComment,
       submittedAt: row.createdAt.toISOString(),
-      imageUrl: findReimbursementImageUrl(googleDriveTree, row.name),
+      imageUrl: findReimbursementImageUrl(
+        googleDriveTree,
+        row.orderName || row.name
+      ),
     })),
     monthlySpend: Object.fromEntries(
       ["Total", ...departments].map((name) => [

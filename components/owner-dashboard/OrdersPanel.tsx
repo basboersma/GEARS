@@ -32,6 +32,7 @@ type Period = "1M" | "6M" | "1Y";
 
 interface Reimbursement {
   id: string;
+  orderName: string;
   name: string;
   department: string;
   submittedBy: string;
@@ -2567,7 +2568,6 @@ const reimbRowHasContent = (r: ReimbRow) =>
 const reimbRowIsComplete = (r: ReimbRow) =>
   Boolean(
     r.name.trim() &&
-      r.link.trim() &&
       r.pricePerPiece.trim() &&
       r.quantity.trim() &&
       r.orderType &&
@@ -2593,6 +2593,7 @@ function ReimbursementForm({
   const [file, setFile] = useState<File | null>(null);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [department, setDepartment] = useState("");
+  const [orderName, setOrderName] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
@@ -2623,6 +2624,7 @@ function ReimbursementForm({
       !filledRows.length ||
       !file ||
       !department ||
+      !orderName.trim() ||
       filledRows.some((row) => !reimbRowIsComplete(row))
     )
       return;
@@ -2632,6 +2634,7 @@ function ReimbursementForm({
       for (const row of filledRows) {
         const reimbursement = {
           id: crypto.randomUUID(),
+          orderName: orderName.trim(),
           name: row.name || "Unnamed",
           department,
           submittedBy: "Admin user",
@@ -2659,6 +2662,7 @@ function ReimbursementForm({
         setFile(null);
         setDataUrl(null);
         setDepartment("");
+        setOrderName("");
         setRows([mkReimbRow(), mkReimbRow(), mkReimbRow()]);
       }, 2000);
     } catch (error) {
@@ -2673,7 +2677,7 @@ function ReimbursementForm({
     if (!filledRows.length) return;
     const draft: Draft = {
       id: crypto.randomUUID(),
-      name: `Reimbursement – ${department || "Draft"}`,
+      name: orderName || `Reimbursement – ${department || "Draft"}`,
       department,
       rows: filledRows.map((r) => ({
         id: r.id,
@@ -2710,24 +2714,38 @@ function ReimbursementForm({
             Reimbursement Request
           </h2>
         </div>
-        <label className="flex flex-col gap-1 shrink-0">
-          <span className="font-mono text-[8.5px] text-[#7A6555] uppercase tracking-widest">
-            Department
-          </span>
-          <select
-            className={selectCls}
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            required
-          >
-            <option value="">Select…</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex flex-wrap items-end gap-2 shrink-0">
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[8.5px] text-[#7A6555] uppercase tracking-widest">
+              Order name
+            </span>
+            <input
+              className={selectCls}
+              onChange={(e) => setOrderName(e.target.value)}
+              placeholder="e.g. September supplies"
+              required
+              value={orderName}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[8.5px] text-[#7A6555] uppercase tracking-widest">
+              Department
+            </span>
+            <select
+              className={selectCls}
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              required
+            >
+              <option value="">Select…</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {/* Invoice drop zone — compact */}
@@ -2796,7 +2814,7 @@ function ReimbursementForm({
       >
         <span>#</span>
         <span>Description</span>
-        <span>Link / URL</span>
+        <span>Link / URL (optional)</span>
         <span>Price/pc</span>
         <span>Qty</span>
         <span>Type</span>
@@ -2820,9 +2838,8 @@ function ReimbursementForm({
             <input
               className={fieldCls}
               type="url"
-              placeholder="https://…"
+              placeholder="Optional URL"
               value={row.link}
-              required={reimbRowHasContent(row)}
               onChange={(e) => updateRow(i, { link: e.target.value })}
             />
             <input
@@ -2908,6 +2925,7 @@ function ReimbursementForm({
               !rows.some(reimbRowHasContent) ||
               !file ||
               !department ||
+              !orderName.trim() ||
               rows
                 .filter(reimbRowHasContent)
                 .some((row) => !reimbRowIsComplete(row))
@@ -2948,8 +2966,11 @@ function ReimbursementInvoicePopup({
       >
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-sm font-semibold text-[#FFEDD1]">{r.name}</h3>
+            <h3 className="text-sm font-semibold text-[#FFEDD1]">
+              {r.orderName || r.name}
+            </h3>
             <p className="text-[10px] text-[#7A6555]">
+              {r.name !== r.orderName && `Item: ${r.name} · `}
               {r.department} · {r.submittedBy}
             </p>
           </div>
@@ -3058,7 +3079,7 @@ function ReimbursementIncomingRow({
           <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
         )}
         <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
-          {reimbursement.name}
+          {reimbursement.orderName || reimbursement.name}
         </span>
         <span className="shrink-0 text-[10px] text-[#9C8272]">
           {reimbursement.submittedBy}
@@ -3084,6 +3105,8 @@ function ReimbursementIncomingRow({
             </div>
           )}
           <div className="grid grid-cols-2 gap-2 text-[10px] text-[#9C8272] sm:grid-cols-4">
+            <span>Item: {reimbursement.name}</span>
+            <span>Order: {reimbursement.orderName || reimbursement.name}</span>
             <span>Department: {reimbursement.department}</span>
             <span>Quantity: {reimbursement.quantity}</span>
             <span>Type: {reimbursement.orderType}</span>
@@ -3095,6 +3118,16 @@ function ReimbursementIncomingRow({
             </p>
           )}
           <p className="text-xs text-[#9C8272]">{reimbursement.comments}</p>
+          {reimbursement.paymentComment && (
+            <div className="rounded-lg border border-[#F0684D]/30 bg-[#F0684D]/10 px-3 py-2">
+              <p className="font-mono text-[9px] uppercase tracking-widest text-[#F0684D]">
+                Payment not received
+              </p>
+              <p className="mt-1 text-xs text-[#FFEDD1]">
+                {reimbursement.paymentComment}
+              </p>
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-end gap-2">
             {!isTreasurer && (
               <button
@@ -3281,6 +3314,7 @@ export function OrdersPanel({
     const form = new FormData();
     form.append("id", reimbursement.id);
     form.append("organizationId", organizationId);
+    form.append("orderName", reimbursement.orderName);
     form.append("name", reimbursement.name);
     form.append("department", reimbursement.department);
     form.append("link", reimbursement.link);
@@ -3647,7 +3681,9 @@ export function OrdersPanel({
     { id: "overview", label: "Overview" },
     { id: "incoming", label: "Incoming" },
     { id: "past", label: "Past Orders" },
-    { id: "additional-costs", label: "Additional costs" },
+    ...(isTreasurer
+      ? [{ id: "additional-costs" as const, label: "Additional costs" }]
+      : []),
     ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
     ...(!isTreasurer ? [{ id: "reimburse" as const, label: "Reimburse" }] : []),
   ];
@@ -3912,7 +3948,7 @@ export function OrdersPanel({
                 )}
               </div>
             )}
-            {tab === "additional-costs" && (
+            {tab === "additional-costs" && isTreasurer && (
               <AdditionalCostsPanel
                 orders={orderRecords.filter(
                   (order) =>
@@ -4024,7 +4060,7 @@ export function OrdersPanel({
                           >
                             <span className="w-2 h-2 rounded-full shrink-0 bg-[#10b981]" />
                             <span className="flex-1 text-xs font-medium text-[#FFEDD1] truncate">
-                              {r.name}
+                              {r.orderName || r.name}
                             </span>
                             <span className="text-[10px] text-[#9C8272] shrink-0">
                               {r.monthLabel}

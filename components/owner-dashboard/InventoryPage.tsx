@@ -178,13 +178,18 @@ function ItemDetail({
         ← Back to Inventory
       </button>
       {item.imageUrl && (
-        <div className="mb-4 overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
+        <button
+          type="button"
+          onClick={() => setShowPhoto(true)}
+          aria-label={`Open image for ${item.name}`}
+          className="mb-4 block w-full overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]"
+        >
           <img
             src={item.imageUrl}
             alt={item.name}
             className="h-52 w-full object-contain"
           />
-        </div>
+        </button>
       )}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
@@ -203,15 +208,6 @@ function ItemDetail({
             </a>
           )}
         </div>
-        {item.imageUrl && (
-          <button
-            type="button"
-            onClick={() => setShowPhoto(true)}
-            className="shrink-0 rounded-lg border border-[#F0684D]/40 px-3 py-2 text-[10px] font-medium text-[#F0684D] hover:bg-[#F0684D]/10"
-          >
-            View photo
-          </button>
-        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {[
@@ -226,6 +222,7 @@ function ItemDetail({
           ],
           ["Created", formatDate(item.createdAt)],
           ["Submitted by", item.owner || "—"],
+          ["Approved by", item.approvedBy || "—"],
           ["Department", item.location || "—"],
         ].map(([label, value]) => (
           <div
@@ -405,59 +402,71 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
           {filtered.map((item) => (
             <div
               key={item.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelected(item)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelected(item);
+                }
+              }}
               className="grid grid-cols-[2.5rem_1fr_5rem_3.5rem_5.5rem_5.5rem_6rem_6rem_4rem_5rem] items-center gap-2 px-4 py-3 hover:bg-[#2A2724]"
             >
               <button
                 type="button"
-                onClick={() => setSelected(item)}
-                className="contents text-left"
+                aria-label={`Open image for ${item.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setPhotoItem(item);
+                }}
+                className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-[#3D3330] bg-[#1A1919]"
               >
-                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-[#3D3330] bg-[#1A1919]">
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : null}
-                </div>
-                <div className="min-w-0">
-                  <span className="block truncate text-xs font-medium text-[#FFEDD1]">
-                    {item.name}
-                  </span>
-                  <span className="block truncate text-[10px] text-[#7A6555]">
-                    {item.description}
-                  </span>
-                </div>
-                <span className="text-right font-mono text-[11px] text-[#C4A882]">
-                  {formatCurrency(item.pricePerPiece)}
-                </span>
-                <span className="text-right font-mono text-[11px] text-[#C4A882]">
-                  {item.quantity}
-                </span>
-                <span className="text-right font-mono text-[11px] font-semibold text-[#FFD142]">
-                  {formatCurrency(
-                    item.pricePerPiece * item.quantity + item.additionalCosts
-                  )}
-                </span>
-                <span className="text-right font-mono text-[11px] text-[#C4A882]">
-                  {formatCurrency(item.additionalCosts)}
-                </span>
-                <span className="truncate text-[10px] text-[#9C8272]">
-                  {item.owner || "—"}
-                </span>
-                <span className="truncate text-[10px] text-[#9C8272]">
-                  {item.location}
-                </span>
-                <span className="text-[10px] text-[#7A6555]">
-                  {formatDate(item.createdAt).replace(/\s\d{4}$/, "")}
-                </span>
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : null}
               </button>
+              <div className="min-w-0">
+                <span className="block truncate text-xs font-medium text-[#FFEDD1]">
+                  {item.name}
+                </span>
+                <span className="block truncate text-[10px] text-[#7A6555]">
+                  {item.description}
+                </span>
+              </div>
+              <span className="text-right font-mono text-[11px] text-[#C4A882]">
+                {formatCurrency(item.pricePerPiece)}
+              </span>
+              <span className="text-right font-mono text-[11px] text-[#C4A882]">
+                {item.quantity}
+              </span>
+              <span className="text-right font-mono text-[11px] font-semibold text-[#FFD142]">
+                {formatCurrency(
+                  item.pricePerPiece * item.quantity + item.additionalCosts
+                )}
+              </span>
+              <span className="text-right font-mono text-[11px] text-[#C4A882]">
+                {formatCurrency(item.additionalCosts)}
+              </span>
+              <span className="truncate text-[10px] text-[#9C8272]">
+                {item.owner || "—"}
+              </span>
+              <span className="truncate text-[10px] text-[#9C8272]">
+                {item.location}
+              </span>
+              <span className="text-[10px] text-[#7A6555]">
+                {formatDate(item.createdAt).replace(/\s\d{4}$/, "")}
+              </span>
               <div className="flex items-center justify-end gap-1">
                 <select
                   aria-label={`State for ${item.name}`}
                   className="h-7 rounded-lg border border-[#3D3330] bg-[#1A1919] px-1 text-[9px] text-[#C4A882]"
                   value={stateById[item.id] ?? item.state}
+                  onClick={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     updateState(
                       item,
@@ -469,15 +478,6 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
                   <option value="Broken">State: Broken</option>
                   <option value="Discarded">State: Discarded</option>
                 </select>
-                {item.imageUrl ? (
-                  <button
-                    type="button"
-                    onClick={() => setPhotoItem(item)}
-                    className="rounded-lg border border-[#3D3330] px-2 py-1 text-[10px] text-[#F0684D] hover:bg-[#F0684D]/10"
-                  >
-                    Photo
-                  </button>
-                ) : null}
               </div>
             </div>
           ))}

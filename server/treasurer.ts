@@ -224,6 +224,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
       ({ reimbursement: row, ibanNumber }) => ({
         id: row.id,
         organizationId: row.organizationId,
+        orderName: row.orderName,
         name: row.name,
         department: row.department,
         submittedBy: row.submittedBy,
@@ -239,7 +240,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         submittedAt: row.createdAt.toISOString(),
         imageUrl: findReimbursementImageUrl(
           reimbursementTrees.get(row.organizationId),
-          row.name
+          row.orderName || row.name
         ),
         ibanNumber: ibanNumber ?? "",
       })
