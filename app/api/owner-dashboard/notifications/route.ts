@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -8,7 +8,15 @@ import { auth } from "@/lib/auth";
 
 const notificationSchema = z.object({
   organizationId: z.string().min(1),
-  type: z.enum(["order", "member", "event", "todo", "budget"]),
+  type: z.enum([
+    "order",
+    "member",
+    "event",
+    "todo",
+    "budget",
+    "reimbursement",
+    "reimbursement_payment",
+  ]),
   title: z.string().min(1),
   body: z.string().min(1),
   link: z.string().optional(),
@@ -58,7 +66,13 @@ export async function PATCH(request: Request) {
     );
   }
   const notification = await db.query.dashboardNotification.findFirst({
-    where: eq(dashboardNotification.id, payload.id),
+    where: and(
+      eq(dashboardNotification.id, payload.id),
+      or(
+        isNull(dashboardNotification.userId),
+        eq(dashboardNotification.userId, session.user.id)
+      )
+    ),
   });
   if (!notification) {
     return NextResponse.json(

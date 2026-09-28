@@ -864,7 +864,32 @@ export function RoadmapBlock() {
                               }}
                             />
                           )}
-                          <span className="z-10 truncate font-semibold text-[10px] text-white leading-tight">
+                          {(item.todoSubtasks ?? []).length > 0 && (
+                            <div
+                              className="z-10 flex shrink-0 items-center gap-0.5"
+                              title={(item.todoSubtasks ?? [])
+                                .map(
+                                  (subtask) =>
+                                    `${subtask.done ? "Done" : "Open"}: ${subtask.text}`
+                                )
+                                .join("\n")}
+                            >
+                              {(item.todoSubtasks ?? []).map((subtask) => (
+                                <span
+                                  aria-hidden="true"
+                                  className="h-2.5 w-2.5 shrink-0 rounded-sm border"
+                                  key={subtask.id}
+                                  style={{
+                                    background: subtask.done
+                                      ? item.color
+                                      : "#232120",
+                                    borderColor: item.color,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          <span className="z-10 min-w-0 flex-1 truncate font-semibold text-[10px] text-white leading-tight">
                             {item.title}
                           </span>
                           {item.progress > 0 && span === "1M" && (

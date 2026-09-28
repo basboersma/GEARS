@@ -10,6 +10,7 @@ import {
   team,
 } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { getRecurringOccurrenceDates } from "@/lib/order-recurrence";
 
 const orderTypeEnum = ["Hardware", "Electronic", "Software", "Social"] as const;
 const urgencyEnum = ["1 day", "2 days", "3 days", "7 days"] as const;
@@ -65,6 +66,7 @@ const draftBodySchema = z.object({
   recurring: z.boolean().default(false),
 });
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Combines order validation with recurring occurrence creation.
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -164,6 +166,23 @@ export async function POST(request: Request) {
     }
   }
 
+  if (
+    parsed.data.recurring &&
+    !isDraft &&
+    parsed.data.rows.some(
+      (row) =>
+        !(row.recurringQuantity && row.recurringUnit && row.recurringEndAt)
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Recurring orders require an interval and an end date for every row.",
+      },
+      { status: 400 }
+    );
+  }
+
   const now = new Date();
   let initialStatus: "draft" | "owner_review" | "pending" = "pending";
   if (isDraft) {
@@ -172,7 +191,7 @@ export async function POST(request: Request) {
     initialStatus = "owner_review";
   }
 
-  const rowsToInsert = parsed.data.rows.map((row) => {
+  const rowsToInsert = parsed.data.rows.flatMap((row) => {
     const total = row.pricePerPiece * row.quantity;
     const recurringQuantity =
       "recurringQuantity" in row ? row.recurringQuantity : undefined;
@@ -184,7 +203,17 @@ export async function POST(request: Request) {
       ? new Date(recurringEndAtValue)
       : null;
 
-    return {
+    const occurrenceDates =
+      parsed.data.recurring && !isDraft
+        ? getRecurringOccurrenceDates({
+            startDate: now,
+            endDate: recurringEndAt,
+            quantity: recurringQuantity,
+            unit: recurringUnit,
+          })
+        : [now];
+
+    return occurrenceDates.map((orderedDate) => ({
       id: crypto.randomUUID(),
       organizationId: parsed.data.organizationId,
       userId: session.user.id,
@@ -204,7 +233,7 @@ export async function POST(request: Request) {
       comments: row.comments,
       additionalCosts: "0.00",
       totalCosts: total.toFixed(2),
-      orderedDate: now,
+      orderedDate,
       photoAdded: false,
       invoiceAdded: false,
       delivered: false,
@@ -221,7 +250,7 @@ export async function POST(request: Request) {
       recurringEndAt,
       createdAt: now,
       updatedAt: now,
-    };
+    }));
   });
 
   await db.insert(orderRequest).values(rowsToInsert);

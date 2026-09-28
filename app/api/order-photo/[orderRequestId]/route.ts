@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db/drizzle";
 import { orderRequest, organization } from "@/db/schema";
 import { replaceOrderRequestPhoto } from "@/lib/google-drive";
+import { isOrderFinalized } from "@/lib/order-request";
 
 export async function GET(
   _request: Request,
@@ -58,7 +59,14 @@ export async function POST(
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
-  const finalized = item.ordered && item.invoiceAdded;
+  const finalized = isOrderFinalized({
+    status: item.status,
+    accepted: item.accepted,
+    additionalCosts: Number(item.additionalCosts),
+    invoiceAdded: item.invoiceAdded,
+    photoNeeded: item.photoNeeded,
+    photoUploaded: true,
+  });
   await db
     .update(orderRequest)
     .set({

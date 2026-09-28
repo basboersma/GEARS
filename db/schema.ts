@@ -559,6 +559,8 @@ export const reimbursementRequest = pgTable("reimbursement_request", {
   urgency: text("urgency").notNull(),
   comments: varchar("comments", { length: 200 }).notNull().default(""),
   status: text("status").notNull().default("pending"),
+  denyComment: text("deny_comment"),
+  paymentComment: text("payment_comment"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => /* @__PURE__ */ new Date())
     .notNull(),
@@ -800,6 +802,7 @@ export const dashboardNotification = pgTable("dashboard_notification", {
   organizationId: text("organization_id")
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
   title: text("title").notNull(),
   body: text("body").notNull(),

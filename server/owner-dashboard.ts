@@ -211,13 +211,25 @@ export async function getOwnerDashboardData(
       orderBy: [asc(dashboardFile.name)],
     }),
     db.query.dashboardNotification.findMany({
-      where: and(
-        eq(dashboardNotification.organizationId, organizationId),
-        or(
-          isNull(dashboardNotification.expiresAt),
-          gt(dashboardNotification.expiresAt, new Date())
-        )
-      ),
+      where: viewer
+        ? and(
+            eq(dashboardNotification.organizationId, organizationId),
+            or(
+              isNull(dashboardNotification.userId),
+              eq(dashboardNotification.userId, viewer.userId)
+            ),
+            or(
+              isNull(dashboardNotification.expiresAt),
+              gt(dashboardNotification.expiresAt, new Date())
+            )
+          )
+        : and(
+            eq(dashboardNotification.organizationId, organizationId),
+            or(
+              isNull(dashboardNotification.expiresAt),
+              gt(dashboardNotification.expiresAt, new Date())
+            )
+          ),
       orderBy: [asc(dashboardNotification.createdAt)],
     }),
     db.query.agendaEvent.findMany({
@@ -451,6 +463,7 @@ export async function getOwnerDashboardData(
       state: row.state as "Functional" | "Broken" | "Discarded",
       canceled: row.canceled,
       accepted: row.accepted,
+      additionalCosts: Number(row.additionalCosts),
       link: row.link,
       recurring: row.recurring,
       recurringQuantity: row.recurringQuantity,
@@ -463,6 +476,7 @@ export async function getOwnerDashboardData(
           description: row.description,
           qty: row.amount,
           price: Number(row.pricePerPiece),
+          additionalCosts: Number(row.additionalCosts),
           link: row.link,
           orderType: row.typeOfOrder,
           urgency: row.urgency,
@@ -482,6 +496,10 @@ export async function getOwnerDashboardData(
         body: row.body,
         link: row.link ?? undefined,
         requestId: row.requestId ?? undefined,
+        reimbursementRequestId:
+          row.type === "reimbursement_payment"
+            ? (row.requestId ?? undefined)
+            : undefined,
         time: row.createdAt.toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -534,6 +552,8 @@ export async function getOwnerDashboardData(
       urgency: row.urgency,
       comments: row.comments,
       status: row.status,
+      denyComment: row.denyComment,
+      paymentComment: row.paymentComment,
       submittedAt: row.createdAt.toISOString(),
       imageUrl: findReimbursementImageUrl(googleDriveTree, row.name),
     })),
@@ -554,7 +574,11 @@ export async function getOwnerDashboardData(
                 row.orderedDate.getFullYear() === 2026 &&
                 row.orderedDate.getMonth() <= monthIndex
             )
-            .reduce((sum, row) => sum + Number(row.totalCosts), 0),
+            .reduce(
+              (sum, row) =>
+                sum + Number(row.totalCosts) + Number(row.additionalCosts),
+              0
+            ),
         })),
       ])
     ),

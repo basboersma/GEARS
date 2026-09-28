@@ -74,6 +74,8 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
     .where(
       or(
         eq(reimbursementRequest.status, "accepted"),
+        eq(reimbursementRequest.status, "successful"),
+        eq(reimbursementRequest.status, "declined"),
         and(
           eq(reimbursementRequest.status, "pending"),
           or(eq(member.role, "owner"), eq(member.role, "admin"))
@@ -132,9 +134,14 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
           ({ order }) =>
             order.status === "accepted" &&
             !order.canceled &&
+            order.orderedDate <= new Date() &&
             order.orderedDate.getMonth() === monthIndex
         )
-        .reduce((sum, { order }) => sum + Number(order.totalCosts), 0),
+        .reduce(
+          (sum, { order }) =>
+            sum + Number(order.totalCosts) + Number(order.additionalCosts),
+          0
+        ),
     ])
   );
 
@@ -174,6 +181,10 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         finalized: order.finalized,
         canceled: order.canceled,
         accepted: order.accepted,
+        additionalCosts: group.reduce(
+          (sum, { order: item }) => sum + Number(item.additionalCosts),
+          0
+        ),
         link: order.link,
         recurring: order.recurring,
         recurringQuantity: order.recurringQuantity,
@@ -185,6 +196,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
           description: item.description,
           qty: item.amount,
           price: Number(item.pricePerPiece),
+          additionalCosts: Number(item.additionalCosts),
           link: item.link,
           orderType: item.typeOfOrder,
           urgency: item.urgency,
@@ -222,6 +234,8 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
         urgency: row.urgency,
         comments: row.comments,
         status: row.status,
+        denyComment: row.denyComment,
+        paymentComment: row.paymentComment,
         submittedAt: row.createdAt.toISOString(),
         imageUrl: findReimbursementImageUrl(
           reimbursementTrees.get(row.organizationId),

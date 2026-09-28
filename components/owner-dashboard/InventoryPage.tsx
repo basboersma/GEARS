@@ -16,6 +16,7 @@ interface InventoryItem {
   link: string;
   pricePerPiece: number;
   quantity: number;
+  additionalCosts: number;
   owner: string;
   location: string;
   createdAt: string;
@@ -90,6 +91,7 @@ function toInventoryItem(
     link: order.link ?? line?.link ?? "",
     pricePerPiece: line?.price ?? 0,
     quantity: line?.qty ?? 0,
+    additionalCosts: order.additionalCosts ?? line?.additionalCosts ?? 0,
     owner: order.submittedBy ?? "",
     location: order.department,
     createdAt: order.date,
@@ -215,7 +217,13 @@ function ItemDetail({
         {[
           ["Price / pc", formatCurrency(item.pricePerPiece)],
           ["Quantity", String(item.quantity)],
-          ["Total value", formatCurrency(item.pricePerPiece * item.quantity)],
+          ["Additional costs", formatCurrency(item.additionalCosts)],
+          [
+            "Total value",
+            formatCurrency(
+              item.pricePerPiece * item.quantity + item.additionalCosts
+            ),
+          ],
           ["Created", formatDate(item.createdAt)],
           ["Submitted by", item.owner || "—"],
           ["Department", item.location || "—"],
@@ -264,6 +272,10 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
       formatCurrency(item.pricePerPiece),
       String(item.pricePerPiece * item.quantity),
       formatCurrency(item.pricePerPiece * item.quantity),
+      String(item.additionalCosts),
+      formatCurrency(item.additionalCosts),
+      String(item.pricePerPiece * item.quantity + item.additionalCosts),
+      formatCurrency(item.pricePerPiece * item.quantity + item.additionalCosts),
       stateById[item.id] ?? item.state,
     ]
       .join(" ")
@@ -278,7 +290,7 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
   const totalValue = items.reduce(
     (sum, item) =>
       (stateById[item.id] ?? item.state) === "Functional"
-        ? sum + item.pricePerPiece * item.quantity
+        ? sum + item.pricePerPiece * item.quantity + item.additionalCosts
         : sum,
     0
   );
@@ -377,12 +389,13 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-[#3D3330] bg-[#232120]">
-        <div className="grid grid-cols-[2.5rem_1fr_5rem_3.5rem_5.5rem_6rem_6rem_4rem_5rem] gap-2 border-b border-[#3D3330] px-4 py-2.5 font-mono text-[8px] uppercase tracking-widest text-[#7A6555]">
+        <div className="grid grid-cols-[2.5rem_1fr_5rem_3.5rem_5.5rem_5.5rem_6rem_6rem_4rem_5rem] gap-2 border-b border-[#3D3330] px-4 py-2.5 font-mono text-[8px] uppercase tracking-widest text-[#7A6555]">
           <span />
           <span>Item</span>
           <span className="text-right">Price/pc</span>
           <span className="text-right">Qty</span>
           <span className="text-right">Total</span>
+          <span className="text-right">Additional</span>
           <span>Submitted by</span>
           <span>Department</span>
           <span>Created</span>
@@ -392,7 +405,7 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
           {filtered.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-[2.5rem_1fr_5rem_3.5rem_5.5rem_6rem_6rem_4rem_5rem] items-center gap-2 px-4 py-3 hover:bg-[#2A2724]"
+              className="grid grid-cols-[2.5rem_1fr_5rem_3.5rem_5.5rem_5.5rem_6rem_6rem_4rem_5rem] items-center gap-2 px-4 py-3 hover:bg-[#2A2724]"
             >
               <button
                 type="button"
@@ -423,7 +436,12 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
                   {item.quantity}
                 </span>
                 <span className="text-right font-mono text-[11px] font-semibold text-[#FFD142]">
-                  {formatCurrency(item.pricePerPiece * item.quantity)}
+                  {formatCurrency(
+                    item.pricePerPiece * item.quantity + item.additionalCosts
+                  )}
+                </span>
+                <span className="text-right font-mono text-[11px] text-[#C4A882]">
+                  {formatCurrency(item.additionalCosts)}
                 </span>
                 <span className="truncate text-[10px] text-[#9C8272]">
                   {item.owner || "—"}

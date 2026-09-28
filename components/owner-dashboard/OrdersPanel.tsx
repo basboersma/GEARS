@@ -11,7 +11,14 @@ import { type TeamOrganization, TeamsPanel } from "./teams-panel";
 import type { BudgetData, Order } from "./types";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Tab = "submit" | "overview" | "incoming" | "past" | "teams" | "reimburse";
+type Tab =
+  | "submit"
+  | "overview"
+  | "incoming"
+  | "past"
+  | "additional-costs"
+  | "teams"
+  | "reimburse";
 type OrderStatus =
   | "draft"
   | "owner_review"
@@ -37,6 +44,8 @@ interface Reimbursement {
   urgency: string;
   comments: string;
   status: string;
+  denyComment?: string | null;
+  paymentComment?: string | null;
   invoiceFile: File | null;
   invoiceDataUrl: string | null;
   isPast: boolean;
@@ -50,6 +59,7 @@ interface OrderItem {
   description: string;
   pricePerPiece: number;
   quantity: number;
+  additionalCosts: number;
   orderType: string;
   urgency: string;
   comments: string;
@@ -74,6 +84,8 @@ interface OrderRecord {
   status: OrderStatus;
   workflowStatus?: string;
   accepted?: "neutral" | "accepted" | "denied";
+  canceled: boolean;
+  additionalCosts: number;
   items: OrderItem[];
   isPast: boolean;
   isRecurring?: boolean;
@@ -141,7 +153,13 @@ const ITEM_STATUS_COLOR: Record<ItemStatus, string> = {
 const fmt = (n: number) =>
   `€${n.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const calcTotal = (items: Array<{ pricePerPiece: number; quantity: number }>) =>
-  items.reduce((s, i) => s + i.pricePerPiece * i.quantity, 0);
+  items.reduce(
+    (s, i) =>
+      s +
+      i.pricePerPiece * i.quantity +
+      ("additionalCosts" in i ? Number(i.additionalCosts) || 0 : 0),
+    0
+  );
 const rowsTotal = (rows: FormRow[]) =>
   rows.reduce(
     (s, r) =>
@@ -187,6 +205,22 @@ function matchesSearch(order: OrderRecord, q: string): boolean {
   );
 }
 
+function isFutureScheduledOrder(order: OrderRecord): boolean {
+  return (
+    Boolean(order.isRecurring) &&
+    new Date(order.submittedAt).getTime() > Date.now()
+  );
+}
+
+function hasRecurringEnded(order: Order): boolean {
+  if (!order.recurring || !order.recurringEndAt) {
+    return false;
+  }
+  const endOfDay = new Date(order.recurringEndAt);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+  return Date.now() > endOfDay.getTime();
+}
+
 const monthLabel = (date: string): string => {
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return "";
@@ -230,8 +264,13 @@ const toOrderRecord = (order: Order): OrderRecord => ({
   status: orderStatus(order),
   workflowStatus: order.status,
   accepted: order.accepted,
+  canceled: Boolean(order.canceled),
+  additionalCosts:
+    order.additionalCosts ??
+    order.items.reduce((sum, item) => sum + (item.additionalCosts ?? 0), 0),
   isPast: Boolean(
     order.finalized ||
+      hasRecurringEnded(order) ||
       order.canceled ||
       order.status === "declined" ||
       order.accepted === "denied"
@@ -248,6 +287,7 @@ const toOrderRecord = (order: Order): OrderRecord => ({
     description: item.description ?? item.name,
     pricePerPiece: item.price,
     quantity: item.qty,
+    additionalCosts: item.additionalCosts ?? 0,
     orderType: item.orderType ?? "",
     urgency: item.urgency ?? "",
     comments: item.comments ?? "",
@@ -1151,6 +1191,7 @@ function OrderForm({
                   className={`${fieldCls} w-16 font-mono`}
                   type="number"
                   min="1"
+                  required={isRecurring}
                   placeholder="e.g. 2"
                   value={row.recurTime ?? ""}
                   onChange={(e) => updateRow(i, { recurTime: e.target.value })}
@@ -1169,6 +1210,7 @@ function OrderForm({
                 <input
                   className={`${fieldCls} w-32`}
                   type="date"
+                  required={isRecurring}
                   value={row.recurEndDate ?? ""}
                   onChange={(e) =>
                     updateRow(i, { recurEndDate: e.target.value })
@@ -1317,8 +1359,15 @@ function IncomingPanel({
                 className="w-2 h-2 rounded-full shrink-0"
                 style={{ background: STATUS_COLOR[order.status] }}
               />
-              <span className="flex-1 text-xs font-medium text-[#FFEDD1] truncate">
-                {order.name}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-medium text-[#FFEDD1]">
+                  {order.name}
+                </span>
+                {order.isRecurring && (
+                  <span className="text-[9px] text-[#8b5cf6]">
+                    Scheduled {order.submittedAt}
+                  </span>
+                )}
               </span>
               <span className="text-[10px] text-[#9C8272] shrink-0">
                 {order.submittedBy}
@@ -1366,6 +1415,135 @@ function IncomingPanel({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function AdditionalCostsPanel({
+  orders,
+  onApply,
+}: {
+  orders: OrderRecord[];
+  onApply: (orders: OrderRecord[], total: number) => Promise<void>;
+}) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const selectedOrders = orders.filter((order) => selectedIds.has(order.id));
+  const parsedAmount = Number(amount);
+
+  async function apply() {
+    if (
+      selectedOrders.length === 0 ||
+      !Number.isFinite(parsedAmount) ||
+      parsedAmount < 0 ||
+      saving
+    ) {
+      return;
+    }
+    setSaving(true);
+    try {
+      await onApply(selectedOrders, parsedAmount);
+      setSelectedIds(new Set());
+      setAmount("");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to apply additional costs"
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function toggleOrder(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div className="flex min-h-full flex-col gap-3 pb-20">
+      <div className="flex items-start justify-between gap-3 border-b border-[#3D3330] pb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-[#FFEDD1]">
+            Additional costs
+          </h2>
+          <p className="mt-1 text-[10px] text-[#7A6555]">
+            Select orders, then distribute one total equally across them.
+          </p>
+        </div>
+        <span className="shrink-0 text-[10px] text-[#C4A882]">
+          {selectedOrders.length} selected
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {orders.map((order) => (
+          <label
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#3D3330] bg-[#1A1919] px-3 py-2.5 transition-colors hover:border-[#4A3F38]"
+            key={order.id}
+          >
+            <input
+              checked={selectedIds.has(order.id)}
+              className="h-3.5 w-3.5 accent-[#FFD142]"
+              onChange={() => toggleOrder(order.id)}
+              type="checkbox"
+            />
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
+              {order.name}
+            </span>
+            <span className="shrink-0 text-[10px] text-[#9C8272]">
+              {order.organizationName ?? order.department}
+            </span>
+            <span className="shrink-0 font-mono text-[10px] text-[#C4A882]">
+              Current {fmt(order.additionalCosts)}
+            </span>
+            <span className="shrink-0 text-[9px] text-[#7A6555]">
+              {order.status}
+            </span>
+          </label>
+        ))}
+        {orders.length === 0 && (
+          <div className="py-16 text-center text-sm text-[#7A6555]">
+            No orders available
+          </div>
+        )}
+      </div>
+      <div className="sticky bottom-0 mt-auto flex flex-wrap items-end gap-3 border-t border-[#3D3330] bg-[#232120] pt-3">
+        <label className="flex min-w-48 flex-1 flex-col gap-1">
+          <span className="font-mono text-[9px] uppercase tracking-widest text-[#7A6555]">
+            Total additional costs
+          </span>
+          <input
+            className={fieldCls}
+            min="0"
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="0.00"
+            step="0.01"
+            type="number"
+            value={amount}
+          />
+        </label>
+        <button
+          className="rounded-lg border border-[#FFD142]/40 bg-[#FFD142]/10 px-4 py-2 text-[11px] font-semibold text-[#FFD142] transition-colors hover:bg-[#FFD142]/15 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={
+            selectedOrders.length === 0 ||
+            amount.trim() === "" ||
+            !Number.isFinite(parsedAmount) ||
+            parsedAmount < 0 ||
+            saving
+          }
+          onClick={() => void apply()}
+          type="button"
+        >
+          {saving ? "Applying…" : "Apply to selected"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1598,10 +1776,13 @@ const DETAIL_GRID =
 function OrderDetailView({
   order,
   onClose,
+  isPast,
 }: {
   order: OrderRecord;
   onClose: () => void;
+  isPast: boolean;
 }) {
+  const router = useRouter();
   const { departments } = useDashboardData();
   const isPending = order.status === "pending";
   const uploadsOnly =
@@ -1610,6 +1791,10 @@ function OrderDetailView({
   const [items, setItems] = useState<OrderItem[]>(order.items);
   const [orderName, setOrderName] = useState(order.name);
   const [department, setDepartment] = useState(order.department);
+  const [additionalCosts, setAdditionalCosts] = useState(
+    order.additionalCosts.toFixed(2)
+  );
+  const [savingAdditionalCosts, setSavingAdditionalCosts] = useState(false);
 
   function updateItem(idx: number, patch: Partial<OrderItem>) {
     setItems((prev) =>
@@ -1629,6 +1814,37 @@ function OrderDetailView({
       updateItem(idx, { requiresPhoto: !needed });
       toast.error("Could not update photo request");
     }
+  }
+
+  async function saveAdditionalCosts() {
+    const parsed = Number(additionalCosts);
+    if (!Number.isFinite(parsed) || parsed < 0 || savingAdditionalCosts) {
+      return;
+    }
+    setSavingAdditionalCosts(true);
+    const responses = await Promise.all(
+      order.items.map((item, index) =>
+        fetch(`/api/order-requests/${item.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            additionalCosts: index === 0 ? parsed.toFixed(2) : "0.00",
+          }),
+        })
+      )
+    );
+    const failed = responses.find((response) => !response.ok);
+    if (failed) {
+      const body = (await failed.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      toast.error(body?.error ?? "Failed to update additional costs");
+      setSavingAdditionalCosts(false);
+      return;
+    }
+    toast.success("Additional costs updated");
+    setSavingAdditionalCosts(false);
+    router.refresh();
   }
 
   const total = calcTotal(items);
@@ -1673,7 +1889,7 @@ function OrderDetailView({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-5 text-[10px]">
+      <div className="mb-5 grid grid-cols-2 gap-3 text-[10px] sm:grid-cols-4">
         <div>
           <span className="font-mono text-[8px] text-[#7A6555] uppercase tracking-wider block mb-1">
             Department
@@ -1705,6 +1921,38 @@ function OrderDetailView({
             Approved by
           </span>
           <span className="text-[#C4A882]">{order.approvedBy || "—"}</span>
+        </div>
+        <div>
+          <span className="font-mono text-[8px] text-[#7A6555] uppercase tracking-wider block mb-1">
+            Additional costs
+          </span>
+          {isPast ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#C4A882]">€</span>
+              <input
+                className="h-7 w-24 rounded border border-[#3D3330] bg-[#1A1919] px-2 text-right font-mono text-[10px] text-[#FFEDD1] outline-none focus:border-[#FFD142]/60"
+                min="0"
+                onChange={(event) => setAdditionalCosts(event.target.value)}
+                step="0.01"
+                type="number"
+                value={additionalCosts}
+              />
+              <button
+                className="rounded border border-[#FFD142]/40 px-2 py-1 text-[9px] text-[#FFD142] disabled:opacity-40"
+                disabled={
+                  savingAdditionalCosts ||
+                  !Number.isFinite(Number(additionalCosts)) ||
+                  Number(additionalCosts) < 0
+                }
+                onClick={() => void saveAdditionalCosts()}
+                type="button"
+              >
+                {savingAdditionalCosts ? "Saving…" : "Save"}
+              </button>
+            </div>
+          ) : (
+            <span className="text-[#C4A882]">{fmt(order.additionalCosts)}</span>
+          )}
         </div>
       </div>
 
@@ -1856,6 +2104,11 @@ function OrderDetailView({
                   <p className="text-[10px] text-[#9C8272] font-mono">
                     {fmt(item.pricePerPiece)} × {item.quantity}
                   </p>
+                  {item.additionalCosts > 0 && (
+                    <p className="text-[10px] text-[#C4A882] font-mono">
+                      + {fmt(item.additionalCosts)} additional
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1924,6 +2177,7 @@ function OrderOverviewList({
   isPast,
   hideHeader,
   onEditOrder,
+  onRemoveRecurring,
   currentUserName,
   showOrganization,
 }: {
@@ -1931,6 +2185,7 @@ function OrderOverviewList({
   isPast: boolean;
   hideHeader?: boolean;
   onEditOrder?: (order: OrderRecord) => void;
+  onRemoveRecurring?: (order: OrderRecord) => Promise<void>;
   currentUserName: string;
   showOrganization?: boolean;
 }) {
@@ -2014,6 +2269,7 @@ function OrderOverviewList({
         <OrderDetailView
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
+          isPast={isPast}
         />
       </div>
     );
@@ -2125,11 +2381,20 @@ function OrderOverviewList({
                               Edit
                             </button>
                             <button
-                              onClick={() =>
+                              onClick={() => {
                                 setRemovedIds(
                                   (prev) => new Set([...prev, order.id])
-                                )
-                              }
+                                );
+                                if (onRemoveRecurring) {
+                                  onRemoveRecurring(order).catch((error) => {
+                                    toast.error(
+                                      error instanceof Error
+                                        ? error.message
+                                        : "Failed to remove recurring order"
+                                    );
+                                  });
+                                }
+                              }}
                               className="px-2 py-0.5 rounded text-[9px] border border-[#3D3330] text-[#7A6555] hover:border-[#f43f5e]/40 hover:text-[#f43f5e] hover:bg-[#f43f5e]/8 transition-colors"
                             >
                               Remove
@@ -2742,14 +3007,39 @@ function ReimbursementIncomingRow({
   isTreasurer,
   onAccept,
   onMarkPaid,
+  onDeny,
 }: {
   reimbursement: Reimbursement;
   isTreasurer: boolean;
   onAccept: () => void;
   onMarkPaid: () => void;
+  onDeny: (comment: string) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [denying, setDenying] = useState(false);
+  const [denyComment, setDenyComment] = useState("");
+  const [submittingDeny, setSubmittingDeny] = useState(false);
   const total = reimbursement.pricePerPiece * reimbursement.quantity;
+
+  async function submitDenial(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const comment = denyComment.trim();
+    if (!comment || submittingDeny) {
+      return;
+    }
+    setSubmittingDeny(true);
+    try {
+      await onDeny(comment);
+      setDenying(false);
+      setDenyComment("");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to deny reimbursement"
+      );
+    } finally {
+      setSubmittingDeny(false);
+    }
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
@@ -2805,7 +3095,7 @@ function ReimbursementIncomingRow({
             </p>
           )}
           <p className="text-xs text-[#9C8272]">{reimbursement.comments}</p>
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {!isTreasurer && (
               <button
                 className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
@@ -2816,13 +3106,58 @@ function ReimbursementIncomingRow({
               </button>
             )}
             {isTreasurer && (
-              <button
-                className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
-                onClick={onMarkPaid}
-                type="button"
-              >
-                Mark paid
-              </button>
+              <>
+                {denying ? (
+                  <form
+                    className="flex w-full items-center justify-end gap-2"
+                    onSubmit={submitDenial}
+                  >
+                    <input
+                      autoFocus
+                      className="min-w-0 flex-1 rounded-md border border-[#F0684D]/40 bg-[#1A1919] px-2 py-1 text-[10px] text-[#FFEDD1] outline-none placeholder:text-[#7A6555] focus:border-[#F0684D]"
+                      maxLength={500}
+                      onChange={(event) => setDenyComment(event.target.value)}
+                      placeholder="Reason for denial"
+                      required
+                      value={denyComment}
+                    />
+                    <button
+                      className="rounded-md bg-[#F0684D]/15 px-2 py-1 text-[10px] text-[#F0684D] disabled:opacity-40"
+                      disabled={submittingDeny || !denyComment.trim()}
+                      type="submit"
+                    >
+                      {submittingDeny ? "Denying…" : "Submit denial"}
+                    </button>
+                    <button
+                      className="rounded-md px-2 py-1 text-[10px] text-[#9C8272] hover:text-[#FFEDD1]"
+                      onClick={() => {
+                        setDenying(false);
+                        setDenyComment("");
+                      }}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <button
+                      className="rounded-md bg-[#10b981]/15 px-2 py-1 text-[10px] text-[#10b981]"
+                      onClick={onMarkPaid}
+                      type="button"
+                    >
+                      Mark paid
+                    </button>
+                    <button
+                      className="rounded-md bg-[#F0684D]/15 px-2 py-1 text-[10px] text-[#F0684D]"
+                      onClick={() => setDenying(true)}
+                      type="button"
+                    >
+                      Deny
+                    </button>
+                  </>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -2855,6 +3190,10 @@ export function OrdersPanel({
     reimbursements: persistedReimbursements,
   } = useDashboardData();
   const isTreasurer = mode === "treasurer";
+  const isPastReimbursement = (status: string) =>
+    isTreasurer
+      ? status === "successful" || status === "declined"
+      : status !== "pending";
   const [tab, setTab] = useState<Tab>(isTreasurer ? "overview" : "submit");
   const [formTotal, setFormTotal] = useState(0);
   const [formDept, setFormDept] = useState("");
@@ -2874,7 +3213,7 @@ export function OrdersPanel({
       }),
       invoiceFile: null,
       invoiceDataUrl: null,
-      isPast: reimbursement.status !== "pending",
+      isPast: isPastReimbursement(reimbursement.status),
     }))
   );
   const [overviewSubTab, setOverviewSubTab] = useState<
@@ -2902,23 +3241,33 @@ export function OrdersPanel({
         orderType: item.orderType,
         urgency: item.urgency,
         comments: item.comments,
+        recurTime: order.recurInterval?.split(" ")[0] ?? "",
+        recurTimescale:
+          order.recurInterval?.split(" ").slice(1).join(" ") ?? "Days",
+        recurEndDate: order.recurEndDate?.slice(0, 10) ?? "",
       })),
       approvedBy: order.approvedBy,
       submittedBy: order.submittedBy,
       savedAt: order.submittedAt,
       isRecurring: order.isRecurring,
     }));
-  const allPastOrders = orderRecords.filter((o) => o.isPast);
+  const allPastOrders = orderRecords.filter(
+    (o) => o.isPast && !isFutureScheduledOrder(o)
+  );
   const currentOrders = orderRecords.filter(
     (o) =>
       !o.isPast &&
+      !isFutureScheduledOrder(o) &&
       o.status !== "draft" &&
       (!isTreasurer || o.workflowStatus === "accepted")
   );
   const incomingOrders = orderRecords.filter((o) =>
     isTreasurer
-      ? !o.isPast && o.workflowStatus === "pending"
+      ? !o.isPast &&
+        !isFutureScheduledOrder(o) &&
+        o.workflowStatus === "pending"
       : !o.isPast &&
+        !isFutureScheduledOrder(o) &&
         (o.status === "owner_review" ||
           (o.status === "pending" && o.submittedBy !== userName))
   );
@@ -2973,17 +3322,33 @@ export function OrdersPanel({
 
   async function updateReimbursement(
     reimbursement: Reimbursement,
-    status: "accepted" | "declined" | "successful"
+    status: "accepted" | "declined" | "successful",
+    denyComment?: string
   ) {
     const response = await fetch(`/api/reimbursements/${reimbursement.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({
+        status,
+        ...(denyComment ? { denyComment } : {}),
+      }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to update reimbursement");
+    }
     setReimbursements((current) =>
       current.map((item) =>
-        item.id === reimbursement.id ? { ...item, status, isPast: true } : item
+        item.id === reimbursement.id
+          ? {
+              ...item,
+              status,
+              denyComment,
+              isPast: isPastReimbursement(status),
+            }
+          : item
       )
     );
   }
@@ -3020,6 +3385,7 @@ export function OrdersPanel({
             .filter(
               (order) =>
                 order.workflowStatus === "accepted" &&
+                new Date(order.submittedAt).getTime() <= Date.now() &&
                 (!selectedOrganization ||
                   selectedOrganization === "all" ||
                   order.organizationId === selectedOrganization) &&
@@ -3042,7 +3408,7 @@ export function OrdersPanel({
   // Pending amounts
   const pendingByMonth: Record<string, number> = {};
   orderRecords
-    .filter((o) => o.status === "pending")
+    .filter((o) => o.status === "pending" && !o.isRecurring)
     .forEach((o) => {
       pendingByMonth[o.monthLabel] =
         (pendingByMonth[o.monthLabel] ?? 0) + calcTotal(o.items);
@@ -3052,6 +3418,7 @@ export function OrdersPanel({
 
   const recurringByMonth: Record<string, number> = {};
   for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    const monthEnd = new Date(2026, monthIndex + 1, 0, 23, 59, 59, 999);
     recurringByMonth[
       new Intl.DateTimeFormat("en-US", { month: "short" }).format(
         new Date(2026, monthIndex, 1)
@@ -3060,18 +3427,18 @@ export function OrdersPanel({
       .filter(
         (order) =>
           order.isRecurring &&
-          order.workflowStatus === "accepted" &&
+          !order.isPast &&
+          !order.canceled &&
+          new Date(order.submittedAt) <= monthEnd &&
           (!isTreasurer ||
             selectedOrganization === "all" ||
-            order.organizationId === selectedOrganization) &&
-          new Date(order.submittedAt).getFullYear() === 2026 &&
-          new Date(order.submittedAt).getMonth() <= monthIndex
+            order.organizationId === selectedOrganization)
       )
       .reduce((sum, order) => sum + calcTotal(order.items), 0);
   }
 
   const activeRecurTotal = orderRecords
-    .filter((o) => o.isRecurring && o.recurEnabled && !o.recurPaused)
+    .filter((o) => o.isRecurring && !o.isPast && !o.canceled)
     .reduce((s, o) => s + calcTotal(o.items), 0);
 
   const graphMonthlySpend = isTreasurer
@@ -3211,6 +3578,59 @@ export function OrdersPanel({
     router.refresh();
   }
 
+  async function applyAdditionalCosts(
+    selectedOrders: OrderRecord[],
+    total: number
+  ) {
+    const totalCents = Math.round(total * 100);
+    const baseShareCents = Math.floor(totalCents / selectedOrders.length);
+    const remainderCents = totalCents % selectedOrders.length;
+    const responses = await Promise.all(
+      selectedOrders.flatMap((order, orderIndex) => {
+        const orderShare =
+          baseShareCents + (orderIndex < remainderCents ? 1 : 0);
+        return order.items.map((item, itemIndex) =>
+          fetch(`/api/order-requests/${item.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              additionalCosts:
+                itemIndex === 0 ? (orderShare / 100).toFixed(2) : "0.00",
+            }),
+          })
+        );
+      })
+    );
+    const failed = responses.find((response) => !response.ok);
+    if (failed) {
+      const body = (await failed.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to apply additional costs");
+    }
+    router.refresh();
+  }
+
+  async function removeRecurringOrder(order: OrderRecord) {
+    const responses = await Promise.all(
+      order.items.map((item) =>
+        fetch(`/api/order-requests/${item.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recurring: false }),
+        })
+      )
+    );
+    const failed = responses.find((response) => !response.ok);
+    if (failed) {
+      const body = (await failed.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      throw new Error(body?.error ?? "Failed to remove recurring order");
+    }
+    router.refresh();
+  }
+
   function handleLoadDraft(draft: Draft) {
     setLoadedDraft(draft);
     setSubmitKey((k) => k + 1);
@@ -3227,6 +3647,7 @@ export function OrdersPanel({
     { id: "overview", label: "Overview" },
     { id: "incoming", label: "Incoming" },
     { id: "past", label: "Past Orders" },
+    { id: "additional-costs", label: "Additional costs" },
     ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
     ...(!isTreasurer ? [{ id: "reimburse" as const, label: "Reimburse" }] : []),
   ];
@@ -3362,6 +3783,7 @@ export function OrdersPanel({
                     hideHeader
                     currentUserName={userName}
                     showOrganization
+                    onRemoveRecurring={removeRecurringOrder}
                     onEditOrder={(order) => {
                       setLoadedDraft({
                         id: order.id,
@@ -3376,6 +3798,13 @@ export function OrdersPanel({
                           orderType: item.orderType,
                           urgency: item.urgency,
                           comments: item.comments,
+                          recurTime: order.recurInterval?.split(" ")[0] ?? "",
+                          recurTimescale:
+                            order.recurInterval
+                              ?.split(" ")
+                              .slice(1)
+                              .join(" ") ?? "Days",
+                          recurEndDate: order.recurEndDate?.slice(0, 10) ?? "",
                         })),
                         approvedBy: order.approvedBy,
                         submittedBy: order.submittedBy,
@@ -3462,13 +3891,38 @@ export function OrdersPanel({
                           updateReimbursement(
                             reimbursement,
                             "successful"
-                          ).catch(() => undefined)
+                          ).catch((error) => {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Failed to mark reimbursement paid"
+                            );
+                          })
+                        }
+                        onDeny={(comment) =>
+                          updateReimbursement(
+                            reimbursement,
+                            "declined",
+                            comment
+                          )
                         }
                       />
                     ))}
                   </div>
                 )}
               </div>
+            )}
+            {tab === "additional-costs" && (
+              <AdditionalCostsPanel
+                orders={orderRecords.filter(
+                  (order) =>
+                    order.status !== "draft" &&
+                    order.status !== "denied" &&
+                    !order.canceled &&
+                    order.items.length > 0
+                )}
+                onApply={applyAdditionalCosts}
+              />
             )}
             {tab === "teams" && isTreasurer && (
               <TeamsPanel

@@ -189,11 +189,7 @@ export async function GET(request: Request) {
 
   const orderBatches = Array.from(orderBatchesByKey.values()).map((batch) => {
     const isItemFinalized = (item: (typeof batch.items)[number]) =>
-      item.finalized ||
-      (item.ordered &&
-        item.delivered &&
-        item.status === "accepted" &&
-        (!item.photoNeeded || item.photoUploaded));
+      item.finalized;
 
     const allFinalized =
       batch.items.length > 0 && batch.items.every(isItemFinalized);

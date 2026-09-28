@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Logout } from "@/components/logout";
 import { OrganizationSwitcher } from "@/components/organization-switcher";
 import type { Organization } from "@/db/schema";
+import { NotificationsBlock } from "./app";
 import { useDashboardData } from "./dashboard-data-context";
 import {
   type DashboardRole,
@@ -204,7 +205,12 @@ export function OwnerDashboardFrame({
             <Logout />
           </div>
         </header>
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
+          <aside className="flex h-56 shrink-0 flex-col border-white/8 border-t bg-[#141212] p-3 lg:h-auto lg:w-72 lg:border-t-0 lg:border-l">
+            <NotificationsBlock />
+          </aside>
+        </div>
       </div>
     </div>
   );

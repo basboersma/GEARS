@@ -39,6 +39,8 @@ const NOTIF_TYPE_COLOR: Record<AppNotification["type"], string> = {
   event: "#60a5fa",
   todo: "#a78bfa",
   budget: "#F0684D",
+  reimbursement: "#F0684D",
+  reimbursement_payment: "#10b981",
 };
 
 function PhotoNotificationPopup({
@@ -112,12 +114,144 @@ function PhotoNotificationPopup({
     </div>
   );
 }
-function NotificationsBlock() {
+
+function ReimbursementPaymentPopup({
+  reimbursementRequestId,
+  onClose,
+  onSubmitted,
+}: {
+  reimbursementRequestId: string;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [paymentReceived, setPaymentReceived] = useState<boolean | null>(null);
+  const [paymentComment, setPaymentComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      paymentReceived === null ||
+      !(paymentReceived || paymentComment.trim()) ||
+      submitting
+    ) {
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    const response = await fetch(
+      `/api/reimbursements/${reimbursementRequestId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentReceived,
+          ...(paymentReceived ? {} : { paymentComment: paymentComment.trim() }),
+        }),
+      }
+    );
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      setError(body?.error ?? "Unable to submit payment confirmation");
+      setSubmitting(false);
+      return;
+    }
+    onSubmitted();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-[#3D3330] bg-[#232120] p-5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-[#FFEDD1] text-sm">
+              Money properly received
+            </h3>
+            <p className="mt-0.5 text-[#7A6555] text-[10px]">
+              Confirm whether the reimbursement reached your account.
+            </p>
+          </div>
+          <button
+            aria-label="Close reimbursement confirmation"
+            className="text-[#9C8272] text-lg leading-none hover:text-[#FFEDD1]"
+            onClick={onClose}
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+        <form className="space-y-3" onSubmit={submit}>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className={`rounded-lg border px-3 py-2 text-xs transition-colors ${
+                paymentReceived === true
+                  ? "border-[#10b981]/60 bg-[#10b981]/15 text-[#10b981]"
+                  : "border-[#3D3330] text-[#9C8272] hover:border-[#10b981]/50 hover:text-[#10b981]"
+              }`}
+              onClick={() => setPaymentReceived(true)}
+              type="button"
+            >
+              Yes
+            </button>
+            <button
+              className={`rounded-lg border px-3 py-2 text-xs transition-colors ${
+                paymentReceived === false
+                  ? "border-[#F0684D]/60 bg-[#F0684D]/15 text-[#F0684D]"
+                  : "border-[#3D3330] text-[#9C8272] hover:border-[#F0684D]/50 hover:text-[#F0684D]"
+              }`}
+              onClick={() => setPaymentReceived(false)}
+              type="button"
+            >
+              No
+            </button>
+          </div>
+          {paymentReceived === false && (
+            <textarea
+              autoFocus
+              className="min-h-24 w-full rounded-lg border border-[#3D3330] bg-[#1A1919] px-3 py-2 text-[#FFEDD1] text-xs outline-none placeholder:text-[#7A6555] focus:border-[#F0684D]"
+              maxLength={500}
+              onChange={(event) => setPaymentComment(event.target.value)}
+              placeholder="Describe what happened"
+              required
+              value={paymentComment}
+            />
+          )}
+          {error && <p className="text-[#F0684D] text-xs">{error}</p>}
+          {paymentReceived !== null && (
+            <button
+              className="w-full rounded-lg border border-[#10b981]/40 bg-[#10b981]/10 px-3 py-2 font-semibold text-[#10b981] text-xs transition-colors hover:bg-[#10b981]/15 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={
+                submitting ||
+                (paymentReceived === false && !paymentComment.trim())
+              }
+              type="submit"
+            >
+              {submitting ? "Submitting…" : "Submit"}
+            </button>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function NotificationsBlock() {
   const { dismissNotification, notifications } = useDashboardData();
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [photoNotificationId, setPhotoNotificationId] = useState<string | null>(
     null
   );
+  const [reimbursementNotificationId, setReimbursementNotificationId] =
+    useState<string | null>(null);
   useEffect(() => {
     if (!dismissingId) {
       return;
@@ -144,6 +278,9 @@ function NotificationsBlock() {
   const photoNotification = notifications.find(
     (notification) => notification.id === photoNotificationId
   );
+  const reimbursementNotification = notifications.find(
+    (notification) => notification.id === reimbursementNotificationId
+  );
   const unread = notifications.filter(
     (notification) => !notification.read
   ).length;
@@ -169,6 +306,10 @@ function NotificationsBlock() {
                 onClick={() => {
                   if (n.orderRequestId) {
                     setPhotoNotificationId(n.id);
+                    return;
+                  }
+                  if (n.reimbursementRequestId) {
+                    setReimbursementNotificationId(n.id);
                     return;
                   }
                   if (n.link) {
@@ -222,6 +363,18 @@ function NotificationsBlock() {
             setPhotoNotificationId(null);
           }}
           orderRequestId={photoNotification.orderRequestId}
+        />
+      )}
+      {reimbursementNotification?.reimbursementRequestId && (
+        <ReimbursementPaymentPopup
+          onClose={() => setReimbursementNotificationId(null)}
+          onSubmitted={() => {
+            markRead(reimbursementNotification.id).catch(() => undefined);
+            setReimbursementNotificationId(null);
+          }}
+          reimbursementRequestId={
+            reimbursementNotification.reimbursementRequestId
+          }
         />
       )}
     </div>

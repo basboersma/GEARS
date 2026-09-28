@@ -51,6 +51,7 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
       link: true,
       amount: true,
       pricePerPiece: true,
+      additionalCosts: true,
       totalCosts: true,
       typeOfOrder: true,
       urgency: true,
@@ -66,7 +67,11 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
 
   const spent = items
     .filter((item) => item.ordered && item.status !== "declined")
-    .reduce((sum, item) => sum + Number(item.totalCosts), 0);
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.totalCosts) + Number(item.additionalCosts),
+      0
+    );
   const departmentNames = Array.from(
     new Set(items.map((item) => item.department))
   );
@@ -85,7 +90,11 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
             item.ordered &&
             item.status !== "declined"
         )
-        .reduce((sum, item) => sum + Number(item.totalCosts), 0),
+        .reduce(
+          (sum, item) =>
+            sum + Number(item.totalCosts) + Number(item.additionalCosts),
+          0
+        ),
       color: ["#4f6ef7", "#10b981", "#8b5cf6", "#f59e0b", "#f43f5e", "#ec4899"][
         index % 6
       ],

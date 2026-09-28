@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -6,6 +6,7 @@ import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { createOrderRequestFolder } from "@/lib/google-drive";
+import { isOrderFinalized } from "@/lib/order-request";
 
 const patchSchema = z.object({
   status: z.enum(["pending", "accepted", "declined"]).optional(),
@@ -22,6 +23,8 @@ const patchSchema = z.object({
   link: z.string().trim().url().optional(),
   pricePerPiece: z.coerce.number().positive().optional(),
   amount: z.coerce.number().int().positive().optional(),
+  additionalCosts: z.coerce.number().nonnegative().optional(),
+  recurring: z.boolean().optional(),
   comments: z.string().max(200).optional(),
 });
 
@@ -87,6 +90,8 @@ export async function PATCH(
     parsed.data.link === undefined &&
     parsed.data.pricePerPiece === undefined &&
     parsed.data.amount === undefined &&
+    parsed.data.additionalCosts === undefined &&
+    parsed.data.recurring === undefined &&
     parsed.data.comments === undefined
   ) {
     return NextResponse.json(
@@ -129,9 +134,21 @@ export async function PATCH(
       parsed.data.photoNeeded !== undefined ||
       parsed.data.state !== undefined ||
       parsed.data.reimbursementStatus !== undefined);
+  const canUpdateAdditionalCosts =
+    isOwnerOrAdmin && parsed.data.additionalCosts !== undefined;
+  const canUpdateRecurring =
+    isOwnerOrAdmin && parsed.data.recurring !== undefined;
 
   const canUpdateState = isOwnerOrAdmin && parsed.data.state !== undefined;
-  if (!(ownerCanReview || adminCanProcess || canUpdateState)) {
+  if (
+    !(
+      ownerCanReview ||
+      adminCanProcess ||
+      canUpdateState ||
+      canUpdateAdditionalCosts ||
+      canUpdateRecurring
+    )
+  ) {
     return NextResponse.json(
       { error: "You are not authorized to update this order item" },
       { status: 403 }
@@ -149,8 +166,17 @@ export async function PATCH(
   const nextInvoiceAdded = parsed.data.invoiceAdded ?? item.invoiceAdded;
   const nextPhotoNeeded = parsed.data.photoNeeded ?? item.photoNeeded;
   const nextPhotoUploaded = item.photoUploaded;
-  const nextFinalized =
-    nextOrdered && nextInvoiceAdded && (!nextPhotoNeeded || nextPhotoUploaded);
+  const nextAdditionalCosts =
+    parsed.data.additionalCosts ?? Number(item.additionalCosts);
+  const nextRecurring = parsed.data.recurring ?? item.recurring;
+  const nextFinalized = isOrderFinalized({
+    status: nextStatus,
+    accepted: nextAccepted,
+    additionalCosts: nextAdditionalCosts,
+    invoiceAdded: nextInvoiceAdded,
+    photoNeeded: nextPhotoNeeded,
+    photoUploaded: nextPhotoUploaded,
+  });
   const nextPricePerPiece =
     parsed.data.pricePerPiece ?? Number(item.pricePerPiece);
   const nextAmount = parsed.data.amount ?? item.amount;
@@ -176,6 +202,25 @@ export async function PATCH(
     }
   }
 
+  if (parsed.data.recurring === false && item.recurring) {
+    await db
+      .update(orderRequest)
+      .set({
+        recurring: false,
+        canceled: true,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(orderRequest.organizationId, item.organizationId),
+          eq(orderRequest.userId, item.userId),
+          eq(orderRequest.orderName, item.orderName),
+          eq(orderRequest.recurring, true),
+          gt(orderRequest.orderedDate, new Date())
+        )
+      );
+  }
+
   await db
     .update(orderRequest)
     .set({
@@ -194,8 +239,10 @@ export async function PATCH(
       link: parsed.data.link ?? item.link,
       pricePerPiece: nextPricePerPiece.toFixed(2),
       amount: nextAmount,
+      additionalCosts: nextAdditionalCosts.toFixed(2),
       totalCosts: (nextPricePerPiece * nextAmount).toFixed(2),
       comments: parsed.data.comments ?? item.comments,
+      recurring: nextRecurring,
       updatedAt: new Date(),
     })
     .where(eq(orderRequest.id, orderRequestId));

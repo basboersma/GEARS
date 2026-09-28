@@ -165,6 +165,7 @@ export interface OrderLineItem {
   orderType?: string;
   urgency?: string;
   comments?: string;
+  additionalCosts?: number;
   status?: string;
   photoNeeded?: boolean;
   photoUploaded?: boolean;
@@ -193,6 +194,7 @@ export interface Order {
   finalized?: boolean;
   canceled?: boolean;
   accepted?: "neutral" | "accepted" | "denied";
+  additionalCosts?: number;
   state?: "Functional" | "Broken" | "Discarded";
   items: OrderLineItem[];
 }
@@ -223,12 +225,20 @@ export interface BudgetData {
 
 export interface AppNotification {
   id: string;
-  type: "order" | "member" | "event" | "todo" | "budget";
+  type:
+    | "order"
+    | "member"
+    | "event"
+    | "todo"
+    | "budget"
+    | "reimbursement"
+    | "reimbursement_payment";
   title: string;
   body: string;
   time: string;
   read: boolean;
   orderRequestId?: string;
+  reimbursementRequestId?: string;
   link?: string;
 }
 
@@ -245,6 +255,8 @@ export interface ReimbursementRequest {
   urgency: string;
   comments: string;
   status: string;
+  denyComment?: string | null;
+  paymentComment?: string | null;
   submittedAt: string;
   imageUrl?: string;
   ibanNumber?: string;

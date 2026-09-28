@@ -5,6 +5,7 @@ import { db } from "@/db/drizzle";
 import { member, orderRequest, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { uploadOrderRequestAttachment } from "@/lib/google-drive";
+import { isOrderFinalized } from "@/lib/order-request";
 
 export async function POST(
   request: Request,
@@ -59,7 +60,14 @@ export async function POST(
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }
-  const finalized = item.ordered && (!item.photoNeeded || item.photoUploaded);
+  const finalized = isOrderFinalized({
+    status: item.status,
+    accepted: item.accepted,
+    additionalCosts: Number(item.additionalCosts),
+    invoiceAdded: true,
+    photoNeeded: item.photoNeeded,
+    photoUploaded: item.photoUploaded,
+  });
   await db
     .update(orderRequest)
     .set({ invoiceAdded: true, finalized, updatedAt: new Date() })

@@ -270,13 +270,7 @@ function getBatchStyle(batchState: BatchState) {
 }
 
 function isOrderBatchItemFinalized(item: OrderBatchItem) {
-  return (
-    item.finalized ||
-    (item.ordered &&
-      item.delivered &&
-      item.status === "accepted" &&
-      (!item.photoNeeded || item.photoUploaded))
-  );
+  return item.finalized;
 }
 
 function getOrderBatchItemClass(item: OrderBatchItem) {
