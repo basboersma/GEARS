@@ -978,6 +978,8 @@ function OrderForm({
   );
   const [draftSaved, setDraftSaved] = useState(false);
   const submittingRef = useRef(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function updateRow(i: number, patch: Partial<FormRow>) {
     const next = rows.map((row, idx) =>
@@ -1001,23 +1003,42 @@ function OrderForm({
 
   async function handleSubmit() {
     if (submittingRef.current) return;
+    setSubmitError(null);
     const filledRows = rows.filter(rowHasContent);
-    if (!orderName.trim() || !department || !filledRows.length) return;
-    if (
-      filledRows.some(
-        (row) =>
-          !row.link.trim() ||
-          !/^https?:\/\//i.test(row.link.trim()) ||
-          !row.description.trim() ||
-          !row.pricePerPiece ||
-          !row.quantity ||
-          !row.orderType ||
-          !row.urgency
-      )
-    )
+    if (!orderName.trim()) {
+      setSubmitError("Enter an order list name.");
       return;
+    }
+    if (!department) {
+      setSubmitError("Select a department.");
+      return;
+    }
+    if (!filledRows.length) {
+      setSubmitError("Add at least one order item.");
+      return;
+    }
+    const invalidRow = filledRows.find(
+      (row) =>
+        !row.link.trim() ||
+        !/^https?:\/\//i.test(row.link.trim()) ||
+        !row.description.trim() ||
+        !row.pricePerPiece ||
+        !row.quantity ||
+        !row.orderType ||
+        !row.urgency
+    );
+    if (invalidRow) {
+      setSubmitError(
+        "Complete every item with a description, valid URL, price, quantity, type, and urgency."
+      );
+      return;
+    }
+    if (submittingRef.current) {
+      return;
+    }
     try {
       submittingRef.current = true;
+      setIsSubmitting(true);
       await onSubmit?.({
         orderName: orderName.trim(),
         department,
@@ -1026,11 +1047,13 @@ function OrderForm({
       });
       handleClear();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to submit order"
-      );
+      const message =
+        error instanceof Error ? error.message : "Failed to submit order";
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       submittingRef.current = false;
+      setIsSubmitting(false);
     }
   }
 
@@ -1236,6 +1259,14 @@ function OrderForm({
 
       {/* Sticky footer */}
       <div className="sticky bottom-0 bg-[#232120] border-t border-[#3D3330] pt-3 pb-1 flex items-center justify-between gap-4">
+        {submitError && (
+          <p
+            className="absolute bottom-12 left-0 text-[#F0684D] text-[11px]"
+            role="alert"
+          >
+            {submitError}
+          </p>
+        )}
         <p className="text-[11px] text-[#9C8272]">
           Total:{" "}
           <span className="text-[#FFD142] font-mono font-semibold">
@@ -1287,10 +1318,11 @@ function OrderForm({
             </button>
           )}
           <button
+            disabled={isSubmitting}
             onClick={() =>
               treasurerIncoming ? void onOrdered?.() : void handleSubmit()
             }
-            className={`px-5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${
+            className={`px-5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               isRecurring
                 ? "border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#8b5cf6] hover:border-[#8b5cf6]/70 hover:bg-[#8b5cf6]/15"
                 : "border-[#FFD142]/40 bg-[#FFD142]/10 text-[#FFD142] hover:border-[#FFD142]/70 hover:bg-[#FFD142]/15"
