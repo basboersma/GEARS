@@ -48,7 +48,7 @@ function fmtDateTime(date: string, time: string) {
 
 interface Props {
   event: CalEvent;
-  onEdit: () => void;
+  onEdit?: () => void;
   onClose: () => void;
 }
 
@@ -260,12 +260,14 @@ export function EventDetailModal({ event, onEdit, onClose }: Props) {
         >
           Close
         </button>
-        <button
-          className="flex-1 rounded-xl bg-[#F0684D] py-2 font-medium text-sm text-white transition-colors hover:bg-[#E05538]"
-          onClick={onEdit}
-        >
-          ✏️ Edit
-        </button>
+        {onEdit && (
+          <button
+            className="flex-1 rounded-xl bg-[#F0684D] py-2 font-medium text-sm text-white transition-colors hover:bg-[#E05538]"
+            onClick={onEdit}
+          >
+            ✏️ Edit
+          </button>
+        )}
       </div>
     </ModalShell>
   );

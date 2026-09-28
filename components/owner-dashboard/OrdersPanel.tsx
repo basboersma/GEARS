@@ -52,7 +52,6 @@ interface Reimbursement {
   isPast: boolean;
   imageUrl?: string;
   ibanNumber?: string;
-  inventoryAdded?: boolean;
 }
 
 interface OrderItem {
@@ -1472,57 +1471,11 @@ function AdditionalCostsPanel({
   onApply: (orders: OrderRecord[], total: number) => Promise<void>;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [organizationFilter, setOrganizationFilter] = useState("all");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [amount, setAmount] = useState("");
   const [saving, setSaving] = useState(false);
 
   const selectedOrders = orders.filter((order) => selectedIds.has(order.id));
   const parsedAmount = Number(amount);
-  const organizations = Array.from(
-    new Set(
-      orders
-        .map((order) => order.organizationName)
-        .filter((name): name is string => Boolean(name))
-    )
-  ).sort((a, b) => a.localeCompare(b));
-  const departments = Array.from(
-    new Set(orders.map((order) => order.department).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b));
-  const statuses = Array.from(
-    new Set(orders.map((order) => order.status))
-  ).sort((a, b) => STATUS_LABEL[a].localeCompare(STATUS_LABEL[b]));
-  const searchTerms = searchQuery
-    .toLowerCase()
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
-  const filteredOrders = orders.filter((order) => {
-    const searchableText = [
-      order.name,
-      order.department,
-      order.organizationName,
-      order.submittedBy,
-      ...order.items.flatMap((item) => [
-        item.description,
-        item.orderType,
-        item.comments,
-      ]),
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return (
-      searchTerms.every((term) => searchableText.includes(term)) &&
-      (organizationFilter === "all" ||
-        order.organizationName === organizationFilter) &&
-      (departmentFilter === "all" || order.department === departmentFilter) &&
-      (statusFilter === "all" || order.status === statusFilter)
-    );
-  });
 
   async function apply() {
     if (
@@ -1558,16 +1511,6 @@ function AdditionalCostsPanel({
     });
   }
 
-  if (selectedOrder) {
-    return (
-      <OrderDetailView
-        order={selectedOrder}
-        onClose={() => setSelectedOrder(null)}
-        isPast={selectedOrder.isPast}
-      />
-    );
-  }
-
   return (
     <div className="flex min-h-full flex-col gap-3 pb-20">
       <div className="flex items-start justify-between gap-3 border-b border-[#3D3330] pb-3">
@@ -1583,53 +1526,9 @@ function AdditionalCostsPanel({
           {selectedOrders.length} selected
         </span>
       </div>
-      <div className="grid gap-2 border-b border-[#3D3330] pb-3 md:grid-cols-[minmax(12rem,1fr)_repeat(3,minmax(8rem,auto))]">
-        <input
-          className={fieldCls}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search orders, people, items..."
-          value={searchQuery}
-        />
-        <select
-          className={selectCls}
-          onChange={(event) => setOrganizationFilter(event.target.value)}
-          value={organizationFilter}
-        >
-          <option value="all">All organizations</option>
-          {organizations.map((organization) => (
-            <option key={organization} value={organization}>
-              {organization}
-            </option>
-          ))}
-        </select>
-        <select
-          className={selectCls}
-          onChange={(event) => setDepartmentFilter(event.target.value)}
-          value={departmentFilter}
-        >
-          <option value="all">All departments</option>
-          {departments.map((department) => (
-            <option key={department} value={department}>
-              {department}
-            </option>
-          ))}
-        </select>
-        <select
-          className={selectCls}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          value={statusFilter}
-        >
-          <option value="all">All statuses</option>
-          {statuses.map((status) => (
-            <option key={status} value={status}>
-              {STATUS_LABEL[status]}
-            </option>
-          ))}
-        </select>
-      </div>
       <div className="space-y-1.5">
-        {filteredOrders.map((order) => (
-          <div
+        {orders.map((order) => (
+          <label
             className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#3D3330] bg-[#1A1919] px-3 py-2.5 transition-colors hover:border-[#4A3F38]"
             key={order.id}
           >
@@ -1639,18 +1538,9 @@ function AdditionalCostsPanel({
               onChange={() => toggleOrder(order.id)}
               type="checkbox"
             />
-            <button
-              className="min-w-0 flex-1 text-left"
-              onClick={() => setSelectedOrder(order)}
-              type="button"
-            >
-              <span className="block truncate text-xs font-medium text-[#FFEDD1]">
-                {order.name}
-              </span>
-              <span className="mt-0.5 block truncate text-[9px] text-[#7A6555]">
-                {order.items.map((item) => item.description).join(" · ")}
-              </span>
-            </button>
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
+              {order.name}
+            </span>
             <span className="shrink-0 text-[10px] text-[#9C8272]">
               {order.organizationName ?? order.department}
             </span>
@@ -1658,15 +1548,13 @@ function AdditionalCostsPanel({
               Current {fmt(order.additionalCosts)}
             </span>
             <span className="shrink-0 text-[9px] text-[#7A6555]">
-              {STATUS_LABEL[order.status]}
+              {order.status}
             </span>
-          </div>
+          </label>
         ))}
-        {filteredOrders.length === 0 && (
+        {orders.length === 0 && (
           <div className="py-16 text-center text-sm text-[#7A6555]">
-            {orders.length === 0
-              ? "No orders available"
-              : "No orders match these filters"}
+            No orders available
           </div>
         )}
       </div>
@@ -2762,9 +2650,11 @@ const reimbRowsTotal = (rows: ReimbRow[]) =>
 function ReimbursementForm({
   onSubmit,
   onSaveDraft,
+  allowDraft = true,
 }: {
   onSubmit: (r: Reimbursement, file: File) => void | Promise<void>;
   onSaveDraft?: (draft: Draft) => void;
+  allowDraft?: boolean;
 }) {
   const { departments } = useDashboardData();
   const [drag, setDrag] = useState(false);
@@ -3089,16 +2979,18 @@ function ReimbursementForm({
           </span>
         </p>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleSaveDraftClick}
-            className={`px-3 py-1.5 rounded-lg border text-[11px] transition-colors ${
-              draftSaved
-                ? "border-[#10b981]/50 text-[#10b981] bg-[#10b981]/10"
-                : "border-[#3D3330] text-[#9C8272] hover:border-[#4A3F38] hover:text-[#FFEDD1]"
-            }`}
-          >
-            {draftSaved ? "✓ Saved" : "Save draft"}
-          </button>
+          {allowDraft && (
+            <button
+              onClick={handleSaveDraftClick}
+              className={`px-3 py-1.5 rounded-lg border text-[11px] transition-colors ${
+                draftSaved
+                  ? "border-[#10b981]/50 text-[#10b981] bg-[#10b981]/10"
+                  : "border-[#3D3330] text-[#9C8272] hover:border-[#4A3F38] hover:text-[#FFEDD1]"
+              }`}
+            >
+              {draftSaved ? "✓ Saved" : "Save draft"}
+            </button>
+          )}
           <button
             onClick={handleSubmit}
             disabled={
@@ -3210,40 +3102,18 @@ function ReimbursementIncomingRow({
   onAccept,
   onMarkPaid,
   onDeny,
-  onInventoryChange,
 }: {
   reimbursement: Reimbursement;
   isTreasurer: boolean;
   onAccept: () => void;
   onMarkPaid: () => void;
   onDeny: (comment: string) => Promise<void>;
-  onInventoryChange: (added: boolean) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [denying, setDenying] = useState(false);
   const [denyComment, setDenyComment] = useState("");
   const [submittingDeny, setSubmittingDeny] = useState(false);
-  const [updatingInventory, setUpdatingInventory] = useState(false);
-  const [inventoryAdded, setInventoryAdded] = useState(
-    Boolean(reimbursement.inventoryAdded)
-  );
   const total = reimbursement.pricePerPiece * reimbursement.quantity;
-
-  async function handleInventoryChange(added: boolean) {
-    if (updatingInventory) return;
-    setInventoryAdded(added);
-    setUpdatingInventory(true);
-    try {
-      await onInventoryChange(added);
-    } catch (error) {
-      setInventoryAdded(!added);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update inventory"
-      );
-    } finally {
-      setUpdatingInventory(false);
-    }
-  }
 
   async function submitDenial(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -3267,48 +3137,33 @@ function ReimbursementIncomingRow({
 
   return (
     <div className="overflow-hidden rounded-xl border border-[#3D3330] bg-[#1A1919]">
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <button
-          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors hover:bg-white/5"
-          onClick={() => setExpanded((current) => !current)}
-          type="button"
-        >
-          {reimbursement.imageUrl ? (
-            <img
-              src={reimbursement.imageUrl}
-              alt=""
-              className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
-            />
-          ) : (
-            <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
-          )}
-          <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
-            {reimbursement.orderName || reimbursement.name}
-          </span>
-          <span className="shrink-0 text-[10px] text-[#9C8272]">
-            {reimbursement.submittedBy}
-          </span>
-          <span className="shrink-0 font-mono text-[11px] text-[#C4A882]">
-            {fmt(total)}
-          </span>
-          <span className="shrink-0 text-[#7A6555] text-[10px]">
-            {expanded ? "⌃" : "⌄"}
-          </span>
-        </button>
-        {isTreasurer && (
-          <label className="flex shrink-0 items-center gap-2 text-[10px] text-[#9C8272]">
-            <input
-              checked={inventoryAdded}
-              disabled={updatingInventory}
-              onChange={(event) =>
-                void handleInventoryChange(event.target.checked)
-              }
-              type="checkbox"
-            />
-            Add to inventory
-          </label>
+      <button
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/5"
+        onClick={() => setExpanded((current) => !current)}
+        type="button"
+      >
+        {reimbursement.imageUrl ? (
+          <img
+            src={reimbursement.imageUrl}
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-md border border-[#3D3330] object-cover"
+          />
+        ) : (
+          <span className="h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
         )}
-      </div>
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#FFEDD1]">
+          {reimbursement.orderName || reimbursement.name}
+        </span>
+        <span className="shrink-0 text-[10px] text-[#9C8272]">
+          {reimbursement.submittedBy}
+        </span>
+        <span className="shrink-0 font-mono text-[11px] text-[#C4A882]">
+          {fmt(total)}
+        </span>
+        <span className="shrink-0 text-[#7A6555] text-[10px]">
+          {expanded ? "⌃" : "⌄"}
+        </span>
+      </button>
       {expanded && (
         <div className="space-y-3 border-t border-[#3D3330] px-4 py-3">
           {reimbursement.imageUrl ? (
@@ -3428,7 +3283,7 @@ export function OrdersPanel({
 }: {
   data: BudgetData;
   userName: string;
-  mode?: "owner" | "treasurer";
+  mode?: "owner" | "treasurer" | "member";
   permissionOrganizationId?: string;
   permissionRequestId?: string;
   teamOrganizations?: TeamOrganization[];
@@ -3441,11 +3296,14 @@ export function OrdersPanel({
     reimbursements: persistedReimbursements,
   } = useDashboardData();
   const isTreasurer = mode === "treasurer";
+  const isMember = mode === "member";
   const isPastReimbursement = (status: string) =>
     isTreasurer
       ? status === "successful" || status === "declined"
       : status !== "pending";
-  const [tab, setTab] = useState<Tab>(isTreasurer ? "overview" : "submit");
+  const [tab, setTab] = useState<Tab>(
+    isTreasurer ? "overview" : isMember ? "reimburse" : "submit"
+  );
   const [formTotal, setFormTotal] = useState(0);
   const [formDept, setFormDept] = useState("");
   const [chartPeriod, setChartPeriod] = useState<Period>("6M");
@@ -3603,29 +3461,6 @@ export function OrdersPanel({
           : item
       )
     );
-  }
-
-  async function updateReimbursementInventory(
-    reimbursement: Reimbursement,
-    added: boolean
-  ) {
-    const response = await fetch(`/api/reimbursements/${reimbursement.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ addToInventory: added }),
-    });
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      throw new Error(body?.error ?? "Failed to update inventory");
-    }
-    setReimbursements((current) =>
-      current.map((item) =>
-        item.id === reimbursement.id ? { ...item, inventoryAdded: added } : item
-      )
-    );
-    router.refresh();
   }
 
   // Filtered past orders for search
@@ -3939,27 +3774,33 @@ export function OrdersPanel({
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }
 
-  const TABS: { id: Tab; label: string }[] = [
-    ...(!isTreasurer ? [{ id: "submit" as const, label: "Submit" }] : []),
-    { id: "overview", label: "Overview" },
-    { id: "incoming", label: "Incoming" },
-    { id: "past", label: "Past Orders" },
-    ...(isTreasurer
-      ? [{ id: "additional-costs" as const, label: "Additional costs" }]
-      : []),
-    ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
-    ...(!isTreasurer ? [{ id: "reimburse" as const, label: "Reimburse" }] : []),
-  ];
+  const TABS: { id: Tab; label: string }[] = isMember
+    ? [{ id: "reimburse", label: "Reimburse" }]
+    : [
+        ...(!isTreasurer ? [{ id: "submit" as const, label: "Submit" }] : []),
+        { id: "overview", label: "Overview" },
+        { id: "incoming", label: "Incoming" },
+        { id: "past", label: "Past Orders" },
+        ...(isTreasurer
+          ? [{ id: "additional-costs" as const, label: "Additional costs" }]
+          : []),
+        ...(isTreasurer ? [{ id: "teams" as const, label: "Teams" }] : []),
+        ...(!isTreasurer
+          ? [{ id: "reimburse" as const, label: "Reimburse" }]
+          : []),
+      ];
 
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-3">
       {/* Budget Bar */}
-      <BudgetBar
-        data={data}
-        orderAmount={showOrderOverlay ? formTotal : 0}
-        recurringAmount={activeRecurTotal}
-        showOrder={showOrderOverlay}
-      />
+      {!isMember && (
+        <BudgetBar
+          data={data}
+          orderAmount={showOrderOverlay ? formTotal : 0}
+          recurringAmount={activeRecurTotal}
+          showOrder={showOrderOverlay}
+        />
+      )}
 
       {/* Tab Buttons */}
       <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
@@ -4208,9 +4049,6 @@ export function OrdersPanel({
                             comment
                           )
                         }
-                        onInventoryChange={(added) =>
-                          updateReimbursementInventory(reimbursement, added)
-                        }
                       />
                     ))}
                   </div>
@@ -4349,6 +4187,7 @@ export function OrdersPanel({
             )}
             {tab === "reimburse" && (
               <ReimbursementForm
+                allowDraft={!isMember}
                 onSubmit={submitReimbursement}
                 onSaveDraft={handleSaveDraft}
               />

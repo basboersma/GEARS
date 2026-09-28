@@ -251,7 +251,13 @@ function ItemDetail({
   );
 }
 
-export function InventoryPage({ onBack }: { onBack?: () => void }) {
+export function InventoryPage({
+  onBack,
+  readOnly = false,
+}: {
+  onBack?: () => void;
+  readOnly?: boolean;
+}) {
   const { departments, fileTree, orders } = useDashboardData();
   const [query, setQuery] = useState("");
   const [queries, setQueries] = useState<string[]>([]);
@@ -472,22 +478,28 @@ export function InventoryPage({ onBack }: { onBack?: () => void }) {
                 {formatDate(item.createdAt).replace(/\s\d{4}$/, "")}
               </span>
               <div className="flex items-center justify-end gap-1">
-                <select
-                  aria-label={`State for ${item.name}`}
-                  className="h-7 rounded-lg border border-[#3D3330] bg-[#1A1919] px-1 text-[9px] text-[#C4A882]"
-                  value={stateById[item.id] ?? item.state}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={(event) =>
-                    updateState(
-                      item,
-                      event.target.value as InventoryItem["state"]
-                    ).catch(() => undefined)
-                  }
-                >
-                  <option value="Functional">State: Functional</option>
-                  <option value="Broken">State: Broken</option>
-                  <option value="Discarded">State: Discarded</option>
-                </select>
+                {readOnly ? (
+                  <span className="text-[9px] text-[#9C8272]">
+                    {stateById[item.id] ?? item.state}
+                  </span>
+                ) : (
+                  <select
+                    aria-label={`State for ${item.name}`}
+                    className="h-7 rounded-lg border border-[#3D3330] bg-[#1A1919] px-1 text-[9px] text-[#C4A882]"
+                    value={stateById[item.id] ?? item.state}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) =>
+                      updateState(
+                        item,
+                        event.target.value as InventoryItem["state"]
+                      ).catch(() => undefined)
+                    }
+                  >
+                    <option value="Functional">State: Functional</option>
+                    <option value="Broken">State: Broken</option>
+                    <option value="Discarded">State: Discarded</option>
+                  </select>
+                )}
               </div>
             </div>
           ))}

@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { Role } from "@/db/schema";
 import { removeMember, setMemberRole } from "@/server/members";
 import { Button } from "./ui/button";
 
@@ -13,7 +14,7 @@ export default function MembersTableAction({
   canManageRoles,
 }: {
   memberId: string;
-  role: "member" | "sub_owner" | "admin" | "owner";
+  role: Role;
   canManageRoles: boolean;
 }) {
   const [isLoading, setIsLoading] = useState(false);

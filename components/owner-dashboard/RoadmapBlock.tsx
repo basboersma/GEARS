@@ -317,8 +317,17 @@ interface DragState {
 }
 
 export function RoadmapBlock() {
-  const { departments, organizationId, removeTodo, roadmap, upsertTodo } =
-    useDashboardData();
+  const {
+    departments,
+    organizationId,
+    removeTodo,
+    roadmap,
+    upsertTodo,
+    viewer,
+  } = useDashboardData();
+  const readOnly = Boolean(
+    viewer && viewer.role !== "owner" && viewer.role !== "admin"
+  );
   const [items, setItems] = useState<RoadmapItem[]>(roadmap);
   const [viewStart, setViewStart] = useState<Date>(() => {
     const d = new Date();
@@ -405,6 +414,9 @@ export function RoadmapBlock() {
     item: RoadmapItem,
     todoSubtasks?: Subtask[] | null
   ) => {
+    if (readOnly) {
+      return;
+    }
     const isExisting = items.some((existing) => existing.id === item.id);
     const temporaryId = item.id;
     const newItem = {
@@ -455,6 +467,9 @@ export function RoadmapBlock() {
     setEditing(null);
   };
   const deleteItem = (id: string) => {
+    if (readOnly) {
+      return;
+    }
     setItems((prev) => prev.filter((x) => x.id !== id));
     setEditing(null);
   };
@@ -501,7 +516,11 @@ export function RoadmapBlock() {
     };
     const onUp = () => {
       const updated = itemsRef.current.find((item) => item.id === drag.id);
-      if (updated) {
+      const moved =
+        updated &&
+        (updated.startDate !== drag.initialStart ||
+          updated.endDate !== drag.initialEnd);
+      if (moved && updated) {
         saveItem(updated).catch(() => undefined);
       }
       setDrag(null);
@@ -620,39 +639,23 @@ export function RoadmapBlock() {
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="mb-2 flex shrink-0 flex-wrap items-center gap-2">
-        <button
-          className="flex h-6 w-6 items-center justify-center rounded-lg text-[#7A6555] text-sm hover:bg-[#2E2B2A] hover:text-[#FFEDD1]"
-          onClick={() => nav(-1)}
-        >
-          ‹
-        </button>
-        <span className="min-w-0 font-semibold text-[#FFEDD1] text-sm">
-          {navLabel}
-        </span>
-        <button
-          className="flex h-6 w-6 items-center justify-center rounded-lg text-[#7A6555] text-sm hover:bg-[#2E2B2A] hover:text-[#FFEDD1]"
-          onClick={() => nav(1)}
-        >
-          ›
-        </button>
-        <button
-          className="rounded-md border border-[#3D3330] bg-[#232120] px-2 py-0.5 font-semibold text-[#C4A882] text-[10px] transition-colors hover:border-[#F0684D]/40 hover:text-[#F0684D]"
-          onClick={goToday}
-        >
-          Today
-        </button>
-        {/* Span selector */}
-        <div className="flex rounded-lg border border-[#3D3330] bg-[#232120] p-0.5">
-          {(["1M", "3M", "6M", "1Y"] as SpanLabel[]).map((s) => (
-            <button
-              className={`rounded-md px-2 py-0.5 font-semibold text-[10px] transition-colors ${span === s ? "bg-[#F0684D] text-white" : "text-[#7A6555] hover:text-[#FFEDD1]"}`}
-              key={s}
-              onClick={() => setSpan(s)}
-            >
-              {s}
-            </button>
-          ))}
+      <div className="mb-2 flex shrink-0 flex-wrap items-start gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded-lg text-[#7A6555] text-sm hover:bg-[#2E2B2A] hover:text-[#FFEDD1]"
+            onClick={() => nav(-1)}
+          >
+            ‹
+          </button>
+          <span className="min-w-0 font-semibold text-[#FFEDD1] text-sm">
+            {navLabel}
+          </span>
+          <button
+            className="flex h-6 w-6 items-center justify-center rounded-lg text-[#7A6555] text-sm hover:bg-[#2E2B2A] hover:text-[#FFEDD1]"
+            onClick={() => nav(1)}
+          >
+            ›
+          </button>
         </div>
         <div className="flex-1" />
         <div className="flex flex-wrap gap-2">
@@ -669,12 +672,36 @@ export function RoadmapBlock() {
             </div>
           ))}
         </div>
-        <button
-          className="rounded-lg bg-[#F0684D] px-3 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-[#E05538]"
-          onClick={() => setCreating(true)}
-        >
-          + Add
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            {/* Span selector */}
+            <div className="flex rounded-lg border border-[#3D3330] bg-[#232120] p-0.5">
+              {(["1M", "3M", "6M", "1Y"] as SpanLabel[]).map((s) => (
+                <button
+                  className={`rounded-md px-2 py-0.5 font-semibold text-[10px] transition-colors ${span === s ? "bg-[#F0684D] text-white" : "text-[#7A6555] hover:text-[#FFEDD1]"}`}
+                  key={s}
+                  onClick={() => setSpan(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            {!readOnly && (
+              <button
+                className="rounded-lg bg-[#F0684D] px-3 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-[#E05538]"
+                onClick={() => setCreating(true)}
+              >
+                + Add
+              </button>
+            )}
+          </div>
+          <button
+            className="rounded-md border border-[#3D3330] bg-[#232120] px-2 py-0.5 font-semibold text-[#C4A882] text-[10px] transition-colors hover:border-[#F0684D]/40 hover:text-[#F0684D]"
+            onClick={goToday}
+          >
+            Today
+          </button>
+        </div>
       </div>
 
       {/* Gantt grid — single scroll container */}
@@ -683,6 +710,7 @@ export function RoadmapBlock() {
         ref={scrollRef}
       >
         <div
+          className="relative"
           ref={gridRef}
           style={{ minWidth: DEPT_COL_W + totalDays * dayWidth }}
         >
@@ -737,22 +765,32 @@ export function RoadmapBlock() {
               >
                 {/* Sticky dept label */}
                 <div
-                  className="sticky left-0 z-10 flex shrink-0 cursor-grab select-none items-center justify-center gap-1.5 border-[#3D3330] border-r bg-[#232120]"
-                  draggable
+                  className={`sticky left-0 z-10 flex shrink-0 select-none items-center justify-center gap-1.5 border-[#3D3330] border-r bg-[#232120] ${readOnly ? "" : "cursor-grab"}`}
+                  draggable={!readOnly}
                   onDragEnd={() => {
                     setRowDragging(null);
                     setRowDragOver(null);
                   }}
                   onDragLeave={() => setRowDragOver(null)}
                   onDragOver={(e) => {
+                    if (readOnly) {
+                      return;
+                    }
                     e.preventDefault();
                     setRowDragOver(dept);
                   }}
                   onDragStart={(e) => {
+                    if (readOnly) {
+                      return;
+                    }
                     e.dataTransfer.effectAllowed = "move";
                     setRowDragging(dept);
                   }}
-                  onDrop={() => handleRowDrop(dept)}
+                  onDrop={() => {
+                    if (!readOnly) {
+                      handleRowDrop(dept);
+                    }
+                  }}
                   style={{
                     width: DEPT_COL_W,
                     opacity: rowDragging === dept ? 0.4 : 1,
@@ -814,13 +852,19 @@ export function RoadmapBlock() {
                     const y = ROW_GAP + item.row * (ROW_H + ROW_GAP);
                     return (
                       <div
-                        className="group absolute cursor-grab select-none rounded active:cursor-grabbing"
+                        className={`group absolute select-none rounded ${readOnly ? "" : "cursor-grab active:cursor-grabbing"}`}
                         key={item.id}
                         onDoubleClick={(e) => {
+                          if (readOnly) {
+                            return;
+                          }
                           e.stopPropagation();
                           setEditing(item);
                         }}
                         onMouseDown={(e) => {
+                          if (readOnly) {
+                            return;
+                          }
                           e.preventDefault();
                           e.stopPropagation();
                           setDrag({
@@ -840,20 +884,22 @@ export function RoadmapBlock() {
                           opacity: 0.92,
                         }}
                       >
-                        <div
-                          className="absolute top-0 bottom-0 left-0 z-10 w-2 cursor-ew-resize rounded-l hover:bg-black/20"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDrag({
-                              type: "resize-left",
-                              id: item.id,
-                              startX: e.clientX,
-                              initialStart: item.startDate,
-                              initialEnd: item.endDate,
-                            });
-                          }}
-                        />
+                        {!readOnly && (
+                          <div
+                            className="absolute top-0 bottom-0 left-0 z-10 w-2 cursor-ew-resize rounded-l hover:bg-black/20"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDrag({
+                                type: "resize-left",
+                                id: item.id,
+                                startX: e.clientX,
+                                initialStart: item.startDate,
+                                initialEnd: item.endDate,
+                              });
+                            }}
+                          />
+                        )}
                         <div className="relative flex h-full items-center gap-1.5 overflow-hidden px-2">
                           {item.progress > 0 && (
                             <div
@@ -898,20 +944,22 @@ export function RoadmapBlock() {
                             </span>
                           )}
                         </div>
-                        <div
-                          className="absolute top-0 right-0 bottom-0 z-10 w-2 cursor-ew-resize rounded-r hover:bg-black/20"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDrag({
-                              type: "resize-right",
-                              id: item.id,
-                              startX: e.clientX,
-                              initialStart: item.startDate,
-                              initialEnd: item.endDate,
-                            });
-                          }}
-                        />
+                        {!readOnly && (
+                          <div
+                            className="absolute top-0 right-0 bottom-0 z-10 w-2 cursor-ew-resize rounded-r hover:bg-black/20"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDrag({
+                                type: "resize-right",
+                                id: item.id,
+                                startX: e.clientX,
+                                initialStart: item.startDate,
+                                initialEnd: item.endDate,
+                              });
+                            }}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -929,14 +977,14 @@ export function RoadmapBlock() {
         </div>
       </div>
 
-      {creating && (
+      {!readOnly && creating && (
         <RoadmapForm
           departments={departments}
           onClose={() => setCreating(false)}
           onSave={saveItem}
         />
       )}
-      {editing && (
+      {!readOnly && editing && (
         <RoadmapForm
           departments={departments}
           initial={editing}

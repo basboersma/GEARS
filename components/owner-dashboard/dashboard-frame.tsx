@@ -116,19 +116,18 @@ export function OwnerDashboardFrame({
   userName: string;
   viewerRole: DashboardRole;
 }) {
-  const { gmaCreated } = useDashboardData();
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
   const navigation = getDashboardNavigation({
-    gmaCreated,
     organizationSlug,
     role: viewerRole,
   });
   const navClass = (isActive: boolean) =>
     `flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs transition-all ${isActive ? "bg-[#F0684D]/20 text-[#F0684D]" : "text-[#9C8272] hover:bg-white/5 hover:text-[#FFEDD1]"}`;
   const showNotifications =
-    activePage !== "treasurer" &&
-    activePage !== "orders" &&
-    activePage !== "inventory";
+    viewerRole === "member" ||
+    (activePage !== "treasurer" &&
+      activePage !== "orders" &&
+      activePage !== "inventory");
 
   return (
     <div
@@ -161,7 +160,7 @@ export function OwnerDashboardFrame({
             <span>Dashboard</span>
           </Link>
           <div className="space-y-0.5 pt-1">
-            <SubteamsNav />
+            {viewerRole !== "member" && <SubteamsNav />}
             {navigation.slice(1).map((item) => (
               <Link
                 className={navClass(activePage === item.key)}

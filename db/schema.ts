@@ -121,7 +121,17 @@ export const organizationDepartmentRelations = relations(
 
 export type Organization = typeof organization.$inferSelect;
 
-export const role = pgEnum("role", ["member", "sub_owner", "admin", "owner"]);
+export const role = pgEnum("role", [
+  "member",
+  "sub_owner",
+  "admin",
+  "owner",
+  "board",
+  "sublead",
+  "treasurer",
+  "advisor",
+  "kas",
+]);
 
 export const educationalInstitution = pgEnum("educational_institution", [
   "University of Groningen",
@@ -733,6 +743,9 @@ export const dashboardTodo = pgTable("dashboard_todo", {
   organizationId: text("organization_id")
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),
+  createdByUserId: text("created_by_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
   text: text("text").notNull(),
   description: text("description").notNull().default(""),
   done: boolean("done").notNull().default(false),

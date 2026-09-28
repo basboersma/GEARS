@@ -39,6 +39,7 @@ interface Props {
   initial?: CalEvent;
   departments: string[];
   members: Member[];
+  meetingsOnly?: boolean;
   onSave: (ev: CalEvent) => void;
   onClose: () => void;
 }
@@ -47,6 +48,7 @@ export function EventFormModal({
   departments,
   initial,
   members,
+  meetingsOnly = false,
   onSave,
   onClose,
 }: Props) {
@@ -55,7 +57,7 @@ export function EventFormModal({
   const blank: CalEvent = {
     id: Date.now().toString(),
     title: "",
-    type: "event",
+    type: meetingsOnly ? "meeting" : "event",
     date: today,
     startTime: "10:00",
     endDate: today,
@@ -207,18 +209,24 @@ export function EventFormModal({
 
       <div className="flex-1 space-y-5 overflow-auto p-5">
         {/* Type toggle */}
-        <div className="flex gap-2">
-          {(["event", "meeting"] as const).map((t) => (
-            <button
-              className={`flex-1 rounded-xl border py-2.5 font-semibold text-sm transition-all ${ev.type === t ? "border-transparent text-white" : "border-[#3D3330] bg-[#232120] text-[#C4A882] hover:text-[#FFEDD1]"}`}
-              key={t}
-              onClick={() => changeType(t)}
-              style={ev.type === t ? { background: TYPE_COLOR[t] } : {}}
-            >
-              {t === "event" ? "📅 Event" : "🗓 Meeting"}
-            </button>
-          ))}
-        </div>
+        {meetingsOnly ? (
+          <div className="rounded-xl border border-[#4f6ef7]/40 bg-[#4f6ef7]/10 px-3 py-2.5 font-semibold text-[#4f6ef7] text-sm">
+            🗓 Meeting
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            {(["event", "meeting"] as const).map((t) => (
+              <button
+                className={`flex-1 rounded-xl border py-2.5 font-semibold text-sm transition-all ${ev.type === t ? "border-transparent text-white" : "border-[#3D3330] bg-[#232120] text-[#C4A882] hover:text-[#FFEDD1]"}`}
+                key={t}
+                onClick={() => changeType(t)}
+                style={ev.type === t ? { background: TYPE_COLOR[t] } : {}}
+              >
+                {t === "event" ? "📅 Event" : "🗓 Meeting"}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Title + Location */}
         <div className="grid grid-cols-2 gap-3">

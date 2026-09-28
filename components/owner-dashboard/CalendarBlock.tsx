@@ -295,7 +295,13 @@ export function CalendarBlock() {
     members,
     orders,
     organizationId,
+    viewer,
   } = useDashboardData();
+  const isManager =
+    !viewer || viewer.role === "owner" || viewer.role === "admin";
+  const canCreateAgenda = isManager || viewer?.role === "member";
+  const canEditEvent = (event: CalEvent) =>
+    isManager || event.createdByUserId === viewer?.userId;
   const [mode, setMode] = useState<"agenda" | "roadmap">("agenda");
   const [view, setView] = useState<CalView>("week");
   const [viewDate, setViewDate] = useState<Date>(() => getMonday(new Date()));
@@ -408,6 +414,9 @@ export function CalendarBlock() {
     orders.filter((o) => o.date === formatDate(d));
 
   const startDrag = useCallback((e: React.MouseEvent, ev: CalEvent) => {
+    if (!canEditEvent(ev)) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     setHoveredId(null);
@@ -425,6 +434,9 @@ export function CalendarBlock() {
   }, []);
 
   const startResizeBottom = useCallback((e: React.MouseEvent, ev: CalEvent) => {
+    if (!canEditEvent(ev)) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     setDragState({
@@ -439,6 +451,9 @@ export function CalendarBlock() {
   }, []);
 
   const startResizeTop = useCallback((e: React.MouseEvent, ev: CalEvent) => {
+    if (!canEditEvent(ev)) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     setDragState({
@@ -556,6 +571,9 @@ export function CalendarBlock() {
 
   const saveEvent = async (ev: CalEvent) => {
     const isExisting = events.some((event) => event.id === ev.id);
+    if (isExisting ? !canEditEvent(ev) : !canCreateAgenda) {
+      return;
+    }
     const payload = {
       ...(isExisting ? {} : { organizationId }),
       start: `${ev.date}T${ev.startTime}:00.000Z`,
@@ -720,18 +738,20 @@ export function CalendarBlock() {
                           zIndex: 2,
                         }}
                       >
+                        {canEditEvent(ev) && (
+                          <div
+                            className="absolute right-0 left-0 z-10 cursor-n-resize hover:bg-black/5"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              if (!dragState) {
+                                startResizeTop(e, ev);
+                              }
+                            }}
+                            style={{ height: HANDLE, top: 0 }}
+                          />
+                        )}
                         <div
-                          className="absolute right-0 left-0 z-10 cursor-n-resize hover:bg-black/5"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            if (!dragState) {
-                              startResizeTop(e, ev);
-                            }
-                          }}
-                          style={{ height: HANDLE, top: 0 }}
-                        />
-                        <div
-                          className="absolute right-0 left-0 cursor-grab overflow-hidden px-1.5 active:cursor-grabbing"
+                          className={`absolute right-0 left-0 overflow-hidden px-1.5 ${canEditEvent(ev) ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (!dragState) {
@@ -739,7 +759,7 @@ export function CalendarBlock() {
                             }
                           }}
                           onMouseDown={(e) => {
-                            if (!dragState) {
+                            if (!dragState && canEditEvent(ev)) {
                               startDrag(e, ev);
                             }
                           }}
@@ -768,16 +788,18 @@ export function CalendarBlock() {
                             </div>
                           )}
                         </div>
-                        <div
-                          className="absolute right-0 left-0 z-10 cursor-s-resize hover:bg-black/5"
-                          onMouseDown={(e) => {
-                            e.stopPropagation();
-                            if (!dragState) {
-                              startResizeBottom(e, ev);
-                            }
-                          }}
-                          style={{ height: HANDLE, bottom: 0 }}
-                        />
+                        {canEditEvent(ev) && (
+                          <div
+                            className="absolute right-0 left-0 z-10 cursor-s-resize hover:bg-black/5"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              if (!dragState) {
+                                startResizeBottom(e, ev);
+                              }
+                            }}
+                            style={{ height: HANDLE, bottom: 0 }}
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -926,7 +948,11 @@ export function CalendarBlock() {
                           e.stopPropagation();
                           setDetail(ev);
                         }}
-                        onMouseDown={(e) => startMonthDrag(e, ev)}
+                        onMouseDown={(e) => {
+                          if (canEditEvent(ev)) {
+                            startMonthDrag(e, ev);
+                          }
+                        }}
                         style={{ background: `${ev.color}22`, color: ev.color }}
                       >
                         {ev.startTime} {ev.title}
@@ -963,15 +989,17 @@ export function CalendarBlock() {
           ))}
         </div>
 
-        {mode === "agenda" && (
+        {mode === "agenda" && canCreateAgenda && (
           <>
-            <button
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#3D3330] bg-[#232120] text-[#7A6555] text-xs hover:text-[#FFEDD1]"
-              onClick={() => setShowSync(true)}
-              title="Sync Google Calendar"
-            >
-              Sync
-            </button>
+            {isManager && (
+              <button
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#3D3330] bg-[#232120] text-[#7A6555] text-xs hover:text-[#FFEDD1]"
+                onClick={() => setShowSync(true)}
+                title="Sync Google Calendar"
+              >
+                Sync
+              </button>
+            )}
             <div className="relative flex-1">
               <input
                 className="w-full rounded-lg border border-[#3D3330] bg-[#232120] py-1.5 pr-3 pl-3 text-[#FFEDD1] text-xs transition-colors placeholder:text-[#7A6555] focus:border-[#F0684D] focus:outline-none"
@@ -1031,12 +1059,14 @@ export function CalendarBlock() {
           </>
         )}
 
-        <button
-          className="shrink-0 rounded-lg bg-[#F0684D] px-2.5 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-[#E05538]"
-          onClick={() => setCreating(true)}
-        >
-          + New
-        </button>
+        {mode === "agenda" && (
+          <button
+            className="shrink-0 rounded-lg bg-[#F0684D] px-2.5 py-1.5 font-semibold text-white text-xs transition-colors hover:bg-[#E05538]"
+            onClick={() => setCreating(true)}
+          >
+            + New
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -1095,6 +1125,7 @@ export function CalendarBlock() {
       {creating && (
         <EventFormModal
           departments={departments}
+          meetingsOnly={!isManager}
           members={members}
           onClose={() => setCreating(false)}
           onSave={saveEvent}
@@ -1104,6 +1135,7 @@ export function CalendarBlock() {
         <EventFormModal
           departments={departments}
           initial={editing}
+          meetingsOnly={!isManager}
           members={members}
           onClose={() => setEditing(null)}
           onSave={saveEvent}
@@ -1113,10 +1145,14 @@ export function CalendarBlock() {
         <EventDetailModal
           event={detail}
           onClose={() => setDetail(null)}
-          onEdit={() => {
-            setEditing(detail);
-            setDetail(null);
-          }}
+          onEdit={
+            canEditEvent(detail)
+              ? () => {
+                  setEditing(detail);
+                  setDetail(null);
+                }
+              : undefined
+          }
         />
       )}
       {orderPopup && (

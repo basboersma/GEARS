@@ -8,6 +8,7 @@ import { feature } from "topojson-client";
 // @ts-ignore – world-atlas ships plain JSON, no TS declarations
 import worldTopoRaw from "world-atlas/countries-110m.json";
 import { countryForIso, isoForCountry } from "@/lib/countries";
+import { setMemberRole } from "@/server/members";
 import { avatarBg } from "./data";
 import type {
   BoardHistorySnapshot,
@@ -30,6 +31,23 @@ type DragTarget =
   | { kind: "advisor" }
   | { kind: "treasurer" }
   | { kind: "unassigned" };
+
+const ASSIGNABLE_MEMBER_ROLES = [
+  "member",
+  "sub_owner",
+  "board",
+  "sublead",
+  "treasurer",
+  "advisor",
+  "kas",
+] as const;
+
+type AssignableMemberRole = (typeof ASSIGNABLE_MEMBER_ROLES)[number];
+
+const memberRoleLabel = (role: string) =>
+  role === "sub_owner"
+    ? "Sub-owner"
+    : role.charAt(0).toUpperCase() + role.slice(1);
 
 const PIE_COLORS = [
   "#F0684D",
@@ -1280,6 +1298,7 @@ function MemberActionModal({
   onStrike,
   onAddToDept,
   onRemoveFromDept,
+  onSetMembershipRole,
   onSetRole,
 }: {
   member: Member;
@@ -1292,6 +1311,9 @@ function MemberActionModal({
   onStrike: (comment: string, file: File | null) => void;
   onAddToDept: (dept: string) => void;
   onRemoveFromDept: (dept: string) => void;
+  onSetMembershipRole: (
+    role: AssignableMemberRole
+  ) => Promise<{ success: boolean; error: string | null }>;
   onSetRole: (department: string, role: "advisor" | "treasurer") => void;
 }) {
   const [tab, setTab] = useState<"strike" | "remove" | "depts">("strike");
@@ -1301,6 +1323,7 @@ function MemberActionModal({
   const [pw, setPw] = useState("");
   const [pwErr, setPwErr] = useState<string | null>(null);
   const [pwChecking, setPwChecking] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const allMemberDepts = extraDepts;
   return (
@@ -1327,6 +1350,30 @@ function MemberActionModal({
           >
             ✕
           </button>
+        </div>
+        <div className="border-[#3D3330] border-b px-3 py-3">
+          <label className="mb-1 block font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
+            Membership role
+          </label>
+          <select
+            className="w-full rounded-lg border border-[#3D3330] bg-[#232120] px-2 py-1.5 text-[#FFEDD1] text-xs outline-none focus:border-[#F0684D]/60"
+            onChange={async (event) => {
+              const result = await onSetMembershipRole(
+                event.target.value as AssignableMemberRole
+              );
+              setRoleError(result.success ? null : result.error);
+            }}
+            value={member.role}
+          >
+            {ASSIGNABLE_MEMBER_ROLES.map((role) => (
+              <option key={role} value={role}>
+                {memberRoleLabel(role)}
+              </option>
+            ))}
+          </select>
+          {roleError && (
+            <p className="mt-1 text-[10px] text-rose-400">{roleError}</p>
+          )}
         </div>
         <div className="flex gap-1 p-3 pb-0">
           {[
@@ -3035,6 +3082,20 @@ export function MembersPage({
           onRemoveFromDept={(dept) =>
             removeMemberFromDepartment(actionMember.id, dept)
           }
+          onSetMembershipRole={async (role) => {
+            const result = await setMemberRole(actionMember.id, role);
+            if (result.success) {
+              setMembers((current) =>
+                current.map((member) =>
+                  member.id === actionMember.id ? { ...member, role } : member
+                )
+              );
+              setActionMember((current) =>
+                current ? { ...current, role } : current
+              );
+            }
+            return result;
+          }}
           onSetRole={(dept, role) => setTeamRole(actionMember.id, dept, role)}
         />
       )}

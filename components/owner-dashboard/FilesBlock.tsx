@@ -229,6 +229,7 @@ function TreeNode({
   onRenameCommit,
   onMenuOpen,
   onPreview,
+  readOnly,
 }: {
   node: FileTreeNode;
   depth: number;
@@ -243,6 +244,7 @@ function TreeNode({
   onRenameCommit: (id: string, name: string) => void;
   onMenuOpen: (nodeId: string, x: number, y: number) => void;
   onPreview: (file: Extract<FileTreeNode, { kind: "file" }>) => void;
+  readOnly: boolean;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const indent = depth * 14;
@@ -255,9 +257,12 @@ function TreeNode({
     return (
       <div
         className={`group flex cursor-grab select-none items-center gap-2 rounded-lg py-1 transition-colors hover:bg-[#2A2724] ${draggingId === node.id ? "opacity-40" : ""}`}
-        draggable
+        draggable={!readOnly}
         onClick={() => onPreview(node)}
         onDragStart={(e) => {
+          if (readOnly) {
+            return;
+          }
           e.stopPropagation();
           onDragStart(node.id);
           e.dataTransfer.effectAllowed = "move";
@@ -292,16 +297,18 @@ function TreeNode({
             <span className="mr-1 shrink-0 text-[#4A3F38] text-[9px] opacity-0 transition-opacity group-hover:opacity-100">
               {node.size}
             </span>
-            <button
-              className="shrink-0 px-1 text-[#7A6555] text-sm leading-none opacity-0 transition-opacity hover:text-[#FFEDD1] group-hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                const r = e.currentTarget.getBoundingClientRect();
-                onMenuOpen(node.id, r.left - 144, r.bottom + 4);
-              }}
-            >
-              ···
-            </button>
+            {!readOnly && (
+              <button
+                className="shrink-0 px-1 text-[#7A6555] text-sm leading-none opacity-0 transition-opacity hover:text-[#FFEDD1] group-hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onMenuOpen(node.id, r.left - 144, r.bottom + 4);
+                }}
+              >
+                ···
+              </button>
+            )}
           </>
         )}
       </div>
@@ -316,6 +323,9 @@ function TreeNode({
         onClick={onToggle}
         onDragLeave={() => setDragOver(false)}
         onDragOver={(e) => {
+          if (readOnly && !e.dataTransfer.types.includes("Files")) {
+            return;
+          }
           e.preventDefault();
           e.stopPropagation();
           setDragOver(true);
@@ -327,7 +337,7 @@ function TreeNode({
           setDragOver(false);
           if (e.dataTransfer.files.length > 0) {
             onLocalDrop(node.id, e.dataTransfer.files);
-          } else {
+          } else if (!readOnly) {
             onDrop(node.id);
           }
         }}
@@ -370,16 +380,18 @@ function TreeNode({
             <span className="shrink-0 text-[#4A3F38] text-[9px] opacity-0 transition-opacity group-hover:opacity-60">
               {node.children.length}
             </span>
-            <button
-              className="shrink-0 px-1 text-[#7A6555] text-sm leading-none opacity-0 transition-opacity hover:text-[#FFEDD1] group-hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation();
-                const r = e.currentTarget.getBoundingClientRect();
-                onMenuOpen(node.id, r.left - 144, r.bottom + 4);
-              }}
-            >
-              ···
-            </button>
+            {!readOnly && (
+              <button
+                className="shrink-0 px-1 text-[#7A6555] text-sm leading-none opacity-0 transition-opacity hover:text-[#FFEDD1] group-hover:opacity-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onMenuOpen(node.id, r.left - 144, r.bottom + 4);
+                }}
+              >
+                ···
+              </button>
+            )}
           </>
         )}
       </div>
@@ -402,6 +414,7 @@ function TreeNode({
               onPreview={onPreview}
               onRenameCommit={onRenameCommit}
               q={q}
+              readOnly={readOnly}
               renamingId={renamingId}
             />
           ))}
@@ -505,7 +518,11 @@ function GithubTreeNode({
 // ─── FilesBlock ───────────────────────────────────────────────────────────────
 
 export function FilesBlock() {
-  const { driveFolderId, fileTree, organizationId } = useDashboardData();
+  const { driveFolderId, fileTree, organizationId, viewer } =
+    useDashboardData();
+  const readOnly = Boolean(
+    viewer && viewer.role !== "owner" && viewer.role !== "admin"
+  );
   const [source, setSource] = useState<"google" | "github">("google");
   const [githubTree, setGithubTree] = useState<FileTreeNode[] | null>(null);
   const [githubLoading, setGithubLoading] = useState(false);
@@ -590,6 +607,10 @@ export function FilesBlock() {
 
   const handleDrop = useCallback(
     (targetFolderId: string) => {
+      if (readOnly) {
+        setDraggingId(null);
+        return;
+      }
       if (!draggingId || draggingId === targetFolderId) {
         setDraggingId(null);
         return;
@@ -604,7 +625,7 @@ export function FilesBlock() {
       );
       setDraggingId(null);
     },
-    [draggingId, tree]
+    [draggingId, readOnly, tree]
   );
 
   const handleLocalDrop = useCallback(
@@ -680,26 +701,43 @@ export function FilesBlock() {
 
   const handleMove = useCallback(
     (nodeId: string, folderId: string | null) => {
+      if (readOnly) {
+        return;
+      }
       const node = findNode(tree, nodeId);
       if (!node) {
         return;
       }
       setTree((t) => addToFolder(removeNode(t, nodeId), folderId, node));
     },
-    [tree]
+    [readOnly, tree]
   );
 
-  const handleRenameCommit = useCallback((id: string, name: string) => {
-    if (name.trim()) {
-      setTree((t) => renameNode(t, id, name.trim()));
-    }
-    setRenamingId(null);
-  }, []);
+  const handleRenameCommit = useCallback(
+    (id: string, name: string) => {
+      if (readOnly) {
+        setRenamingId(null);
+        return;
+      }
+      if (name.trim()) {
+        setTree((t) => renameNode(t, id, name.trim()));
+      }
+      setRenamingId(null);
+    },
+    [readOnly]
+  );
 
-  const handleDelete = useCallback((nodeId: string) => {
-    setTree((t) => removeNode(t, nodeId));
-    setMenu(null);
-  }, []);
+  const handleDelete = useCallback(
+    (nodeId: string) => {
+      if (readOnly) {
+        setMenu(null);
+        return;
+      }
+      setTree((t) => removeNode(t, nodeId));
+      setMenu(null);
+    },
+    [readOnly]
+  );
 
   const menuNodeId = menu?.nodeId ?? null;
 
@@ -752,6 +790,7 @@ export function FilesBlock() {
                 onPreview={setPreview}
                 onRenameCommit={handleRenameCommit}
                 q={q}
+                readOnly={readOnly}
                 renamingId={renamingId}
               />
             ))}
@@ -796,7 +835,7 @@ export function FilesBlock() {
       )}
 
       {/* Context menu */}
-      {menu && menuNodeId && (
+      {!readOnly && menu && menuNodeId && (
         <ContextMenu
           menu={menu}
           onClose={() => setMenu(null)}

@@ -160,6 +160,7 @@ export async function getTreasurerDashboardData(): Promise<DashboardData> {
 
   return {
     organizationId: "treasurer",
+    viewer: null,
     gmaCreated,
     driveFolderId: null,
     departments: [],

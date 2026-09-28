@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       eq(member.userId, session.user.id)
     ),
   });
-  if (!(membership?.role === "owner" || membership?.role === "admin")) {
+  if (!membership) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

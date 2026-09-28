@@ -23,6 +23,7 @@ export interface DiscussionPoint {
 
 export interface CalEvent {
   id: string;
+  createdByUserId?: string;
   title: string;
   type: EventType;
   date: string;
@@ -48,6 +49,7 @@ export interface Subtask {
 
 export interface TodoItem {
   id: string;
+  createdByUserId?: string;
   text: string;
   description: string;
   done: boolean;

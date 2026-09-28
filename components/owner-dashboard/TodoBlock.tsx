@@ -28,9 +28,11 @@ function daysUntil(dateStr: string): number {
 
 function SubtaskTrack({
   item,
+  canEdit,
   onToggle,
 }: {
   item: TodoItem;
+  canEdit: boolean;
   onToggle: (stId: string) => void;
 }) {
   const [tooltip, setTooltip] = useState<{ idx: number; text: string } | null>(
@@ -76,10 +78,13 @@ function SubtaskTrack({
                 </div>
               )}
               <button
-                className="block h-3 w-3 rounded-full border-2 transition-all hover:scale-125"
+                className="block h-3 w-3 rounded-full border-2 transition-all hover:scale-125 disabled:cursor-default disabled:hover:scale-100"
+                disabled={!canEdit}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggle(st.id);
+                  if (canEdit) {
+                    onToggle(st.id);
+                  }
                 }}
                 onMouseEnter={() => setTooltip({ idx: i, text: st.text })}
                 onMouseLeave={() => setTooltip(null)}
@@ -141,7 +146,14 @@ export function TodoBlock() {
     removeTodo,
     todos,
     upsertTodo,
+    viewer,
   } = useDashboardData();
+  const isManager =
+    !viewer || viewer.role === "owner" || viewer.role === "admin";
+  const canEditTodo = (todo: TodoItem) =>
+    isManager ||
+    todo.createdByUserId === viewer?.userId ||
+    Boolean(viewer && todo.assignedMembers.includes(viewer.memberId));
   const memberIdx = (id: string) =>
     members.findIndex((member) => member.id === id);
   const [modal, setModal] = useState<"new" | TodoItem | null>(null);
@@ -165,7 +177,11 @@ export function TodoBlock() {
       return payload?.error ?? "The todo could not be saved.";
     }
     const { id } = (await response.json()) as { id: string };
-    const persistedItem = { ...item, id };
+    const persistedItem = {
+      ...item,
+      id,
+      createdByUserId: item.createdByUserId ?? viewer?.userId,
+    };
     if (attachments.length > 0) {
       const formData = new FormData();
       formData.set("todoId", id);
@@ -204,7 +220,7 @@ export function TodoBlock() {
   };
   const toggle = (id: string) => {
     const todo = todos.find((item) => item.id === id);
-    if (todo) {
+    if (todo && canEditTodo(todo)) {
       upsertTodo({ ...todo, done: !todo.done });
     }
   };
@@ -290,60 +306,75 @@ export function TodoBlock() {
             key={t.id}
             style={{ borderLeftColor: t.color, borderLeftWidth: 3 }}
           >
-            <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1">
-              <button
-                className="flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors"
-                onClick={() => toggle(t.id)}
-                style={{
-                  borderColor: t.done ? t.color : "#D4B896",
-                  background: t.done ? t.color : "transparent",
-                }}
-              >
-                {t.done && (
-                  <span className="font-bold text-[9px] text-white">✓</span>
-                )}
-              </button>
-              <span
-                className={`flex-1 cursor-pointer truncate font-medium text-sm ${t.done ? "text-[#7A6555] line-through" : "text-[#FFEDD1]"}`}
-                onClick={() => setModal(t)}
-              >
-                {t.text}
-              </span>
-              {t.assignedMembers.length > 0 && (
-                <div className="flex shrink-0 -space-x-1">
-                  {t.assignedMembers.slice(0, 3).map((id) => {
-                    const m = members.find((x) => x.id === id);
-                    if (!m) {
-                      return null;
-                    }
-                    return (
-                      <span
-                        className={`h-5 w-5 rounded-full ${avatarBg(memberIdx(id))} flex items-center justify-center border-2 border-[#2A2724] font-bold text-[8px] text-white`}
-                        key={id}
-                        title={m.name}
+            {(() => {
+              const editable = canEditTodo(t);
+              return (
+                <>
+                  <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-1">
+                    <button
+                      className="flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors"
+                      disabled={!editable}
+                      onClick={() => toggle(t.id)}
+                      style={{
+                        borderColor: t.done ? t.color : "#D4B896",
+                        background: t.done ? t.color : "transparent",
+                      }}
+                    >
+                      {t.done && (
+                        <span className="font-bold text-[9px] text-white">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                    <span
+                      className={`flex-1 truncate font-medium text-sm ${editable ? "cursor-pointer" : "cursor-default"} ${t.done ? "text-[#7A6555] line-through" : "text-[#FFEDD1]"}`}
+                      onClick={editable ? () => setModal(t) : undefined}
+                    >
+                      {t.text}
+                    </span>
+                    {t.assignedMembers.length > 0 && (
+                      <div className="flex shrink-0 -space-x-1">
+                        {t.assignedMembers.slice(0, 3).map((id) => {
+                          const m = members.find((x) => x.id === id);
+                          if (!m) {
+                            return null;
+                          }
+                          return (
+                            <span
+                              className={`h-5 w-5 rounded-full ${avatarBg(memberIdx(id))} flex items-center justify-center border-2 border-[#2A2724] font-bold text-[8px] text-white`}
+                              key={id}
+                              title={m.name}
+                            >
+                              {m.avatar}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {t.dueDate && (
+                      <DueBadge done={t.done} dueDate={t.dueDate} />
+                    )}
+                    {editable && (
+                      <button
+                        className="ml-1 shrink-0 font-medium text-[#7A6555] text-[10px] opacity-0 transition-opacity hover:text-[#FFEDD1] group-hover:opacity-100"
+                        onClick={() => setModal(t)}
                       >
-                        {m.avatar}
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              {t.dueDate && <DueBadge done={t.done} dueDate={t.dueDate} />}
-              <button
-                className="ml-1 shrink-0 font-medium text-[#7A6555] text-[10px] opacity-0 transition-opacity hover:text-[#FFEDD1] group-hover:opacity-100"
-                onClick={() => setModal(t)}
-              >
-                Edit
-              </button>
-            </div>
-            {(t.subtasks ?? []).length > 0 && (
-              <div className="px-3 pb-2">
-                <SubtaskTrack
-                  item={{ ...t, subtasks: t.subtasks ?? [] }}
-                  onToggle={(stId) => toggleSubtask(t.id, stId)}
-                />
-              </div>
-            )}
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                  {(t.subtasks ?? []).length > 0 && (
+                    <div className="px-3 pb-2">
+                      <SubtaskTrack
+                        canEdit={editable}
+                        item={{ ...t, subtasks: t.subtasks ?? [] }}
+                        onToggle={(stId) => toggleSubtask(t.id, stId)}
+                      />
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         ))}
         {displayed.length === 0 && (
@@ -360,7 +391,9 @@ export function TodoBlock() {
         <TodoModal
           initial={modal === "new" ? undefined : modal}
           onClose={() => setModal(null)}
-          onDelete={modal !== "new" ? () => remove(modal.id) : undefined}
+          onDelete={
+            modal !== "new" && isManager ? () => remove(modal.id) : undefined
+          }
           onSave={save}
         />
       )}

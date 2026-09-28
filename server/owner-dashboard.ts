@@ -105,6 +105,113 @@ function buildFileTree(
   return mapRows(null);
 }
 
+function safeDriveName(value: string) {
+  return (
+    value
+      .trim()
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .slice(0, 200) || "Untitled"
+  );
+}
+
+function filterMemberFileTree(
+  tree: FileTreeNode[],
+  viewer: { userId: string },
+  todoRows: (typeof dashboardTodo.$inferSelect)[],
+  reimbursementRows: (typeof reimbursementRequest.$inferSelect)[]
+) {
+  const ownTodoFolderNames = new Set(
+    todoRows
+      .filter((row) => row.createdByUserId === viewer.userId)
+      .map(
+        (row) =>
+          `${safeDriveName(row.text)} ${row.createdAt.toISOString().slice(0, 10)}`
+      )
+  );
+  const ownTodoFileIds = new Set(
+    todoRows
+      .filter((row) => row.createdByUserId === viewer.userId)
+      .flatMap((row) => parseArray(row.linkedFileIds))
+  );
+  const ownReimbursementFolderNames = new Set(
+    reimbursementRows
+      .filter((row) => row.userId === viewer.userId)
+      .map((row) => safeDriveName(row.orderName || row.name))
+  );
+
+  const containsFile = (nodes: FileTreeNode[], fileIds: Set<string>): boolean =>
+    nodes.some(
+      (node) =>
+        (node.kind === "file" && fileIds.has(node.id)) ||
+        (node.kind === "folder" && containsFile(node.children, fileIds))
+    );
+
+  const mapFolderChildren = (
+    children: FileTreeNode[],
+    predicate: (child: FileTreeNode) => boolean
+  ) =>
+    children.filter(predicate).map((child) => {
+      if (child.kind === "folder") {
+        return { ...child, children: filterNodes(child.children) };
+      }
+      return child;
+    });
+
+  const filterTodoFolder = (
+    node: Extract<FileTreeNode, { kind: "folder" }>
+  ) => {
+    const children = mapFolderChildren(
+      node.children,
+      (child) =>
+        (child.kind === "folder" && ownTodoFolderNames.has(child.name)) ||
+        (child.kind === "file" && ownTodoFileIds.has(child.id)) ||
+        (child.kind === "folder" &&
+          containsFile(child.children, ownTodoFileIds))
+    );
+    return children.length ? { ...node, children } : null;
+  };
+
+  const filterReimbursementFolder = (
+    node: Extract<FileTreeNode, { kind: "folder" }>
+  ) => {
+    const children = mapFolderChildren(
+      node.children,
+      (child) =>
+        child.kind === "folder" && ownReimbursementFolderNames.has(child.name)
+    );
+    return children.length ? { ...node, children } : null;
+  };
+
+  const filterNodes = (nodes: FileTreeNode[]): FileTreeNode[] => {
+    const result: FileTreeNode[] = [];
+    for (const node of nodes) {
+      if (node.name.trim().toLowerCase() === "strikes") {
+        continue;
+      }
+      if (node.kind === "file") {
+        result.push(node);
+        continue;
+      }
+
+      const normalizedName = node.name.trim().toLowerCase();
+      let filteredNode: FileTreeNode | null;
+      if (normalizedName === "todo" || normalizedName === "to do") {
+        filteredNode = filterTodoFolder(node);
+      } else if (normalizedName === "reimbursements") {
+        filteredNode = filterReimbursementFolder(node);
+      } else {
+        filteredNode = { ...node, children: filterNodes(node.children) };
+      }
+      if (filteredNode) {
+        result.push(filteredNode);
+      }
+    }
+    return result;
+  };
+
+  return filterNodes(tree);
+}
+
 function driveFileType(
   mimeType?: string
 ): "pdf" | "doc" | "sheet" | "slide" | "other" {
@@ -315,7 +422,22 @@ export async function getOwnerDashboardData(
         };
       })
     : buildFileTree(fileRows);
-  const files = googleDriveTree.flatMap(
+  const viewerMemberId = viewer
+    ? (memberRows.find((row) => row.userId === viewer.userId)?.id ?? null)
+    : null;
+  const visibleFileTree =
+    viewer &&
+    viewerMemberId &&
+    viewer.role !== "owner" &&
+    viewer.role !== "admin"
+      ? filterMemberFileTree(
+          googleDriveTree,
+          { userId: viewer.userId },
+          todoRows,
+          reimbursementRows
+        )
+      : googleDriveTree;
+  const files = visibleFileTree.flatMap(
     function flatten(node): DashboardData["files"] {
       if (node.kind === "folder") {
         return node.children.flatMap(flatten);
@@ -327,6 +449,14 @@ export async function getOwnerDashboardData(
 
   return {
     organizationId,
+    viewer: viewer
+      ? {
+          userId: viewer.userId,
+          memberId:
+            memberRows.find((row) => row.userId === viewer.userId)?.id ?? "",
+          role: viewer.role,
+        }
+      : null,
     gmaCreated: Boolean(gmaSessionRow),
     driveFolderId: organizationRow?.driveFolderId ?? null,
     departments,
@@ -368,12 +498,13 @@ export async function getOwnerDashboardData(
       removed: row.removed,
     })),
     files,
-    fileTree: googleDriveTree,
+    fileTree: visibleFileTree,
     events: eventRows.map((event) => {
       const start = dateParts(event.start);
       const end = dateParts(event.end);
       return {
         id: event.id,
+        createdByUserId: event.createdByUserId,
         title: event.title,
         type: event.itemType === "meeting" ? "meeting" : "event",
         date: start.date,
@@ -423,6 +554,7 @@ export async function getOwnerDashboardData(
     }),
     todos: todoRows.map((row) => ({
       id: row.id,
+      createdByUserId: row.createdByUserId ?? undefined,
       text: row.text,
       description: row.description,
       done: row.done,
@@ -557,7 +689,7 @@ export async function getOwnerDashboardData(
       paymentComment: row.paymentComment,
       submittedAt: row.createdAt.toISOString(),
       imageUrl: findReimbursementImageUrl(
-        googleDriveTree,
+        visibleFileTree,
         row.orderName || row.name
       ),
     })),

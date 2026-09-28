@@ -30,6 +30,16 @@ export default async function OrganizationPage({ params }: { params: Params }) {
 
   const isOwner = membership?.role === "owner";
   const isAdmin = membership?.role === "admin";
+  let viewerRole: "admin" | "owner" | "member" = "member";
+  if (isAdmin) {
+    viewerRole = "admin";
+  } else if (isOwner) {
+    viewerRole = "owner";
+  }
+  const canUseDashboard =
+    membership.role === "owner" ||
+    membership.role === "admin" ||
+    membership.role === "member";
   const hasSubleadAssignment = Boolean(
     await db.query.team.findFirst({
       where: and(
@@ -40,7 +50,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
     })
   );
 
-  if ((isOwner || isAdmin) && organization) {
+  if (canUseDashboard && organization) {
     const dashboardData = await getOwnerDashboardData(organization.id, {
       userId: user.id,
       role: membership.role,
@@ -80,12 +90,12 @@ export default async function OrganizationPage({ params }: { params: Params }) {
         <OwnerDashboard
           budget={budget}
           dashboardData={dashboardData}
-          isAdmin={isAdmin}
           organizationName={organization.name}
           organizationSlug={slug}
           organizations={organizations}
           userEmail={user.email}
           userName={user.name}
+          viewerRole={viewerRole}
         />
       </div>
     );

@@ -22,11 +22,9 @@ export interface DashboardNavigationItem {
 export function getDashboardNavigation({
   organizationSlug,
   role,
-  gmaCreated,
 }: {
   organizationSlug: string;
   role: DashboardRole;
-  gmaCreated: boolean;
 }): DashboardNavigationItem[] {
   const dashboardHref = `/dashboard/organization/${organizationSlug}`;
   const navigation: DashboardNavigationItem[] = [
@@ -48,7 +46,7 @@ export function getDashboardNavigation({
     },
   ];
 
-  if (gmaCreated || role === "admin" || role === "owner") {
+  if (role === "admin" || role === "owner") {
     navigation.push({
       key: "gma",
       label: "GMA",

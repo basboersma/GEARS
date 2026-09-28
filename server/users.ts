@@ -4,7 +4,7 @@ import { and, eq, inArray, not } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/drizzle";
-import { invitation, member, user } from "@/db/schema";
+import { invitation, member, type Role, role, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export const getCurrentUser = async () => {
@@ -35,12 +35,10 @@ export const getCurrentUser = async () => {
       ),
     });
     for (const acceptedInvitation of acceptedInvitations) {
-      const restoredRole =
-        acceptedInvitation.role === "owner" ||
-        acceptedInvitation.role === "admin" ||
-        acceptedInvitation.role === "sub_owner"
-          ? acceptedInvitation.role
-          : "member";
+      const restorableRoles = new Set<Role>(role.enumValues);
+      const restoredRole = restorableRoles.has(acceptedInvitation.role as Role)
+        ? (acceptedInvitation.role as Role)
+        : "member";
       await db
         .insert(member)
         .values({

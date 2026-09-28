@@ -26,17 +26,24 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
   const membership = await db.query.member.findFirst({
     where: and(
       eq(member.userId, user.id),
-      eq(member.organizationId, selectedOrganization.id),
-      eq(member.role, "owner")
+      eq(member.organizationId, selectedOrganization.id)
     ),
   });
 
-  if (!membership) {
+  if (
+    !membership ||
+    (membership.role !== "owner" &&
+      membership.role !== "admin" &&
+      membership.role !== "member")
+  ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
   const [dashboardData, organizations] = await Promise.all([
-    getOwnerDashboardData(selectedOrganization.id),
+    getOwnerDashboardData(selectedOrganization.id, {
+      userId: user.id,
+      role: membership.role,
+    }),
     getOrganizations(),
   ]);
 
@@ -101,6 +108,12 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
       subs: [],
     })),
   };
+  let viewerRole: "admin" | "owner" | "member" = "member";
+  if (membership.role === "admin") {
+    viewerRole = "admin";
+  } else if (membership.role === "owner") {
+    viewerRole = "owner";
+  }
 
   return (
     <DashboardDataProvider value={dashboardData}>
@@ -111,10 +124,14 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
         organizations={organizations}
         userEmail={user.email}
         userName={user.name}
-        viewerRole="owner"
+        viewerRole={viewerRole}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <OrdersPanel data={budget} userName={user.name} />
+          <OrdersPanel
+            data={budget}
+            mode={membership.role === "member" ? "member" : "owner"}
+            userName={user.name}
+          />
         </main>
       </OwnerDashboardFrame>
     </DashboardDataProvider>

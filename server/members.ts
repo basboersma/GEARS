@@ -108,7 +108,7 @@ export const setMemberRole = async (memberId: string, role: Role) => {
     return { success: false, error: "Only owners can change member roles." };
   }
 
-  if (!(role === "member" || role === "sub_owner")) {
+  if (role === "owner" || role === "admin") {
     return { success: false, error: "This role cannot be assigned here." };
   }
 

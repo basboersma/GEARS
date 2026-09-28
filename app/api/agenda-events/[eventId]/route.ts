@@ -74,7 +74,12 @@ async function canManageEvent(userId: string, eventId: string) {
   });
 
   if (!event) {
-    return { allowed: false as const, event: null, isAdmin: false as const };
+    return {
+      allowed: false as const,
+      event: null,
+      isAdmin: false as const,
+      membership: null,
+    };
   }
 
   const membership = await db.query.member.findFirst({
@@ -89,6 +94,7 @@ async function canManageEvent(userId: string, eventId: string) {
       allowed: false as const,
       event,
       isAdmin: false as const,
+      membership: null,
     };
   }
 
@@ -97,6 +103,7 @@ async function canManageEvent(userId: string, eventId: string) {
       allowed: true as const,
       event,
       isAdmin: true as const,
+      membership,
     };
   }
 
@@ -105,6 +112,7 @@ async function canManageEvent(userId: string, eventId: string) {
       allowed: event.createdByUserId === userId,
       event,
       isAdmin: false as const,
+      membership,
     };
   }
 
@@ -113,6 +121,7 @@ async function canManageEvent(userId: string, eventId: string) {
       allowed: true as const,
       event,
       isAdmin: false as const,
+      membership,
     };
   }
 
@@ -130,6 +139,7 @@ async function canManageEvent(userId: string, eventId: string) {
     allowed,
     event,
     isAdmin: false as const,
+    membership,
   };
 }
 
@@ -177,6 +187,16 @@ export async function PATCH(
 
   const nextItemType =
     parsed.data.itemType ?? access.event?.itemType ?? "event";
+  if (
+    access.event &&
+    access.membership?.role === "member" &&
+    (access.event.itemType !== "meeting" || nextItemType !== "meeting")
+  ) {
+    return NextResponse.json(
+      { error: "Members can only edit their own meetings" },
+      { status: 403 }
+    );
+  }
   const nextIsDeadline =
     parsed.data.isDeadline ?? access.event?.isDeadline ?? false;
   const isMeetingLike =

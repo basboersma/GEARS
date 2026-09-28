@@ -211,6 +211,20 @@
       "when": 1790603122862,
       "tag": "0029_burly_albert_cleary",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790609915737,
+      "tag": "0030_unknown_stephen_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790612894486,
+      "tag": "0031_short_bishop",
+      "breakpoints": true
     }
   ]
 }

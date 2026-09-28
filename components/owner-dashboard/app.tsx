@@ -27,7 +27,10 @@ import {
   DashboardDataProvider,
   useDashboardData,
 } from "./dashboard-data-context";
-import { getDashboardNavigation } from "./dashboard-navigation";
+import {
+  type DashboardRole,
+  getDashboardNavigation,
+} from "./dashboard-navigation";
 import { FilesBlock } from "./FilesBlock";
 import { IcicleChart } from "./IcicleChart";
 import { TodoBlock } from "./TodoBlock";
@@ -504,16 +507,14 @@ function Sidebar({
   userName,
   userEmail,
   organizations,
-  isAdmin,
-  gmaCreated,
+  viewerRole,
 }: {
   organizationName: string;
   organizationSlug: string;
   userName: string;
   userEmail: string;
   organizations: Organization[];
-  isAdmin: boolean;
-  gmaCreated: boolean;
+  viewerRole: DashboardRole;
 }) {
   return (
     <aside className="flex h-full w-52 shrink-0 flex-col border-[#FFEDD1]/10 border-r bg-[#141212]">
@@ -539,11 +540,10 @@ function Sidebar({
           <span>Dashboard</span>
         </button>
         <div className="space-y-0.5 pt-1">
-          <SubteamsNav />
+          {viewerRole !== "member" && <SubteamsNav />}
           {getDashboardNavigation({
-            gmaCreated,
             organizationSlug,
-            role: isAdmin ? "admin" : "owner",
+            role: viewerRole,
           })
             .slice(1)
             .map((item) => (
@@ -608,7 +608,7 @@ export default function App({
   budget,
   dashboardData,
   organizations,
-  isAdmin,
+  viewerRole,
 }: {
   organizationName: string;
   organizationSlug: string;
@@ -617,7 +617,7 @@ export default function App({
   budget: BudgetData;
   dashboardData: import("./dashboard-data-context").DashboardData;
   organizations: Organization[];
-  isAdmin: boolean;
+  viewerRole: DashboardRole;
 }) {
   return (
     <DashboardDataProvider
@@ -629,13 +629,12 @@ export default function App({
         style={{ fontFamily: "'Inter',sans-serif" }}
       >
         <Sidebar
-          gmaCreated={dashboardData.gmaCreated}
-          isAdmin={isAdmin}
           organizationName={organizationName}
           organizationSlug={organizationSlug}
           organizations={organizations}
           userEmail={userEmail}
           userName={userName}
+          viewerRole={viewerRole}
         />
         <div className="flex h-full min-w-0 flex-1 flex-col">
           <Header />

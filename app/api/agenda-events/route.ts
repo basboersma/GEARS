@@ -317,9 +317,14 @@ export async function POST(request: Request) {
 
   const access = await canManageAgenda(user.id, parsed.data.organizationId);
 
-  if (!access?.canManage) {
+  const canCreateMeeting =
+    access?.membership.role === "member" &&
+    parsed.data.itemType === "meeting" &&
+    !parsed.data.isDeadline;
+
+  if (!(access?.canManage || canCreateMeeting)) {
     return NextResponse.json(
-      { error: "Only owners and admins can create agenda events" },
+      { error: "Members can only create meetings in the agenda" },
       { status: 403 }
     );
   }

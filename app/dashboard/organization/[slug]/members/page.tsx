@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { MembersPage } from "@/components/owner-dashboard/MembersPage";
+import { MembersReadOnlyPage } from "@/components/owner-dashboard/members-read-only-page";
 import type { Member } from "@/components/owner-dashboard/types";
 import {
   getOrganizationBySlug,
@@ -31,13 +32,18 @@ export default async function OrganizationMembersPage({
 
   if (
     !membership ||
-    (membership.role !== "owner" && membership.role !== "admin")
+    (membership.role !== "owner" &&
+      membership.role !== "admin" &&
+      membership.role !== "member")
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
   const [dashboardData, organizations] = await Promise.all([
-    getOwnerDashboardData(organization.id),
+    getOwnerDashboardData(organization.id, {
+      userId: user.id,
+      role: membership.role,
+    }),
     getOrganizations(),
   ]);
   const profileById = new Map(
@@ -58,6 +64,12 @@ export default async function OrganizationMembersPage({
     nationality: profileById.get(entry.id)?.nationality,
     study: profileById.get(entry.id)?.study,
   }));
+  let viewerRole: "admin" | "owner" | "member" = "member";
+  if (membership.role === "admin") {
+    viewerRole = "admin";
+  } else if (membership.role === "owner") {
+    viewerRole = "owner";
+  }
 
   return (
     <DashboardDataProvider value={dashboardData}>
@@ -68,22 +80,26 @@ export default async function OrganizationMembersPage({
         organizations={organizations}
         userEmail={user.email}
         userName={user.name}
-        viewerRole={membership.role === "admin" ? "admin" : "owner"}
+        viewerRole={viewerRole}
       >
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
-          <MembersPage
-            initialDepartmentIds={dashboardData.departmentIds}
-            initialDepartments={dashboardData.departments}
-            initialMembers={members}
-            initialOrganizationId={dashboardData.organizationId}
-            initialTeams={dashboardData.teams}
-            leadMemberId={
-              organization.members.find((entry) => entry.role === "owner")
-                ?.id ?? null
-            }
-            organizationSlug={slug}
-            teamHistory={dashboardData.teamHistory}
-          />
+          {membership.role === "member" ? (
+            <MembersReadOnlyPage members={members} />
+          ) : (
+            <MembersPage
+              initialDepartmentIds={dashboardData.departmentIds}
+              initialDepartments={dashboardData.departments}
+              initialMembers={members}
+              initialOrganizationId={dashboardData.organizationId}
+              initialTeams={dashboardData.teams}
+              leadMemberId={
+                organization.members.find((entry) => entry.role === "owner")
+                  ?.id ?? null
+              }
+              organizationSlug={slug}
+              teamHistory={dashboardData.teamHistory}
+            />
+          )}
         </main>
       </OwnerDashboardFrame>
     </DashboardDataProvider>

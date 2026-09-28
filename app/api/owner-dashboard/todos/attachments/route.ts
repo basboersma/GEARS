@@ -6,6 +6,18 @@ import { dashboardTodo, member, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { uploadTodoAttachments } from "@/lib/google-drive";
 
+function parseStringArray(value: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) &&
+      parsed.every((entry) => typeof entry === "string")
+      ? parsed
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
@@ -36,7 +48,14 @@ export async function POST(request: Request) {
       eq(member.userId, session.user.id)
     ),
   });
-  if (!(membership?.role === "owner" || membership?.role === "admin")) {
+  const isManager =
+    membership?.role === "owner" || membership?.role === "admin";
+  const canEditTodo =
+    isManager ||
+    todo.createdByUserId === session.user.id ||
+    (membership &&
+      parseStringArray(todo.assignedMemberIds).includes(membership.id));
+  if (!canEditTodo) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const organizationRow = await db.query.organization.findFirst({

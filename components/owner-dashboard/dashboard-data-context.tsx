@@ -15,8 +15,15 @@ import type {
   TodoItem,
 } from "./types";
 
+export interface DashboardViewer {
+  userId: string;
+  memberId: string;
+  role: string;
+}
+
 export interface DashboardData {
   organizationId: string;
+  viewer: DashboardViewer | null;
   gmaCreated: boolean;
   driveFolderId: string | null;
   departments: string[];

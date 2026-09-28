@@ -25,9 +25,14 @@ import { createOrganizationDriveFolders } from "@/lib/google-drive";
 import { recordMembershipJoin } from "@/server/membership-history";
 import {
   admin,
+  advisor,
+  board,
+  kas,
   owner,
   member as permissionMember,
+  sublead,
   subOwner,
+  treasurer,
 } from "./auth/permissions";
 
 const resend = process.env.RESEND_API_KEY
@@ -293,6 +298,11 @@ export const auth = betterAuth({
         admin,
         member: permissionMember,
         sub_owner: subOwner,
+        board,
+        sublead,
+        treasurer,
+        advisor,
+        kas,
       },
     }),
     genericOAuth({
