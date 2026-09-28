@@ -2133,6 +2133,10 @@ export function MembersPage({
   const [pendingTeamSave, setPendingTeamSave] = useState<
     TeamAssignment[] | null
   >(null);
+  const [pendingSubleadAssignment, setPendingSubleadAssignment] = useState<{
+    memberId: string;
+    departmentId: string;
+  } | null>(null);
   const [teamSaveError, setTeamSaveError] = useState<string | null>(null);
   const [pendingMemberRemoval, setPendingMemberRemoval] =
     useState<Member | null>(null);
@@ -2190,10 +2194,10 @@ export function MembersPage({
   const persistTeams = async (
     nextTeams: TeamAssignment[],
     password?: string
-  ) => {
+  ): Promise<boolean> => {
     if (historySnapshot) {
       setTeamSaveError("Return to the current view before changing teams.");
-      return;
+      return false;
     }
     const currentDepartmentIds = new Set(Object.values(departmentIds));
     const validTeams = nextTeams.filter(
@@ -2203,7 +2207,7 @@ export function MembersPage({
     );
     if (!password) {
       setPendingTeamSave(validTeams);
-      return;
+      return false;
     }
     setTeamSaveError(null);
     const response = await fetch("/api/organization-teams", {
@@ -2223,44 +2227,21 @@ export function MembersPage({
         error?: string;
       } | null;
       setTeamSaveError(result?.error ?? "Unable to save member tree changes.");
-      return;
+      return false;
     }
     setTeams(validTeams);
     setPendingTeamSave(null);
+    return true;
   };
 
   const roleMember = (role: "advisor" | "treasurer") =>
     members.find((member) => member.role === role) ?? null;
 
-  const assignSublead = async (memberId: string, dept: string) => {
+  const assignSublead = (memberId: string, dept: string) => {
     const target = members.find((member) => member.id === memberId);
     const departmentId = departmentIds[dept];
     if (!target || !departmentId || readOnly) return;
-    const result = await setMemberRole(memberId, "sublead");
-    if (result.success) {
-      setMembers((current) =>
-        current.map((member) =>
-          member.id === memberId ? { ...member, role: "sublead" } : member
-        )
-      );
-      if (
-        !teams.some(
-          (team) =>
-            team.memberId === memberId && team.departmentId === departmentId
-        )
-      ) {
-        persistTeams([
-          ...teams,
-          {
-            id: crypto.randomUUID(),
-            departmentId,
-            memberId,
-          },
-        ]).catch(() => undefined);
-      }
-    } else {
-      setTeamSaveError(result.error ?? "Unable to assign sublead role.");
-    }
+    setPendingSubleadAssignment({ memberId, departmentId });
     setDraggingId(null);
     setDragTarget(null);
   };
@@ -2666,6 +2647,54 @@ export function MembersPage({
             persistTeams(pendingTeamSave, password).catch(() => undefined);
           }}
           onClose={() => setPendingTeamSave(null)}
+        />
+      )}
+      {pendingSubleadAssignment && (
+        <PwModal
+          organizationId={initialOrganizationId}
+          title="Assign sublead"
+          desc="Enter your password to assign this member as a sublead."
+          onConfirm={(password) => {
+            const assignment = pendingSubleadAssignment;
+            const nextTeams = teams.some(
+              (team) =>
+                team.memberId === assignment.memberId &&
+                team.departmentId === assignment.departmentId
+            )
+              ? teams
+              : [
+                  ...teams,
+                  {
+                    id: crypto.randomUUID(),
+                    departmentId: assignment.departmentId,
+                    memberId: assignment.memberId,
+                  },
+                ];
+            persistTeams(nextTeams, password)
+              .then(async (saved) => {
+                if (!saved) return;
+                const result = await setMemberRole(
+                  assignment.memberId,
+                  "sublead"
+                );
+                if (!result.success) {
+                  setTeamSaveError(
+                    result.error ?? "Unable to assign sublead role."
+                  );
+                  return;
+                }
+                setMembers((current) =>
+                  current.map((member) =>
+                    member.id === assignment.memberId
+                      ? { ...member, role: "sublead" }
+                      : member
+                  )
+                );
+                setPendingSubleadAssignment(null);
+              })
+              .catch(() => setTeamSaveError("Unable to assign sublead role."));
+          }}
+          onClose={() => setPendingSubleadAssignment(null)}
         />
       )}
       {pendingMemberRemoval && (
