@@ -95,7 +95,6 @@ export interface Member {
   role: string;
   avatar: string;
   status: "active" | "inactive";
-  isSubLead: boolean;
   strikes: number;
   gender?: string | null;
   nationality?: string | null;
@@ -106,9 +105,6 @@ export interface TeamAssignment {
   id: string;
   departmentId: string | null;
   memberId: string;
-  isSubLead: boolean;
-  isAdvisor: boolean;
-  isTreasurer: boolean;
 }
 
 export interface TeamHistorySnapshot

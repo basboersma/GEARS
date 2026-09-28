@@ -232,6 +232,13 @@
       "when": 1790617000000,
       "tag": "0032_role_assignments_to_members",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790621022370,
+      "tag": "0034_melted_sentinel",
+      "breakpoints": true
     }
   ]
 }

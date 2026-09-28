@@ -397,9 +397,6 @@ export const team = pgTable(
     memberId: text("member_id")
       .notNull()
       .references(() => member.id, { onDelete: "cascade" }),
-    isSubLead: boolean("is_sub_lead").notNull().default(false),
-    isAdvisor: boolean("is_advisor").notNull().default(false),
-    isTreasurer: boolean("is_treasurer").notNull().default(false),
     createdAt: timestamp("created_at")
       .$defaultFn(() => /* @__PURE__ */ new Date())
       .notNull(),
@@ -441,9 +438,6 @@ export const teamHistory = pgTable("team_history", {
     { onDelete: "cascade" }
   ),
   memberId: text("member_id").notNull(),
-  isSubLead: boolean("is_sub_lead").notNull().default(false),
-  isAdvisor: boolean("is_advisor").notNull().default(false),
-  isTreasurer: boolean("is_treasurer").notNull().default(false),
   removed: boolean("removed").notNull().default(false),
 });
 

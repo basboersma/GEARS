@@ -3317,8 +3317,7 @@ export function OrdersPanel({
             teams.some(
               (assignment) =>
                 assignment.memberId === viewer.memberId &&
-                assignment.departmentId === departmentId &&
-                assignment.isSubLead
+                assignment.departmentId === departmentId
             )
           )
           .map(([department]) => department)

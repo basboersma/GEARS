@@ -18,9 +18,6 @@ export async function recordCurrentTeamSnapshot(
       snapshotAt,
       departmentId: null,
       memberId: `organization:${organizationId}`,
-      isSubLead: false,
-      isAdvisor: false,
-      isTreasurer: false,
       removed: false,
     });
     return;
@@ -33,9 +30,6 @@ export async function recordCurrentTeamSnapshot(
       snapshotAt,
       departmentId: assignment.departmentId,
       memberId: assignment.memberId,
-      isSubLead: assignment.isSubLead,
-      isAdvisor: assignment.isAdvisor,
-      isTreasurer: assignment.isTreasurer,
       removed: false,
     }))
   );
@@ -89,9 +83,6 @@ export async function recordMembershipJoin(
       snapshotAt: membership.createdAt,
       departmentId: null,
       memberId: membership.id,
-      isSubLead: false,
-      isAdvisor: false,
-      isTreasurer: false,
       removed: false,
     })
     .onConflictDoNothing();
@@ -128,9 +119,6 @@ export async function removeOrganizationMembership(
       snapshotAt: removedAt,
       departmentId: null,
       memberId,
-      isSubLead: false,
-      isAdvisor: false,
-      isTreasurer: false,
       removed: true,
     })
     .onConflictDoNothing();
@@ -143,9 +131,6 @@ export async function removeOrganizationMembership(
         snapshotAt: removedAt,
         departmentId: assignment.departmentId,
         memberId: assignment.memberId,
-        isSubLead: assignment.isSubLead,
-        isAdvisor: assignment.isAdvisor,
-        isTreasurer: assignment.isTreasurer,
         removed: false,
       }))
     );

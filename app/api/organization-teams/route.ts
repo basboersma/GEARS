@@ -11,9 +11,6 @@ import { recordCurrentTeamSnapshot } from "@/server/membership-history";
 const assignmentSchema = z.object({
   departmentId: z.string().min(1).nullable(),
   memberId: z.string().min(1),
-  isSubLead: z.boolean().default(false),
-  isAdvisor: z.boolean().default(false),
-  isTreasurer: z.boolean().default(false),
 });
 
 const payloadSchema = z.object({

@@ -89,9 +89,6 @@ export async function GET(
               organizationId: invitationRecord.organizationId,
               departmentId,
               memberId: newMember.id,
-              isSubLead: false,
-              isAdvisor: false,
-              isTreasurer: false,
               createdAt: new Date(),
               updatedAt: new Date(),
             }))

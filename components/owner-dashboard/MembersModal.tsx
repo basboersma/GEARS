@@ -345,7 +345,7 @@ function ManageTab({
                 className={`h-9 w-9 rounded-full ${avatarBg(members.findIndex((member) => member.id === m.id))} relative flex shrink-0 items-center justify-center font-bold text-sm text-white`}
               >
                 {m.avatar}
-                {m.isSubLead && (
+                {(m.role === "sublead" || m.role === "sub_owner") && (
                   <span className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-[#252d3d] bg-amber-400 font-bold text-[7px] text-black">
                     ★
                   </span>
@@ -383,7 +383,9 @@ function ManageTab({
               </select>
               {/* Sub-lead */}
               <button className="rounded-lg border border-amber-500/30 bg-amber-500/20 px-2.5 py-1 font-medium text-[10px] text-amber-400 transition-colors hover:bg-amber-500/30">
-                {m.isSubLead ? "★ Sub-lead" : "Make sub-lead"}
+                {m.role === "sublead" || m.role === "sub_owner"
+                  ? "★ Sub-lead"
+                  : "Make sub-lead"}
               </button>
               {/* Strike */}
               <button

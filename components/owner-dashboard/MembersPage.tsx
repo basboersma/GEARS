@@ -21,16 +21,9 @@ const WORLD_FEATURES: any[] = (
   feature(worldTopoRaw as any, (worldTopoRaw as any).objects.countries) as any
 ).features;
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-type DragTarget =
-  | { kind: "dept"; dept: string }
-  | { kind: "sublead"; dept: string }
-  | { kind: "advisor" }
-  | { kind: "treasurer" }
-  | { kind: "unassigned" };
+type DragTarget = { kind: "dept"; dept: string } | { kind: "unassigned" };
 
 const ASSIGNABLE_MEMBER_ROLES = [
   "member",
@@ -63,7 +56,6 @@ const PIE_COLORS = [
 const avatarIndex = (memberId: string): number =>
   Array.from(memberId).reduce((sum, char) => sum + char.charCodeAt(0), 0);
 
-// Determine if a member was present at a given snapshot time.
 const isInSnapshot = (
   memberId: string,
   snapshot: string | null,
@@ -131,8 +123,6 @@ function PieChart({
     </svg>
   );
 }
-
-// ─── Pie Chart
 
 type StatMetric = "Gender" | "Study" | "Nationality";
 
@@ -1597,7 +1587,7 @@ function Avatar({
       className={`${cls} rounded-full ${avatarBg(avatarIndex(member.id))} flex items-center justify-center text-white font-bold shrink-0 relative ${crossDept ? "ring-2 ring-[#FFD142]/60 ring-offset-1 ring-offset-[#2A2724]" : ""}`}
     >
       {member.avatar}
-      {member.isSubLead && (
+      {(member.role === "sublead" || member.role === "sub_owner") && (
         <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 border border-[#232120] flex items-center justify-center text-[6px] font-black text-black">
           ★
         </span>
@@ -1767,11 +1757,9 @@ function DeptColumn({
   deptColors,
   highlightedIso,
   onDrop,
-  onDropSublead,
   onDragStart,
   onMemberClick,
   onRemoveDept,
-  onRemoveSubLead,
   onRemoveMemberFromDept,
 }: {
   organizationId: string;
@@ -1788,20 +1776,15 @@ function DeptColumn({
   deptColors: Record<string, string>;
   highlightedIso: string | null;
   onDrop: (dept: string) => void;
-  onDropSublead: (dept: string) => void;
   onDragStart: (id: string) => void;
   onMemberClick: (m: Member) => void;
   onRemoveDept: (dept: string, password: string) => void;
-  onRemoveSubLead: (memberId: string, dept: string) => void;
   onRemoveMemberFromDept: (memberId: string, dept: string) => void;
 }) {
   const subLead = members.find((m) => m.id === subLeadId) ?? null;
   const regularMembers = members.filter((m) => m.id !== subLead?.id);
   const isDeptTarget = dragTarget?.kind === "dept" && dragTarget.dept === dept;
-  const isSubTarget =
-    dragTarget?.kind === "sublead" && dragTarget.dept === dept;
   const [showRemoveDept, setShowRemoveDept] = useState(false);
-  const [showRemoveSublead, setShowRemoveSublead] = useState(false);
   const isCrossDept = (m: Member) => (memberExtraDepts[m.id] ?? []).length > 0;
   return (
     <>
@@ -1868,9 +1851,7 @@ function DeptColumn({
                 highlightedIso={highlightedIso}
                 onDragStart={() => onDragStart(subLead.id)}
                 onClick={() => onMemberClick(subLead)}
-                onRemove={
-                  readOnly ? undefined : () => onRemoveSubLead(subLead.id, dept)
-                }
+                onRemove={undefined}
                 removeLabel={`Release ${subLead.name} as sub-lead of ${dept}`}
               />
             )}
@@ -1913,18 +1894,6 @@ function DeptColumn({
           onClose={() => setShowRemoveDept(false)}
         />
       )}
-      {showRemoveSublead && (
-        <PwModal
-          organizationId={organizationId}
-          title="Remove Sub-lead"
-          desc={`Remove ${subLead?.name ?? ""} as sub-lead of ${dept}?`}
-          onConfirm={() => {
-            if (subLead) onRemoveSubLead(subLead.id, dept);
-            setShowRemoveSublead(false);
-          }}
-          onClose={() => setShowRemoveSublead(false)}
-        />
-      )}
     </>
   );
 }
@@ -1933,115 +1902,30 @@ function Connector() {
   return <div className="w-px h-4 bg-[#3D3330] mx-auto" />;
 }
 
-function TreasurerSlot({
-  member,
-  q,
-  draggingId,
-  dragTarget,
-  setDragTarget,
-  onDrop,
-  onDragStart,
-  onMemberClick,
-}: {
-  member: Member | null;
-  q: string;
-  draggingId: string | null;
-  dragTarget: DragTarget | null;
-  setDragTarget: (t: DragTarget | null) => void;
-  onDrop: () => void;
-  onDragStart: (id: string) => void;
-  onMemberClick: (m: Member) => void;
-}) {
-  const active = dragTarget?.kind === "treasurer";
-  return (
-    <div className="flex flex-col items-center">
-      <Connector />
-      <div
-        className={`rounded-2xl border px-3 py-2.5 transition-all w-52 ${active ? "border-[#FFD142] bg-[#FFD142]/10" : "border-[#3D3330] bg-[#232120]"}`}
-        onDragOver={(e) => {
-          if (draggingId) {
-            e.preventDefault();
-            setDragTarget({ kind: "treasurer" });
-          }
-        }}
-        onDragLeave={() => {
-          if (active) setDragTarget(null);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          onDrop();
-        }}
-      >
-        <div
-          className="text-[9px] font-semibold uppercase tracking-wider mb-1.5 flex items-center gap-1.5"
-          style={{ color: "#FFD142" }}
-        >
-          <span>◆</span> Treasurer
-        </div>
-        {member ? (
-          <MemberCard
-            member={member}
-            q={q}
-            isDragging={draggingId === member.id}
-            crossDept={false}
-            highlightedIso={null}
-            onDragStart={() => onDragStart(member.id)}
-            onClick={() => onMemberClick(member)}
-          />
-        ) : (
-          <div
-            className={`text-[10px] text-center py-1.5 border-2 border-dashed rounded-xl ${active ? "border-[#FFD142] text-[#FFD142]" : "border-[#3D3330] text-[#4A3F38]"}`}
-          >
-            {active ? "Drop to assign treasurer" : "Drop a member here"}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function LeadershipTree({
   advisor,
   lead,
   treasurer,
   readOnly = false,
   draggingId,
-  dragTarget,
   onDragStart,
-  onDropRole,
   onRoleClick,
-  onReleaseRole,
-  setDragTarget,
 }: {
   advisor: Member | null;
   lead: Member | null;
   treasurer: Member | null;
   readOnly?: boolean;
   draggingId: string | null;
-  dragTarget: DragTarget | null;
   onDragStart: (id: string) => void;
-  onDropRole: (role: "advisor" | "treasurer") => void;
-  onRoleClick: (member: Member, role: "advisor" | "treasurer") => void;
-  onReleaseRole: (
-    memberId: string,
-    role: "advisor" | "treasurer",
-    removeBackingAssignment?: boolean
-  ) => void;
-  setDragTarget: (target: DragTarget | null) => void;
+  onRoleClick: (member: Member) => void;
 }) {
   const roleCard = (
     member: Member | null,
-    role: "advisor" | "treasurer",
+    _role: "advisor" | "treasurer",
     label: string
   ) => {
-    const active = false;
     return (
-      <div
-        className={`w-52 rounded-2xl border px-3 py-2.5 ${active ? "border-[#FFD142] bg-[#FFD142]/10" : "border-[#3D3330] bg-[#232120]"}`}
-        onDragOver={() => undefined}
-        onDragLeave={() => undefined}
-        onDrop={() => undefined}
-      >
+      <div className="w-52 rounded-2xl border border-[#3D3330] bg-[#232120] px-3 py-2.5">
         <div className="mb-1.5 font-semibold text-[#7A6555] text-[9px] uppercase tracking-wider">
           {label}
         </div>
@@ -2054,16 +1938,12 @@ function LeadershipTree({
             crossDept={false}
             highlightedIso={null}
             onDragStart={() => onDragStart(member.id)}
-            onClick={
-              readOnly ? () => undefined : () => onRoleClick(member, role)
-            }
+            onClick={readOnly ? () => undefined : () => onRoleClick(member)}
             removeLabel={`Release ${member.name} as ${label.toLowerCase()}`}
           />
         ) : (
           <div className="py-1.5 text-center text-[#4A3F38] text-[10px]">
-            {active
-              ? `Drop to assign ${label.toLowerCase()}`
-              : `No ${label.toLowerCase()} assigned`}
+            No {label.toLowerCase()} assigned
           </div>
         )}
       </div>
@@ -2186,66 +2066,6 @@ function NonAssignedMembers({
   );
 }
 
-function LeadershipActionModal({
-  member,
-  role,
-  onClose,
-  onRelease,
-  onRemove,
-}: {
-  member: Member;
-  role: "advisor" | "treasurer";
-  onClose: () => void;
-  onRelease: () => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-xs rounded-2xl border border-[#3D3330] bg-[#2A2724] p-5 shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-semibold text-[#FFEDD1] text-sm">
-              {member.name}
-            </h3>
-            <p className="mt-0.5 text-[#7A6555] text-[11px] capitalize">
-              {role}
-            </p>
-          </div>
-          <button
-            className="text-[#7A6555] hover:text-[#FFEDD1]"
-            onClick={onClose}
-            type="button"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="space-y-2">
-          <button
-            className="w-full rounded-xl bg-[#F0684D] py-2 font-semibold text-sm text-white hover:bg-[#E05538]"
-            onClick={onRelease}
-            type="button"
-          >
-            Release from Power
-          </button>
-          <button
-            className="w-full rounded-xl bg-rose-600 py-2 font-semibold text-sm text-white hover:bg-rose-700"
-            onClick={onRemove}
-            type="button"
-          >
-            Remove from Team
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function MembersPage({
@@ -2281,7 +2101,6 @@ export function MembersPage({
       ])
     )
   );
-  const [subLeads, setSubLeads] = useState<Record<string, string | null>>({});
   const [q, setQ] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
@@ -2300,10 +2119,6 @@ export function MembersPage({
     TeamAssignment[] | null
   >(null);
   const [teamSaveError, setTeamSaveError] = useState<string | null>(null);
-  const [leadershipAction, setLeadershipAction] = useState<{
-    member: Member;
-    role: "advisor" | "treasurer";
-  } | null>(null);
   const [pendingMemberRemoval, setPendingMemberRemoval] =
     useState<Member | null>(null);
 
@@ -2382,15 +2197,10 @@ export function MembersPage({
       body: JSON.stringify({
         organizationId: initialOrganizationId,
         password,
-        assignments: validTeams.map(
-          ({ departmentId, memberId, isSubLead, isAdvisor, isTreasurer }) => ({
-            departmentId,
-            memberId,
-            isSubLead,
-            isAdvisor,
-            isTreasurer,
-          })
-        ),
+        assignments: validTeams.map(({ departmentId, memberId }) => ({
+          departmentId,
+          memberId,
+        })),
       }),
     });
     if (!response.ok) {
@@ -2404,93 +2214,8 @@ export function MembersPage({
     setPendingTeamSave(null);
   };
 
-  const setTeamRole = (
-    memberId: string,
-    department: string,
-    role: "advisor" | "treasurer"
-  ) => {
-    const departmentId = departmentIds[department];
-    if (!departmentId) return;
-    const nextTeams = teams
-      .filter(
-        (team) =>
-          !(
-            team[role === "advisor" ? "isAdvisor" : "isTreasurer"] &&
-            team.memberId !== memberId
-          )
-      )
-      .map((team) =>
-        team.memberId === memberId && team.departmentId === departmentId
-          ? {
-              ...team,
-              [role === "advisor" ? "isAdvisor" : "isTreasurer"]: false,
-            }
-          : team
-      );
-    const roleOnlyAssignment = nextTeams.find(
-      (team) => team.memberId === memberId && team.departmentId === null
-    );
-    persistTeams(
-      roleOnlyAssignment
-        ? nextTeams.map((team) =>
-            team.id === roleOnlyAssignment.id
-              ? {
-                  ...team,
-                  [role === "advisor" ? "isAdvisor" : "isTreasurer"]: true,
-                }
-              : team
-          )
-        : [
-            ...nextTeams,
-            {
-              id: crypto.randomUUID(),
-              departmentId: null,
-              memberId,
-              isSubLead: false,
-              isAdvisor: role === "advisor",
-              isTreasurer: role === "treasurer",
-            },
-          ]
-    ).catch(() => undefined);
-  };
-
   const roleMember = (role: "advisor" | "treasurer") =>
     members.find((member) => member.role === role) ?? null;
-
-  const handleDropRole = (role: "advisor" | "treasurer") => {
-    if (!draggingId) return;
-    const memberId = draggingId;
-    const roleKey = role === "advisor" ? "isAdvisor" : "isTreasurer";
-    const nextTeams = teams
-      .filter((team) => !(team[roleKey] && team.memberId !== memberId))
-      .map((team) =>
-        team.memberId === memberId ? { ...team, [roleKey]: false } : team
-      );
-    const roleOnlyAssignment = nextTeams.find(
-      (team) => team.memberId === memberId && team.departmentId === null
-    );
-    if (roleOnlyAssignment) {
-      persistTeams(
-        nextTeams.map((team) =>
-          team.id === roleOnlyAssignment.id
-            ? { ...team, [roleKey]: true }
-            : team
-        )
-      ).catch(() => undefined);
-    } else {
-      nextTeams.push({
-        id: crypto.randomUUID(),
-        departmentId: null,
-        memberId,
-        isSubLead: false,
-        isAdvisor: role === "advisor",
-        isTreasurer: role === "treasurer",
-      });
-      persistTeams(nextTeams).catch(() => undefined);
-    }
-    setDraggingId(null);
-    setDragTarget(null);
-  };
 
   const handleDrop = (targetDept: string) => {
     if (!draggingId) return;
@@ -2517,57 +2242,17 @@ export function MembersPage({
       );
       persistTeams(
         existing
-          ? nextTeams.map((team) =>
-              team.id === existing.id ? { ...team, isSubLead: false } : team
-            )
+          ? nextTeams
           : [
               ...nextTeams,
               {
                 id: crypto.randomUUID(),
                 departmentId,
                 memberId: draggingId,
-                isSubLead: false,
-                isAdvisor: false,
-                isTreasurer: false,
               },
             ]
       ).catch(() => undefined);
     }
-    setDraggingId(null);
-    setDragTarget(null);
-  };
-  const handleDropSublead = (dept: string) => {
-    if (!draggingId) return;
-    const departmentId = departmentIds[dept];
-    if (!departmentId) return;
-    const memberId = draggingId;
-    const nextTeams = teams
-      .filter(
-        (team) =>
-          !(team.memberId === memberId && team.departmentId !== departmentId) &&
-          !(team.departmentId === departmentId && team.isSubLead)
-      )
-      .map((team) =>
-        team.memberId === memberId && team.departmentId === departmentId
-          ? { ...team, isSubLead: true }
-          : team
-      );
-    if (
-      !nextTeams.some(
-        (team) =>
-          team.memberId === memberId && team.departmentId === departmentId
-      )
-    ) {
-      nextTeams.push({
-        id: crypto.randomUUID(),
-        departmentId,
-        memberId,
-        isSubLead: true,
-        isAdvisor: false,
-        isTreasurer: false,
-      });
-    }
-    persistTeams(nextTeams).catch(() => undefined);
     setDraggingId(null);
     setDragTarget(null);
   };
@@ -2579,69 +2264,13 @@ export function MembersPage({
     setDraggingId(null);
     setDragTarget(null);
   };
-  const releaseTeamRole = (
-    memberId: string,
-    role: "advisor" | "treasurer",
-    removeBackingAssignment = false
-  ) => {
-    const roleKey = role === "advisor" ? "isAdvisor" : "isTreasurer";
-    const roleAssignmentIds = new Set(
-      teams
-        .filter((team) => team.memberId === memberId && team[roleKey])
-        .map((team) => team.id)
-    );
-    const released = teams.map((team) =>
-      roleAssignmentIds.has(team.id) ? { ...team, [roleKey]: false } : team
-    );
-    const nextTeams = removeBackingAssignment
-      ? released.filter(
-          (team) =>
-            !(
-              roleAssignmentIds.has(team.id) &&
-              !team.isSubLead &&
-              !team.isAdvisor &&
-              !team.isTreasurer
-            )
-        )
-      : released;
-    persistTeams(nextTeams).catch(() => undefined);
-  };
-  const releaseSubLead = (memberId: string, dept: string) => {
-    const departmentId = departmentIds[dept];
-    persistTeams(
-      teams.map((team) =>
-        team.memberId === memberId && team.departmentId === departmentId
-          ? { ...team, isSubLead: false }
-          : team
-      )
-    ).catch(() => undefined);
-  };
   const removeMemberFromDepartment = (memberId: string, dept: string) => {
     const departmentId = departmentIds[dept];
     const target = teams.find(
       (team) => team.memberId === memberId && team.departmentId === departmentId
     );
     if (!target) return;
-    const otherAssignments = teams.filter(
-      (team) => team.memberId === memberId && team.id !== target.id
-    );
-    if ((target.isAdvisor || target.isTreasurer) && !otherAssignments[0]) {
-      setTeamSaveError(
-        "Release the member's advisor or treasurer role before removing their final department."
-      );
-      return;
-    }
-    const nextTeams = teams
-      .filter((team) => team.id !== target.id)
-      .map((team) =>
-        team.id === otherAssignments[0]?.id
-          ? {
-              ...team,
-              isAdvisor: team.isAdvisor || target.isAdvisor,
-              isTreasurer: team.isTreasurer || target.isTreasurer,
-            }
-          : team
-      );
+    const nextTeams = teams.filter((team) => team.id !== target.id);
     persistTeams(nextTeams).catch(() => undefined);
   };
   const addMemberToDepartment = (memberId: string, dept: string) => {
@@ -2661,9 +2290,6 @@ export function MembersPage({
         id: crypto.randomUUID(),
         departmentId,
         memberId,
-        isSubLead: false,
-        isAdvisor: false,
-        isTreasurer: false,
       },
     ]).catch(() => undefined);
   };
@@ -2837,19 +2463,13 @@ export function MembersPage({
             <div className="flex flex-col items-center min-w-max pb-8 pt-10">
               <LeadershipTree
                 advisor={roleMember("advisor")}
-                dragTarget={dragTarget}
                 draggingId={draggingId}
                 readOnly={readOnly}
                 lead={
                   members.find((member) => member.id === leadMemberId) ?? null
                 }
                 onDragStart={setDraggingId}
-                onDropRole={handleDropRole}
-                onReleaseRole={(memberId, role) =>
-                  releaseTeamRole(memberId, role)
-                }
                 onRoleClick={(member) => setActionMember(member)}
-                setDragTarget={setDragTarget}
                 treasurer={roleMember("treasurer")}
               />
               <div className="relative flex gap-3 items-start">
@@ -2884,7 +2504,6 @@ export function MembersPage({
                       deptColors={deptColors}
                       highlightedIso={selectedCountryIso}
                       onDrop={handleDrop}
-                      onDropSublead={handleDropSublead}
                       onDragStart={setDraggingId}
                       onMemberClick={
                         readOnly ? () => undefined : setActionMember
@@ -2892,7 +2511,6 @@ export function MembersPage({
                       onRemoveDept={(d, password) =>
                         removeDepartment(d, password).catch(() => undefined)
                       }
-                      onRemoveSubLead={releaseSubLead}
                       onRemoveMemberFromDept={removeMemberFromDepartment}
                     />
                   </div>
@@ -2999,25 +2617,6 @@ export function MembersPage({
             persistTeams(pendingTeamSave, password).catch(() => undefined);
           }}
           onClose={() => setPendingTeamSave(null)}
-        />
-      )}
-      {leadershipAction && (
-        <LeadershipActionModal
-          member={leadershipAction.member}
-          onClose={() => setLeadershipAction(null)}
-          onRelease={() => {
-            releaseTeamRole(
-              leadershipAction.member.id,
-              leadershipAction.role,
-              true
-            );
-            setLeadershipAction(null);
-          }}
-          onRemove={() => {
-            setPendingMemberRemoval(leadershipAction.member);
-            setLeadershipAction(null);
-          }}
-          role={leadershipAction.role}
         />
       )}
       {pendingMemberRemoval && (

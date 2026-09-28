@@ -66,7 +66,6 @@ export default async function OrganizationMembersPage({
     role: entry.role,
     avatar: entry.user.name.slice(0, 1).toUpperCase(),
     status: "active",
-    isSubLead: entry.role === "sublead" || entry.role === "sub_owner",
     strikes: 0,
     gender: profileById.get(entry.id)?.gender,
     nationality: profileById.get(entry.id)?.nationality,
