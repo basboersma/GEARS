@@ -224,7 +224,7 @@ function RoadmapForm({
               {subtasks.map((subtask) => (
                 <div className="group flex items-center gap-2" key={subtask.id}>
                   <button
-                    className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${subtask.done ? "border-[#F0684D] bg-[#F0684D]" : "border-[#D4B896] bg-transparent"}`}
+                    className={`h-3.5 w-3.5 shrink-0 rounded-sm border ${subtask.done ? "border-[#F0684D] bg-[#F0684D]" : "border-[#F0684D] bg-transparent"}`}
                     onClick={() =>
                       setSubtasks((current) =>
                         current.map((entry) =>

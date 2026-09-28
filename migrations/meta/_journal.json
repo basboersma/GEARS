@@ -190,6 +190,13 @@
       "when": 1790463337487,
       "tag": "0026_windy_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790588110875,
+      "tag": "0027_clever_praxagora",
+      "breakpoints": true
     }
   ]
 }

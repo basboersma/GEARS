@@ -2917,9 +2917,7 @@ export function OrdersPanel({
   );
   const incomingOrders = orderRecords.filter((o) =>
     isTreasurer
-      ? !o.isPast &&
-        o.workflowStatus === "pending" &&
-        o.submittedByRole === "owner"
+      ? !o.isPast && o.workflowStatus === "pending"
       : !o.isPast &&
         (o.status === "owner_review" ||
           (o.status === "pending" && o.submittedBy !== userName))
