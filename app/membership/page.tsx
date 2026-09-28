@@ -3,7 +3,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { JOIN_URL } from "@/lib/routes";
 import { SpinningEmblem } from "./components/SpinningEmblem";
-import { CONTACT_EMAIL, MEMBERSHIP } from "./data";
+import { CONTACT_EMAIL } from "./data";
 
 export default function MembershipPage() {
   return (
@@ -23,16 +23,12 @@ export default function MembershipPage() {
               <ul className="mv-list">
                 <li>Apply to join one of our active competition teams</li>
                 <li>Support the association through communication, events, outreach, and operations</li>
-                <li>Access build sessions, labs, and project evenings, open to members</li>
+                <li>Access member-only build sessions, labs, and project evenings</li>
                 <li>Priority access to workshops, company visits, and GEARS events</li>
               </ul>
-              <p>
-                <b>Membership is {MEMBERSHIP.price} for the {MEMBERSHIP.period}</b>, and the first{" "}
-                {MEMBERSHIP.launchSpots} members pay just {MEMBERSHIP.launchPrice}.
-              </p>
               <p className="mv-note">
-                After you sign up, we&apos;ll contact you by email with the next steps and payment
-                details.
+                For now, membership registration is handled via Google Forms. After you sign up, we
+                will contact you by email with the next steps and payment details.
               </p>
             </div>
           </div>
