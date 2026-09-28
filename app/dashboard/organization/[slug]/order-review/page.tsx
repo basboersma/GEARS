@@ -4,8 +4,11 @@ import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-da
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { OrdersPanel } from "@/components/owner-dashboard/OrdersPanel";
 import { db } from "@/db/drizzle";
-import { member, orderRequest, organization } from "@/db/schema";
-import { getOrganizations } from "@/server/organizations";
+import { orderRequest, organization } from "@/db/schema";
+import {
+  getOrganizationAccess,
+  getOrganizations,
+} from "@/server/organizations";
 import { getOwnerDashboardData } from "@/server/owner-dashboard";
 import { getCurrentUser } from "@/server/users";
 
@@ -18,37 +21,33 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
   const selectedOrganization = await db.query.organization.findFirst({
     where: eq(organization.slug, slug),
   });
-
   if (!selectedOrganization) {
     redirect("/dashboard");
   }
 
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(member.userId, user.id),
-      eq(member.organizationId, selectedOrganization.id)
-    ),
-  });
-
+  const access = await getOrganizationAccess(selectedOrganization.id);
   if (
-    !membership ||
-    (membership.role !== "owner" &&
-      membership.role !== "admin" &&
-      membership.role !== "member" &&
-      membership.role !== "sublead" &&
-      membership.role !== "sub_owner" &&
-      membership.role !== "treasurer" &&
-      membership.role !== "advisor" &&
-      membership.role !== "board" &&
-      membership.role !== "kas")
+    !(
+      access &&
+      [
+        "owner",
+        "admin",
+        "member",
+        "sublead",
+        "sub_owner",
+        "treasurer",
+        "advisor",
+        "board",
+        "kas",
+      ].includes(access.role)
+    )
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const isSublead =
-    membership.role === "sublead" || membership.role === "sub_owner";
+  const isSublead = access.role === "sublead" || access.role === "sub_owner";
   const isOrganizationTreasurer =
-    membership.role === "treasurer" || membership.role === "advisor";
+    access.role === "treasurer" || access.role === "advisor";
   let viewerRole:
     | "admin"
     | "owner"
@@ -56,15 +55,15 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
     | "treasurer"
     | "advisor"
     | "member" = "member";
-  if (membership.role === "admin") {
+  if (access.role === "admin" || access.role === "board") {
     viewerRole = "admin";
-  } else if (membership.role === "owner") {
+  } else if (access.role === "owner") {
     viewerRole = "owner";
   } else if (isSublead) {
     viewerRole = "sublead";
-  } else if (membership.role === "treasurer") {
+  } else if (access.role === "treasurer") {
     viewerRole = "treasurer";
-  } else if (membership.role === "advisor") {
+  } else if (access.role === "advisor") {
     viewerRole = "advisor";
   }
 
@@ -77,7 +76,7 @@ export default async function OrderReviewPage({ params }: { params: Params }) {
   ]);
   let orderMode: "owner" | "member" | "sublead" | "organization-treasurer" =
     "owner";
-  if (membership.role === "member") {
+  if (access.role === "member" || access.role === "kas") {
     orderMode = "member";
   } else if (isSublead) {
     orderMode = "sublead";

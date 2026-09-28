@@ -30,6 +30,15 @@ export async function getOrganizations() {
     where: eq(member.userId, currentUser.id),
   });
 
+  const hasGlobalOrganizationAccess = members.some((entry) =>
+    ["admin", "board", "kas"].includes(entry.role)
+  );
+  if (hasGlobalOrganizationAccess) {
+    return db.query.organization.findMany({
+      orderBy: (organization, { asc }) => [asc(organization.name)],
+    });
+  }
+
   const organizations = await db.query.organization.findMany({
     where: inArray(
       organization.id,
@@ -38,6 +47,33 @@ export async function getOrganizations() {
   });
 
   return organizations;
+}
+
+export async function getOrganizationAccess(organizationId: string) {
+  const { currentUser } = await getCurrentUser();
+  const localMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.organizationId, organizationId),
+      eq(member.userId, currentUser.id)
+    ),
+  });
+  if (localMembership) {
+    return localMembership;
+  }
+
+  const globalMembership = await db.query.member.findFirst({
+    where: and(
+      eq(member.userId, currentUser.id),
+      inArray(member.role, ["admin", "board", "kas"])
+    ),
+  });
+  return globalMembership
+    ? {
+        ...globalMembership,
+        organizationId,
+        id: `global:${globalMembership.id}`,
+      }
+    : null;
 }
 
 export async function getActiveOrganization(userId: string) {

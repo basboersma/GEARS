@@ -48,7 +48,13 @@ export function getDashboardNavigation({
     },
   ];
 
-  if (role === "admin" || role === "owner") {
+  if (role === "kas") {
+    return navigation.filter(
+      (item) => item.key === "dashboard" || item.key === "orders"
+    );
+  }
+
+  if (role === "admin" || role === "owner" || role === "board") {
     navigation.push({
       key: "gma",
       label: "GMA",
@@ -56,7 +62,7 @@ export function getDashboardNavigation({
     });
   }
 
-  if (role === "admin") {
+  if (role === "admin" || role === "board") {
     navigation.push(
       { key: "treasurer", label: "Treasurer", href: "/dashboard/treasurer" },
       {

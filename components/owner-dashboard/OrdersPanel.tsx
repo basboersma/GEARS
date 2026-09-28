@@ -1006,15 +1006,21 @@ function OrderForm({
     setSubmitError(null);
     const filledRows = rows.filter(rowHasContent);
     if (!orderName.trim()) {
-      setSubmitError("Enter an order list name.");
+      const message = "Enter an order list name.";
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
     if (!department) {
-      setSubmitError("Select a department.");
+      const message = "Select a department.";
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
     if (!filledRows.length) {
-      setSubmitError("Add at least one order item.");
+      const message = "Add at least one order item.";
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
     const invalidRow = filledRows.find(
@@ -1028,9 +1034,10 @@ function OrderForm({
         !row.urgency
     );
     if (invalidRow) {
-      setSubmitError(
-        "Complete every item with a description, valid URL, price, quantity, type, and urgency."
-      );
+      const message =
+        "Complete every item with a description, valid URL, price, quantity, type, and urgency.";
+      setSubmitError(message);
+      toast.error(message);
       return;
     }
     if (submittingRef.current) {
@@ -1328,13 +1335,15 @@ function OrderForm({
                 : "border-[#FFD142]/40 bg-[#FFD142]/10 text-[#FFD142] hover:border-[#FFD142]/70 hover:bg-[#FFD142]/15"
             }`}
           >
-            {treasurerIncoming
-              ? "Accepted"
-              : isIncoming
-                ? "Approve order"
-                : isRecurring
-                  ? "Submit recurring"
-                  : "Submit order"}
+            {isSubmitting
+              ? "Submitting…"
+              : treasurerIncoming
+                ? "Accepted"
+                : isIncoming
+                  ? "Approve order"
+                  : isRecurring
+                    ? "Submit recurring"
+                    : "Submit order"}
           </button>
           {isIncoming && (
             <button

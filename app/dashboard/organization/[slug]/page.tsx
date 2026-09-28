@@ -6,6 +6,7 @@ import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-da
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { Button } from "@/components/ui/button";
 import {
+  getOrganizationAccess,
   getOrganizationBySlug,
   getOrganizations,
 } from "@/server/organizations";
@@ -19,16 +20,17 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   const { user } = await getCurrentUser();
 
   const organization = await getOrganizationBySlug(slug);
-  const membership = organization?.members.find((m) => m.userId === user.id);
+  const access = organization
+    ? await getOrganizationAccess(organization.id)
+    : null;
 
-  if (!(organization && membership)) {
+  if (!(organization && access)) {
     redirect("/dashboard");
   }
 
-  const isOwner = membership?.role === "owner";
-  const isAdmin = membership?.role === "admin";
-  const isSublead =
-    membership.role === "sublead" || membership.role === "sub_owner";
+  const isOwner = access.role === "owner";
+  const isAdmin = access.role === "admin" || access.role === "board";
+  const isSublead = access.role === "sublead" || access.role === "sub_owner";
   let viewerRole:
     | "admin"
     | "owner"
@@ -45,21 +47,19 @@ export default async function OrganizationPage({ params }: { params: Params }) {
   } else if (isSublead) {
     viewerRole = "sublead";
   } else if (
-    membership.role === "treasurer" ||
-    membership.role === "advisor" ||
-    membership.role === "board" ||
-    membership.role === "kas"
+    access.role === "treasurer" ||
+    access.role === "advisor" ||
+    access.role === "kas"
   ) {
-    viewerRole = membership.role;
+    viewerRole = access.role;
   }
   const canUseDashboard =
-    membership.role === "owner" ||
-    membership.role === "admin" ||
-    membership.role === "member" ||
+    access.role === "owner" ||
+    access.role === "admin" ||
+    access.role === "member" ||
     isSublead ||
     viewerRole === "treasurer" ||
     viewerRole === "advisor" ||
-    viewerRole === "board" ||
     viewerRole === "kas";
 
   if (canUseDashboard && organization) {
@@ -118,7 +118,7 @@ export default async function OrganizationPage({ params }: { params: Params }) {
       value={
         await getOwnerDashboardData(organization.id, {
           userId: user.id,
-          role: membership.role,
+          role: viewerRole,
         })
       }
     >

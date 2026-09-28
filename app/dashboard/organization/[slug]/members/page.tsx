@@ -4,6 +4,7 @@ import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-fram
 import { MembersPage } from "@/components/owner-dashboard/MembersPage";
 import type { Member } from "@/components/owner-dashboard/types";
 import {
+  getOrganizationAccess,
   getOrganizationBySlug,
   getOrganizations,
 } from "@/server/organizations";
@@ -25,32 +26,33 @@ export default async function OrganizationMembersPage({
     redirect("/dashboard");
   }
 
-  const membership = organization.members.find(
-    (entry) => entry.userId === user.id
-  );
+  const access = await getOrganizationAccess(organization.id);
 
   if (
-    !membership ||
-    (membership.role !== "owner" &&
-      membership.role !== "admin" &&
-      membership.role !== "member" &&
-      membership.role !== "sublead" &&
-      membership.role !== "sub_owner" &&
-      membership.role !== "treasurer" &&
-      membership.role !== "advisor" &&
-      membership.role !== "board" &&
-      membership.role !== "kas")
+    !(
+      access &&
+      [
+        "owner",
+        "admin",
+        "member",
+        "sublead",
+        "sub_owner",
+        "treasurer",
+        "advisor",
+        "board",
+        "kas",
+      ].includes(access.role)
+    )
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const isSublead =
-    membership.role === "sublead" || membership.role === "sub_owner";
+  const isSublead = access.role === "sublead" || access.role === "sub_owner";
 
   const [dashboardData, organizations] = await Promise.all([
     getOwnerDashboardData(organization.id, {
       userId: user.id,
-      role: isSublead ? "sublead" : membership.role,
+      role: isSublead ? "sublead" : access.role,
     }),
     getOrganizations(),
   ]);
@@ -80,19 +82,18 @@ export default async function OrganizationMembersPage({
     | "board"
     | "kas"
     | "member" = "member";
-  if (membership.role === "admin") {
+  if (access.role === "admin" || access.role === "board") {
     viewerRole = "admin";
-  } else if (membership.role === "owner") {
+  } else if (access.role === "owner") {
     viewerRole = "owner";
   } else if (isSublead) {
     viewerRole = "sublead";
-  } else if (
-    membership.role === "treasurer" ||
-    membership.role === "advisor" ||
-    membership.role === "board" ||
-    membership.role === "kas"
-  ) {
-    viewerRole = membership.role;
+  } else if (access.role === "treasurer") {
+    viewerRole = "treasurer";
+  } else if (access.role === "advisor") {
+    viewerRole = "advisor";
+  } else if (access.role === "kas") {
+    viewerRole = "kas";
   }
 
   return (

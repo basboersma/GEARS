@@ -1,11 +1,14 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { DashboardDataProvider } from "@/components/owner-dashboard/dashboard-data-context";
 import { OwnerDashboardFrame } from "@/components/owner-dashboard/dashboard-frame";
 import { InventoryPage } from "@/components/owner-dashboard/InventoryPage";
 import { db } from "@/db/drizzle";
-import { member, organization } from "@/db/schema";
-import { getOrganizations } from "@/server/organizations";
+import { organization } from "@/db/schema";
+import {
+  getOrganizationAccess,
+  getOrganizations,
+} from "@/server/organizations";
 import { getOwnerDashboardData } from "@/server/owner-dashboard";
 import { getCurrentUser } from "@/server/users";
 
@@ -22,30 +25,28 @@ export default async function InventoryRoute({ params }: { params: Params }) {
     redirect("/dashboard");
   }
 
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(member.userId, user.id),
-      eq(member.organizationId, selectedOrganization.id)
-    ),
-  });
+  const access = await getOrganizationAccess(selectedOrganization.id);
 
   if (
-    !membership ||
-    (membership.role !== "owner" &&
-      membership.role !== "admin" &&
-      membership.role !== "member" &&
-      membership.role !== "sublead" &&
-      membership.role !== "sub_owner" &&
-      membership.role !== "treasurer" &&
-      membership.role !== "advisor" &&
-      membership.role !== "board" &&
-      membership.role !== "kas")
+    !(
+      access &&
+      [
+        "owner",
+        "admin",
+        "member",
+        "sublead",
+        "sub_owner",
+        "treasurer",
+        "advisor",
+        "board",
+        "kas",
+      ].includes(access.role)
+    )
   ) {
     redirect(`/dashboard/organization/${slug}`);
   }
 
-  const isSublead =
-    membership.role === "sublead" || membership.role === "sub_owner";
+  const isSublead = access.role === "sublead" || access.role === "sub_owner";
   let viewerRole:
     | "admin"
     | "owner"
@@ -55,19 +56,18 @@ export default async function InventoryRoute({ params }: { params: Params }) {
     | "board"
     | "kas"
     | "member" = "member";
-  if (membership.role === "admin") {
+  if (access.role === "admin" || access.role === "board") {
     viewerRole = "admin";
-  } else if (membership.role === "owner") {
+  } else if (access.role === "owner") {
     viewerRole = "owner";
   } else if (isSublead) {
     viewerRole = "sublead";
-  } else if (
-    membership.role === "treasurer" ||
-    membership.role === "advisor" ||
-    membership.role === "board" ||
-    membership.role === "kas"
-  ) {
-    viewerRole = membership.role;
+  } else if (access.role === "treasurer") {
+    viewerRole = "treasurer";
+  } else if (access.role === "advisor") {
+    viewerRole = "advisor";
+  } else if (access.role === "kas") {
+    viewerRole = "kas";
   }
 
   const [dashboardData, organizations] = await Promise.all([
@@ -91,7 +91,9 @@ export default async function InventoryRoute({ params }: { params: Params }) {
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">
           <InventoryPage
             readOnly={
-              membership.role !== "owner" && membership.role !== "admin"
+              access.role !== "owner" &&
+              access.role !== "admin" &&
+              access.role !== "board"
             }
           />
         </main>
