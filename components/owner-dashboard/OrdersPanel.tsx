@@ -901,6 +901,7 @@ function OrderForm({
   onTotalChange,
   onDeptChange,
   allowedDepartments,
+  viewerRole,
   initialData,
   draftInitial,
   incomingSubmitter,
@@ -914,6 +915,7 @@ function OrderForm({
   onTotalChange: (n: number) => void;
   onDeptChange?: (d: string) => void;
   allowedDepartments?: string[];
+  viewerRole?: string;
   initialData?: OrderRecord;
   draftInitial?: Draft;
   incomingSubmitter?: string;
@@ -964,16 +966,18 @@ function OrderForm({
   const [department, setDepartment] = useState(
     draftInitial?.department ?? initialData?.department ?? ""
   );
+  const isSubleadSubmitter = viewerRole === "sublead";
   const approvedBy = isIncoming
     ? (initialData?.approvedBy ?? "")
-    : draftInitial?.approvedBy || initialData?.approvedBy || currentUserName;
-  const [submittedBy, setSubmittedBy] = useState(
-    isIncoming ? (incomingSubmitter ?? "") : (draftInitial?.submittedBy ?? "")
-  );
+    : isSubleadSubmitter
+      ? ""
+      : draftInitial?.approvedBy || initialData?.approvedBy || currentUserName;
+  const submittedBy = isIncoming ? (incomingSubmitter ?? "") : currentUserName;
   const [isRecurring, setIsRecurring] = useState(
     draftInitial?.isRecurring ?? initialData?.isRecurring ?? false
   );
   const [draftSaved, setDraftSaved] = useState(false);
+  const submittingRef = useRef(false);
 
   function updateRow(i: number, patch: Partial<FormRow>) {
     const next = rows.map((row, idx) =>
@@ -996,6 +1000,7 @@ function OrderForm({
   }
 
   async function handleSubmit() {
+    if (submittingRef.current) return;
     const filledRows = rows.filter(rowHasContent);
     if (!orderName.trim() || !department || !filledRows.length) return;
     if (
@@ -1012,6 +1017,7 @@ function OrderForm({
     )
       return;
     try {
+      submittingRef.current = true;
       await onSubmit?.({
         orderName: orderName.trim(),
         department,
@@ -1023,6 +1029,8 @@ function OrderForm({
       toast.error(
         error instanceof Error ? error.message : "Failed to submit order"
       );
+    } finally {
+      submittingRef.current = false;
     }
   }
 
@@ -1042,8 +1050,8 @@ function OrderForm({
         <MetaFields
           approvedBy={approvedBy}
           submittedBy={isIncoming ? (incomingSubmitter ?? "") : submittedBy}
-          onSubmittedByChange={isIncoming ? undefined : setSubmittedBy}
-          submittedByReadOnly={isIncoming}
+          onSubmittedByChange={undefined}
+          submittedByReadOnly
         />
       </div>
 
@@ -3893,6 +3901,7 @@ export function OrdersPanel({
               <OrderForm
                 allowedDepartments={isSublead ? subleadDepartments : undefined}
                 key={submitKey}
+                viewerRole={viewer?.role}
                 onTotalChange={setFormTotal}
                 onDeptChange={setFormDept}
                 draftInitial={loadedDraft ?? undefined}

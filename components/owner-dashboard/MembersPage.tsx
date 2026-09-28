@@ -23,7 +23,10 @@ const WORLD_FEATURES: any[] = (
 
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-type DragTarget = { kind: "dept"; dept: string } | { kind: "unassigned" };
+type DragTarget =
+  | { kind: "dept"; dept: string }
+  | { kind: "sublead"; dept: string }
+  | { kind: "unassigned" };
 
 const ASSIGNABLE_MEMBER_ROLES = [
   "member",
@@ -40,7 +43,9 @@ type AssignableMemberRole = (typeof ASSIGNABLE_MEMBER_ROLES)[number];
 const memberRoleLabel = (role: string) =>
   role === "sub_owner"
     ? "Sub-owner"
-    : role.charAt(0).toUpperCase() + role.slice(1);
+    : role === "kas"
+      ? "Kas"
+      : role.charAt(0).toUpperCase() + role.slice(1);
 
 const PIE_COLORS = [
   "#F0684D",
@@ -1757,6 +1762,7 @@ function DeptColumn({
   deptColors,
   highlightedIso,
   onDrop,
+  onAssignSublead,
   onDragStart,
   onMemberClick,
   onRemoveDept,
@@ -1776,6 +1782,7 @@ function DeptColumn({
   deptColors: Record<string, string>;
   highlightedIso: string | null;
   onDrop: (dept: string) => void;
+  onAssignSublead: (memberId: string, dept: string) => void;
   onDragStart: (id: string) => void;
   onMemberClick: (m: Member) => void;
   onRemoveDept: (dept: string, password: string) => void;
@@ -1784,6 +1791,8 @@ function DeptColumn({
   const subLead = members.find((m) => m.id === subLeadId) ?? null;
   const regularMembers = members.filter((m) => m.id !== subLead?.id);
   const isDeptTarget = dragTarget?.kind === "dept" && dragTarget.dept === dept;
+  const isSubleadTarget =
+    dragTarget?.kind === "sublead" && dragTarget.dept === dept;
   const [showRemoveDept, setShowRemoveDept] = useState(false);
   const isCrossDept = (m: Member) => (memberExtraDepts[m.id] ?? []).length > 0;
   return (
@@ -1836,10 +1845,16 @@ function DeptColumn({
           </div>
           <DropSlot
             label="sub-lead"
-            active={false}
-            onDragOver={() => undefined}
-            onDragLeave={() => undefined}
-            onDrop={() => undefined}
+            active={!readOnly && isSubleadTarget}
+            onDragOver={() => {
+              if (!readOnly) setDragTarget({ kind: "sublead", dept });
+            }}
+            onDragLeave={() => {
+              if (isSubleadTarget) setDragTarget(null);
+            }}
+            onDrop={() => {
+              if (!readOnly && draggingId) onAssignSublead(draggingId, dept);
+            }}
           >
             {subLead && (
               <MemberCard
@@ -2217,6 +2232,39 @@ export function MembersPage({
   const roleMember = (role: "advisor" | "treasurer") =>
     members.find((member) => member.role === role) ?? null;
 
+  const assignSublead = async (memberId: string, dept: string) => {
+    const target = members.find((member) => member.id === memberId);
+    const departmentId = departmentIds[dept];
+    if (!target || !departmentId || readOnly) return;
+    const result = await setMemberRole(memberId, "sublead");
+    if (result.success) {
+      setMembers((current) =>
+        current.map((member) =>
+          member.id === memberId ? { ...member, role: "sublead" } : member
+        )
+      );
+      if (
+        !teams.some(
+          (team) =>
+            team.memberId === memberId && team.departmentId === departmentId
+        )
+      ) {
+        persistTeams([
+          ...teams,
+          {
+            id: crypto.randomUUID(),
+            departmentId,
+            memberId,
+          },
+        ]).catch(() => undefined);
+      }
+    } else {
+      setTeamSaveError(result.error ?? "Unable to assign sublead role.");
+    }
+    setDraggingId(null);
+    setDragTarget(null);
+  };
+
   const handleDrop = (targetDept: string) => {
     if (!draggingId) return;
     const departmentId = departmentIds[targetDept];
@@ -2504,6 +2552,7 @@ export function MembersPage({
                       deptColors={deptColors}
                       highlightedIso={selectedCountryIso}
                       onDrop={handleDrop}
+                      onAssignSublead={assignSublead}
                       onDragStart={setDraggingId}
                       onMemberClick={
                         readOnly ? () => undefined : setActionMember

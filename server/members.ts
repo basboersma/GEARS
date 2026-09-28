@@ -104,8 +104,14 @@ export const setMemberRole = async (memberId: string, role: Role) => {
     ),
   });
 
-  if (currentMembership?.role !== "owner") {
-    return { success: false, error: "Only owners can change member roles." };
+  if (
+    currentMembership?.role !== "owner" &&
+    currentMembership?.role !== "admin"
+  ) {
+    return {
+      success: false,
+      error: "Only owners and admins can change member roles.",
+    };
   }
 
   if (role === "owner" || role === "admin") {
