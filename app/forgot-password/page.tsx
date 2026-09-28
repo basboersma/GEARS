@@ -1,26 +1,67 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ForgotPasswordForm } from "@/components/forms/forgot-password-form";
+import { cn } from "@/lib/utils";
+import styles from "../login/page.module.css";
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+    <div className={cn("grid min-h-svh lg:grid-cols-2", styles.cream)}>
+      {/*LEFT: GEARS brand panel*/}
+      <div
+        className={cn(
+          "relative hidden overflow-hidden lg:block",
+          styles.brandPanel
+        )}
+      >
+        <Image
+          alt=""
+          aria-hidden
+          className={cn("pointer-events-none select-none", styles.watermark)}
+          height={714}
+          src="/gears-logo-grey.png"
+          width={764}
+        />
+
+        <div className={styles.panelInner}>
+          <Link className={styles.lockup} href="/">
+            <span className={styles.brandBadge}>
+              <Image
+                alt="GEARS"
+                height={34}
+                src="/gears-emblem.png"
+                width={34}
+              />
+            </span>
+            <span className={styles.wordmark}>GEARS</span>
+          </Link>
+
+          <div className={styles.headlineWrap}>
+            <div className={styles.accent} />
+            <h1 className={styles.headline}>
+              Groningen Engineering And Robotics Study Association
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      {/*RIGHT: form*/}
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center gap-6 p-6 md:p-10",
+          styles.cream
+        )}
+      >
         <Link
-          className="flex items-center gap-2 self-center font-medium"
+          className="flex items-center gap-2.5 self-center lg:hidden"
           href="/"
         >
-          <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Image
-              alt="Better Auth Starter Logo"
-              height={50}
-              priority
-              src={"/Logo.png"}
-              width={50}
-            />
-          </div>
-          Better Auth Starter
+          <span className={styles.mobileBadge}>
+            <Image alt="GEARS" height={24} src="/gears-emblem.png" width={24} />
+          </span>
+          <span className={styles.mobileWordmark}>GEARS</span>
         </Link>
+
         <ForgotPasswordForm />
       </div>
     </div>

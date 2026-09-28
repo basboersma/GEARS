@@ -53,6 +53,11 @@ const appUrl = (
   "https://gearsnl.org"
 ).replace(/\/$/, "");
 
+const trustedMicrosoftTenants = (process.env.MICROSOFT_TRUSTED_TENANT_IDS ?? "")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
+
 async function resolveActiveOrganizationForUser(userId: string) {
   const membership = await db.query.member.findFirst({
     where: eq(memberTable.userId, userId),
@@ -159,8 +164,12 @@ export const auth = betterAuth({
     microsoft: {
       clientId: process.env.MICROSOFT_CLIENT_ID as string,
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
-      tenantId: process.env.MICROSOFT_TENANT_ID ?? "common", //"common" allows both work/school+personal Microsoft accounts
+      tenantId: process.env.MICROSOFT_TENANT_ID ?? "common", // set to the Hanze tenant in env, so only Hanze accounts can use Microsoft login
       prompt: "select_account",
+      mapProfileToUser: (profile) =>
+        trustedMicrosoftTenants.includes(profile.tid)
+          ? { emailVerified: true }
+          : {},
     },
   },
   emailAndPassword: {
