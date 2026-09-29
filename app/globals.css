@@ -134,7 +134,7 @@
 
 .site {
   min-height: 100vh;
-  background-color: #f3f4f6;
+  background-color: #f4f2f0;
   color: #111827;
   padding: 0 0 3rem;
   display: flex;
@@ -207,7 +207,7 @@
 }
 
 .nav a {
-  color: #374151;
+  color: #bb4429;
   text-decoration: none;
   padding: 0.3rem 0.6rem;
   border-radius: 0.25rem;
@@ -217,13 +217,13 @@
 }
 
 .nav a:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: rgba(224, 112, 86, 0.12);
+  color: #98371f;
 }
 
 .nav a.active {
-  background: #e5e7eb;
-  color: #111827;
+  background: rgba(224, 112, 86, 0.12);
+  color: #98371f;
 }
 
 .nav-cta {
@@ -259,13 +259,13 @@ main {
   margin: 0 auto;
   background: linear-gradient(
     135deg,
-    rgba(248, 250, 252, 0.96),
-    rgba(226, 232, 240, 0.94)
+    rgba(250, 248, 244, 0.95),
+    rgba(244, 242, 240, 0.9)
   );
   border-radius: 1.25rem;
   padding: 1.6rem 1.8rem 1.8rem;
   color: #0f172a;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 12px 34px rgba(43, 40, 37, 0.14);
   align-items: flex-start;
 }
 
@@ -586,12 +586,12 @@ main {
 }
 
 .footer-links a {
-  color: #9ca3af;
+  color: #bb4429;
   text-decoration: none;
 }
 
 .footer-links a:hover {
-  color: #e5e7eb;
+  color: #98371f;
 }
 
 @media (max-width: 900px) {

@@ -4,7 +4,7 @@
   --coral-btn: #c8492b;
   --coral-btn-h: #b23e23;
   --coral-ink: #bb4429;
-  --ground: #f4f2ef;
+  --ground: #f4f2f0;
   --surface: #fff;
   --box: #eae6e0;
   --border: #dcd6cf;
@@ -80,6 +80,8 @@
 .mv-ready-body h2 { font-size: clamp(1.9rem, 2.4vw + 1rem, 2.6rem); font-weight: 800; }
 .mv-ready-body p { max-width: 54ch; }
 .mv-q { color: var(--muted); font-size: 0.95rem; }
+.mv-price { font-size: 1rem; color: var(--ink); }
+.mv-price strong { color: var(--coral-ink); }
 
 /* join form */
 .mv-back { display: inline-block; font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 22px; }
