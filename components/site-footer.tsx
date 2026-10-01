@@ -1,3 +1,4 @@
+// Shared marketing footer (same markup + globals.css classes the pages used inline).
 export function SiteFooter() {
   return (
     <footer className="site-footer">

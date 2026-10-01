@@ -1,0 +1,343 @@
+
+.journey {
+  --journey-ink: #363435; /*charcoal from the GEARS logo*/
+  --journey-muted: #65727c;
+  --journey-faint: #9ca3af;
+  --journey-line: #e5e1dc;
+
+  margin: 0 -1.5rem;
+  color: var(--journey-ink);
+}
+
+.journey h2,
+.journey h3 {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 1.08;
+}
+
+.journey p {
+  margin: 0;
+}
+
+.journey-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--journey-muted);
+}
+
+.journey-link {
+  display: inline-block;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--journey-ink);
+  font-size: 16px;
+  color: var(--journey-ink);
+  text-decoration: none;
+}
+
+.journey-link:hover {
+  color: var(--gears);
+  border-color: var(--gears);
+}
+
+/*heading above the pinned stage*/
+
+.journey-heading {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px 70px;
+  padding: 90px 6% 65px;
+}
+
+.journey-heading .journey-eyebrow {
+  grid-column: 1 / -1;
+}
+
+.journey-heading h2 {
+  max-width: 900px;
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: clamp(44px, 5.4vw, 80px);
+}
+
+.journey-heading .journey-link {
+  align-self: end;
+}
+
+/*the track gives the page room to scroll, the stage stays put while it passes*/
+
+.journey-track {
+  height: 650svh;
+}
+
+.journey-stage {
+  /*--pin-top is the header height, set in emblem-journey.tsx*/
+  position: sticky;
+  top: var(--pin-top, 0px);
+  height: calc(100svh - var(--pin-top, 0px));
+  min-height: 540px;
+  overflow: hidden;
+  background: #f4f2ef;
+}
+
+.journey-model {
+  position: absolute;
+  top: 65px;
+  bottom: 75px;
+  left: 4%;
+  width: 54%;
+}
+
+.journey-model::before {
+  content: "";
+  position: absolute;
+  inset: 22% 0;
+  pointer-events: none;
+  opacity: 0;
+  background-image:
+    linear-gradient(#36343508 1px, transparent 1px),
+    linear-gradient(90deg, #36343508 1px, transparent 1px);
+  background-size: 56px 56px;
+  transition: opacity 250ms ease;
+}
+
+.journey-stage[data-chapter="true"] .journey-model::before {
+  opacity: 1;
+}
+
+.journey-model canvas {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.journey-model img {
+  position: absolute;
+  inset: 0;
+  width: 55%;
+  height: auto;
+  margin: auto;
+}
+
+.journey-mark {
+  position: absolute;
+  bottom: 17px;
+  left: 10%;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--journey-faint);
+}
+
+.journey-copy {
+  position: absolute;
+  top: 50%;
+  left: 60%;
+  right: 6%;
+  z-index: 1;
+  transform: translateY(-50%);
+}
+
+/*big faded number above a step title, or the word GEARS under the opening title*/
+.journey-number {
+  display: none;
+  margin-bottom: 20px;
+  font-size: clamp(90px, 9vw, 150px);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.07em;
+  color: var(--journey-line);
+}
+
+.journey-number.is-word {
+  display: block;
+  margin-bottom: 28px;
+  letter-spacing: -0.035em;
+  color: #b8b3ae;
+}
+
+.journey-copy .journey-eyebrow {
+  margin-bottom: 30px;
+  color: var(--gears);
+  font-size: 14px;
+}
+
+.journey-copy h3 {
+  margin-bottom: 26px;
+  font-size: clamp(48px, 5.6vw, 88px);
+  letter-spacing: -0.025em;
+}
+
+.journey-description {
+  max-width: 480px;
+  font-size: clamp(18px, 1.65vw, 24px);
+  line-height: 1.6;
+  color: var(--journey-muted);
+}
+
+.journey-copy .journey-link {
+  margin-top: 26px;
+}
+
+.journey-copy .journey-cue {
+  margin-top: 28px;
+  font-size: 14px;
+  color: var(--journey-muted);
+}
+
+.journey-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 6%;
+  right: 6%;
+  z-index: 2;
+}
+
+.journey-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 0;
+  padding: 24px 0;
+  list-style: none;
+  font-family: "Courier New", monospace;
+  font-size: 20px;
+  color: var(--journey-faint);
+}
+
+.journey-steps li {
+  white-space: nowrap;
+}
+
+.journey-steps .active {
+  color: var(--journey-ink);
+}
+
+.journey-progress {
+  height: 2px;
+  background: var(--journey-line);
+}
+
+.journey-progress span {
+  display: block;
+  height: 100%;
+  background: var(--gears);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+@media (max-height: 670px) {
+  .journey-number {
+    margin-bottom: 13px;
+    font-size: 65px;
+  }
+
+  .journey-copy h3 {
+    margin-bottom: 15px;
+    font-size: 45px;
+  }
+
+  .journey-description {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .journey-heading {
+    display: block;
+    padding: 55px 6% 40px;
+  }
+
+  .journey-heading .journey-eyebrow {
+    margin-bottom: 17px;
+  }
+
+  .journey-heading h2 {
+    font-size: 40px;
+  }
+
+  .journey-heading .journey-link {
+    margin-top: 25px;
+  }
+
+  .journey-track {
+    height: 620svh;
+  }
+
+  .journey-model {
+    left: 0;
+    top: 45px;
+    bottom: auto;
+    width: 100%;
+    height: 42%;
+  }
+
+  .journey-mark {
+    display: none;
+  }
+
+  .journey-copy {
+    top: 48%;
+    left: 7%;
+    right: 7%;
+    transform: none;
+  }
+
+  /*the number moves to the corner, the word GEARS would crowd the title*/
+  .journey-number {
+    position: absolute;
+    top: -15px;
+    right: 0;
+    margin: 0;
+    font-size: 64px;
+  }
+
+  .journey-number.is-word {
+    position: static;
+    margin-bottom: 16px;
+  }
+
+  .journey-copy h3 {
+    margin-bottom: 16px;
+    padding-right: 40px;
+    font-size: 36px;
+  }
+
+  .journey-copy .journey-eyebrow {
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+
+  .journey-description {
+    max-width: 85%;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .journey-copy .journey-link {
+    margin-top: 18px;
+    font-size: 15px;
+  }
+
+  /*short phones have no room for the hint, the step list already shows what's next*/
+  .journey-copy .journey-cue {
+    display: none;
+  }
+
+  .journey-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 15px;
+    padding: 14px 0;
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journey-model::before {
+    transition: none;
+  }
+}

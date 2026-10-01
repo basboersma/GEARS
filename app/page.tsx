@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { EmblemJourney } from "@/components/emblem-journey/emblem-journey";
 import {
   Dialog,
   DialogContent,
@@ -121,9 +122,10 @@ export default function HomePage() {
           </div>
         </section>
 
+        <EmblemJourney />
+
         <section className="section section-alt">
           <div className="section-header">
-            <h2>What We Do</h2>
             <div>
               <p>GEARS supports students by:</p>
               <ul>

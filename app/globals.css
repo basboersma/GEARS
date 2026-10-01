@@ -55,6 +55,7 @@
 
 :root {
   --gears: #e07056;
+  --gears-ink: #363435; /*charcoal from the GEARS logo*/
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);
@@ -136,7 +137,6 @@
   min-height: 100vh;
   background-color: #f4f2f0;
   color: #111827;
-  padding: 0 0 3rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -546,17 +546,17 @@ main {
   color: #4b5563;
 }
 
+/*dark band at the bottom of every page, its content lines up with the 1120px column*/
 .site-footer {
-  max-width: 1120px;
-  margin: 2.5rem auto 0;
-  padding: 1.2rem 0 0;
-  border-top: 1px solid #e5e7eb;
+  margin-top: 2.5rem;
+  padding: 2.5rem max(1.5rem, calc((100% - 1120px) / 2)) 3rem;
+  background: var(--gears-ink);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1.5rem;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: #c9c3bc;
 }
 
 .footer-info {
@@ -567,7 +567,7 @@ main {
 }
 
 .footer-info strong {
-  color: #111827;
+  color: #f4f2f0;
   font-size: 0.9rem;
 }
 
@@ -586,12 +586,12 @@ main {
 }
 
 .footer-links a {
-  color: #bb4429;
+  color: #f4826a; /*lighter coral so it's readable on the dark band*/
   text-decoration: none;
 }
 
 .footer-links a:hover {
-  color: #98371f;
+  color: #f4f2f0;
 }
 
 @media (max-width: 900px) {
@@ -632,6 +632,7 @@ main {
   }
 
   .site-footer {
+    margin-inline: -1.1rem; /*goes edge to edge, past the side padding of .site*/
     flex-direction: column;
     align-items: flex-start;
     gap: 0.6rem;

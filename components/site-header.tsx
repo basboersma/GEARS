@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { JOIN_URL, MEMBERSHIP_BASE } from "@/lib/routes";
 
+// Shared marketing header (same markup + globals.css classes the pages used inline).
 export function SiteHeader() {
   return (
     <header className="site-header">

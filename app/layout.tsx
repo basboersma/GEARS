@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {
+  Bebas_Neue,
   Geist,
   Geist_Mono,
   Manrope,
@@ -10,6 +11,13 @@ import "./globals.css";
 import { InviteStatusToast } from "@/components/invite-status-toast";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+
+//big font for section headings, like on the homepage emblem journey
+const bebasNeue = Bebas_Neue({
+  variable: "--font-bebas-neue",
+  subsets: ["latin"],
+  weight: "400",
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,7 +66,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${manrope.variable} ${openSans.variable} antialiased`}
+        className={`${bebasNeue.variable} ${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${manrope.variable} ${openSans.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"
