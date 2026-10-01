@@ -175,8 +175,8 @@ export default function HomePage() {
         <div className="footer-meta">
           <span>© {new Date().getFullYear()} GEARS</span>
           <span className="footer-links">
-            <a href="/privacy.html">Privacy policy</a>
-            <a href="/termsandconditions.html">
+            <a href="/privacy">Privacy policy</a>
+            <a href="/terms">
               Terms and Conditions for Membership
             </a>
           </span>

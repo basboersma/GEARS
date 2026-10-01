@@ -19,7 +19,7 @@
   line-height: 1.6;
 }
 .mv-root * { box-sizing: border-box; }
-.mv-root a:not(.mv-btn) { color: var(--coral-ink); text-decoration: none; }
+.mv-root main a:not(.mv-btn) { color: var(--coral-ink); text-decoration: none; } /* header/footer links keep the globals.css colours */
 .mv-root img { display: block; max-width: 100%; }
 .mv-root h1, .mv-root h2 { margin: 0; letter-spacing: -0.02em; }
 .mv-root p { margin: 0; }

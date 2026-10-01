@@ -303,14 +303,14 @@ export function LoginForm() {
       >
         By continuing you agree to our{" "}
         <Link
-          href="#"
+          href="/terms"
           style={{ color: "#A29C90", textDecoration: "underline" }}
         >
           Terms of Service
         </Link>{" "}
         and{" "}
         <Link
-          href="#"
+          href="/privacy"
           style={{ color: "#A29C90", textDecoration: "underline" }}
         >
           Privacy Policy

@@ -103,7 +103,6 @@ export function SignupForm() {
       values.password,
       values.username
     );
-
     if (success) {
       toast.success(
         invitationId
@@ -114,7 +113,6 @@ export function SignupForm() {
     } else {
       toast.error(message as string);
     }
-
     setIsLoading(false);
   }
 
@@ -296,11 +294,11 @@ export function SignupForm() {
         }}
       >
         By clicking continue, you agree to our{" "}
-        <Link href="#" style={{ textDecoration: "underline" }}>
+        <Link href="/terms" style={{ textDecoration: "underline" }}>
           Terms of Service
         </Link>{" "}
         and{" "}
-        <Link href="#" style={{ textDecoration: "underline" }}>
+        <Link href="/privacy" style={{ textDecoration: "underline" }}>
           Privacy Policy
         </Link>
         .
