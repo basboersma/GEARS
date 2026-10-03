@@ -299,6 +299,44 @@ main {
   font-size: 1rem;
   line-height: 1.65;
 }
+
+.hero-support {
+  width: 100%;
+  border-top: 1px solid #36343518;
+  padding-top: 1.25rem;
+  color: #363435;
+}
+
+.hero-support-title {
+  margin: 0 0 0.8rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hero-support-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem 2rem;
+  margin: 0;
+  padding-left: 1.15rem;
+  list-style: disc;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.hero-support-list li {
+  padding-left: 0.2rem;
+}
+
+.hero-support-list li::marker {
+  color: var(--gears);
+}
+
+@media (max-width: 768px) {
+  .hero-support-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+  }
 }
 
 .hero-logo-wrapper {
