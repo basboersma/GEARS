@@ -95,7 +95,7 @@ export default function ContactPage() {
           <span className="footer-links">
             <a href="/privacy">Privacy policy</a>
             <a href="/terms">
-              Terms and Conditions for Membership
+              Terms and Conditions
             </a>
           </span>
         </div>

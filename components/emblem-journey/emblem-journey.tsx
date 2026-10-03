@@ -60,7 +60,7 @@ export function EmblemJourney() {
     };
 
     //pin the stage right under the sticky header, however tall it is
-    const header = document.querySelector<HTMLElement>(".site-header");
+    const header = document.querySelector<HTMLElement>(".topbar");
     const resizeObserver = new ResizeObserver(() => {
       pinned.style.setProperty("--pin-top", `${header?.offsetHeight ?? 0}px`);
       scene?.resize();

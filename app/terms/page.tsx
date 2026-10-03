@@ -8,7 +8,7 @@ export default function TermsPage() {
       <SiteHeader />
       <main className="legal">
         <div className="legal-inner">
-          <h1>Terms and Conditions for Membership</h1>
+          <h1>Terms and Conditions</h1>
           <p className="legal-updated">Last updated: 29 September 2026</p>
 
           <p>
