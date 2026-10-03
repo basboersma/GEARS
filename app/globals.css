@@ -56,6 +56,14 @@
 :root {
   --gears: #e07056;
   --gears-ink: #363435; /*charcoal from the GEARS logo*/
+  --gears-coral: #f0694e; /*logo coral, for fills and buttons*/
+  --gears-on-coral: #1c1a1b; /*text on coral*/
+  --gears-link: #bb4429; /*coral dark enough for text on cream*/
+  --gears-link-dark: #f4826a; /*coral text on charcoal*/
+  --gears-cream: #f4f2f0;
+  --gears-muted: #625d59; /*grey text that still passes contrast on cream*/
+  --gears-muted-dark: #c9c3bc; /*grey text on charcoal*/
+  --gears-line: #e5e1dc;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);
@@ -289,6 +297,8 @@ main {
   color: #4b5563;
   max-width: 50rem;
   font-size: 1rem;
+  line-height: 1.65;
+}
 }
 
 .hero-logo-wrapper {
