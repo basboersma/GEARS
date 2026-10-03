@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { EmblemJourney } from "@/components/emblem-journey/emblem-journey";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import {
   Dialog,
   DialogContent,
@@ -32,44 +34,7 @@ export default function HomePage() {
 
   return (
     <div className="site">
-      <header className="site-header">
-        <div className="site-header-inner">
-          <div className="brand">
-            <div className="brand-text">
-              <Image
-                alt="GEARS logo"
-                className="brand-logo"
-                height={48}
-                src="/gears_branding/gears_logo_small.jpeg"
-                width={48}
-              />
-              <div className="brand-text-lines">
-                <span className="brand-name">GEARS</span>
-                <span className="brand-subtitle">
-                  Gronigen Engineering and Robotics Study Association
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <nav className="nav">
-            <Link href="/">Home</Link>
-            <Link href="/activities">Activities</Link>
-            <Link href="/membership">Membership</Link>
-            <Link href="/about">About</Link>
-            <Link href="/contact">Contact</Link>
-            <Link href="/login">Login</Link>
-            <Link
-              className="nav-cta"
-              href="https://docs.google.com/forms/d/e/1FAIpQLSfWqyAj0pHO3R68yfyFYpkpuL4kdzWFg-wHfs8_0LBnxyFTpw/viewform?usp=dialog"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              JOIN GEARS
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main>
         <section className="hero">
@@ -166,24 +131,7 @@ export default function HomePage() {
         </Dialog>
       )}
 
-      <footer className="site-footer">
-        <div className="footer-info">
-          <strong>GEARS</strong>
-          <span>KVK: 42017832</span>
-          <span>Nijenborgh 4, 9747 AG, Groningen</span>
-          <span>Platform for facilitating student teams.</span>
-        </div>
-
-        <div className="footer-meta">
-          <span>© {new Date().getFullYear()} GEARS</span>
-          <span className="footer-links">
-            <a href="/privacy">Privacy policy</a>
-            <a href="/terms">
-              Terms and Conditions for Membership
-            </a>
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
