@@ -1,42 +1,10 @@
-import Image from "next/image";
-import Link from "next/link";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 
 export default function AboutPage() {
   return (
     <div className="site">
-      <header className="site-header">
-        <div className="site-header-inner">
-          <div className="brand">
-            <div className="brand-text">
-              <Image
-                alt="GEARS logo"
-                className="brand-logo"
-                height={48}
-                src="/gears_branding/gears_logo_small.jpeg"
-                width={48}
-              />
-              <div className="brand-text-lines">
-                <span className="brand-name">GEARS</span>
-                <span className="brand-subtitle">
-                  Gronigen Engineering and Robotics Study Association
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <nav className="nav">
-            <Link href="/">Home</Link>
-            <Link href="/activities">Activities</Link>
-            <Link href="/membership">Membership</Link>
-            <Link href="/about">About</Link>
-            <Link href="/contact">Contact</Link>
-            <Link href="/login">Login</Link>
-            <Link className="nav-cta" href="/login">
-              JOIN GEARS
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main>
         <section className="section section-alt" id="about">
@@ -139,24 +107,7 @@ export default function AboutPage() {
         </section>
       </main>
 
-      <footer className="site-footer">
-        <div className="footer-info">
-          <strong>GEARS</strong>
-          <span>KVK: 42017832</span>
-          <span>Nijenborgh 4, 9747 AG, Groningen</span>
-          <span>Platform for facilitating student teams.</span>
-        </div>
-
-        <div className="footer-meta">
-          <span>© {new Date().getFullYear()} GEARS</span>
-          <span className="footer-links">
-            <a href="/privacy">Privacy policy</a>
-            <a href="/terms">
-              Terms and Conditions
-            </a>
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
