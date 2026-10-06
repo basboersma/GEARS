@@ -4,6 +4,6 @@ export const MEMBERSHIP = {
   name: "GEARS Membership",
   price: "€10",
   period: "year",
-  launchPrice: "€2.50",
+  launchPrice: "€10",
   launchSpots: 25,
 };

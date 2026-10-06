@@ -1,7 +1,7 @@
 import "./membership.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { JOIN_URL } from "@/lib/routes";
+import { JOIN_DOCS } from "@/lib/routes";
 import { SpinningEmblem } from "./components/SpinningEmblem";
 import { CONTACT_EMAIL } from "./data";
 
@@ -46,7 +46,7 @@ export default function MembershipPage() {
             </p>
             <a
               className="mv-btn mv-btn-primary mv-btn-lg"
-              href={JOIN_URL}
+              href={JOIN_DOCS}
               target="_blank"
               rel="noopener noreferrer"
             >

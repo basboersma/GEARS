@@ -1,13 +1,5 @@
 import { STEPS } from "./steps";
 
-//the whole journey runs on one number, `time`, taken from how far you scrolled.
-//it goes from 0 to STEPS.length + 1, one unit per stage:
-//  stage -1           the full emblem (opening)
-//  stage 0..last step one part pulled forward
-//  stage STEPS.length the emblem back in one piece (closing)
-//each unit starts with a short move into the next stage, then holds still
-//for the rest so there's time to read the text.
-
 export const OPENING_STAGE = -1;
 export const CLOSING_STAGE = STEPS.length;
 export const TIMELINE_LENGTH = STEPS.length + 1;

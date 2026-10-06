@@ -27,11 +27,6 @@ import EMBLEM_PARTS from "./emblem-parts.json";
 import { STEPS } from "./steps";
 import { CLOSING_STAGE, momentAt, OPENING_STAGE } from "./timeline";
 
-//three.js scene for the emblem journey.
-//each part of the emblem is its traced outline, pushed out into a 3D piece.
-//every stage has a pose for each part, and anything in between is just
-//the previous pose blended into the next one.
-
 type EmblemPart = (typeof EMBLEM_PARTS)[number];
 
 interface Piece {
@@ -105,9 +100,7 @@ function createPhotoFace(shape: Shape, photos: string[], onReady: () => void) {
       material.map = texture;
       material.needsUpdate = true;
       onReady();
-    } catch {
-      //a photo didn't load, so the part keeps its plain logo colour
-    }
+    } catch { }
   };
   showCollage();
 

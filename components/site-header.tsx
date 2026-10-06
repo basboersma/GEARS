@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { JOIN_URL } from "@/lib/routes";
+import { JOIN_DOCS } from "@/lib/routes";
 
 //one list for the desktop nav and the phone menu
 const PAGES = [
@@ -66,7 +66,7 @@ export function SiteHeader() {
           </Link>
           <a
             className="topbar-join"
-            href={JOIN_URL}
+            href={JOIN_DOCS}
             rel="noopener noreferrer"
             target="_blank"
           >

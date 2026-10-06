@@ -1,8 +1,8 @@
 "use client";
 
+import "./home-hero.css";
 import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
+import { type PointerEvent, useRef, useState } from "react";
 import { EmblemJourney } from "@/components/emblem-journey/emblem-journey";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WhereNext } from "@/components/where-next/where-next";
+import { JOIN_DOCS } from "@/lib/routes";
 
 export default function HomePage() {
   const [pdfPopup, setPdfPopup] = useState<{
@@ -32,47 +34,69 @@ export default function HomePage() {
     });
   };
 
+  const crosshairRef = useRef<HTMLDivElement>(null);
+
+  //moves the drafting cursor without re-rendering the page
+  const moveCrosshair = (event: PointerEvent<HTMLElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const x = Math.round(event.clientX - box.left);
+    const y = Math.round(event.clientY - box.top);
+    crosshairRef.current?.style.setProperty("--x", `${x}px`);
+    crosshairRef.current?.style.setProperty("--y", `${y}px`);
+    crosshairRef.current?.setAttribute("data-pos", `x ${x}  y ${y}`);
+  };
+
   return (
     <div className="site">
       <SiteHeader />
 
       <main>
-        <section className="hero">
-          <div className="hero-content">
-            <div className="hero-logo-wrapper">
-              <Image
-                alt="GEARS Robotics & Engineering Association"
-                className="hero-logo"
-                height={180}
-                src="/gears_branding/gears_logo.png"
-                width={420}
-              />
-            </div>
-            <p className="hero-tagline">
-              Gronigen Engineering and Robotics Study Association
-            </p>
-            <h1>Platform for STEM student challenges.</h1>
-            <p className="hero-lead">
-              GEARS is a student-led STEM association that provides
-              opportunities for challenge-based learning through
-              interdisciplinary projects, competitions, workshops, and industry
-              collaborations. Our mission is to help students develop practical
-              skills, gain real world experience, and build meaningful
-              connections while working on innovative solutions to technical and
-              societal changes.
-            </p>
+        {/*full photo with the logo sitting on the edge of the see-through band*/}
+        <section className="home-hero" onPointerMove={moveCrosshair}>
+          <Image
+            alt="Members working on a wooden rover in the GEARS workshop"
+            className="home-hero-photo"
+            fill
+            priority
+            sizes="100vw"
+            src="/gears_branding/makercieatwork.jpeg"
+          />
 
-            <div className="hero-actions">
-              <Link
-                className="btn btn-primary"
-                href="https://docs.google.com/forms/d/e/1FAIpQLSfWqyAj0pHO3R68yfyFYpkpuL4kdzWFg-wHfs8_0LBnxyFTpw/viewform?usp=dialog"
+          <div className="home-hero-band">
+            <div className="home-hero-title">
+              <p className="home-hero-label">
+                Groningen Engineering and Robotics Study Association
+              </p>
+              <h1>
+                <Image
+                  alt="GEARS"
+                  height={228}
+                  priority
+                  src="/gears_branding/gears_logo_light.png"
+                  width={1092}
+                />
+              </h1>
+            </div>
+
+            <div className="home-hero-body">
+              <p className="home-hero-lead">
+                GEARS is a student-led STEM association that offers
+                challenge-based learning through interdisciplinary projects,
+                competitions, workshops and industry collaborations. We help
+                students build practical skills, get real-world experience and
+                make meaningful connections while working on solutions to
+                technical and societal challenges.
+              </p>
+              <a
+                className="home-hero-join"
+                href={JOIN_DOCS}
                 rel="noopener noreferrer"
                 target="_blank"
               >
-                JOIN GEARS
-              </Link>
+                Join GEARS
+              </a>
               <button
-                className="btn btn-secondary"
+                className="home-hero-seed"
                 onClick={() =>
                   openPdfPopup(
                     "FSE Student Challenge Seed Fund 2026/2027",
@@ -81,35 +105,22 @@ export default function HomePage() {
                 }
                 type="button"
               >
-                Apply for Seed Fund
+                Apply for seed fund →
               </button>
             </div>
           </div>
+
+          <div
+            aria-hidden="true"
+            className="home-hero-crosshair"
+            ref={crosshairRef}
+          />
+          <p className="home-hero-coords">53.24° N, 6.54° E / ZERNIKE</p>
+          <p className="home-hero-scroll">Read more...</p>
         </section>
 
         <EmblemJourney />
-
-        <section className="section section-alt">
-          <div className="section-header">
-            <div>
-              <p>GEARS supports students by:</p>
-              <ul>
-                <li>
-                  Providing teams with seed-funding to enable them to enter
-                  competitions
-                </li>
-                <li>Organizing and participating in STEM competitions</li>
-                <li>Facilitating interdisciplinary projects</li>
-                <li>Connecting students with industry partners</li>
-                <li>Hosting workshops and networking events</li>
-                <li>
-                  Creating opportunities for hands-on learning and professional
-                  development
-                </li>
-              </ul>
-            </div>
-          </div>
-        </section>
+        <WhereNext />
       </main>
 
       {pdfPopup.open && (

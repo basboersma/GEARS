@@ -1,17 +1,12 @@
-//text and photos for the homepage emblem journey, in scroll order.
-//each step pulls one part of the emblem forward:
-//  piece  - id of the part (see emblem-parts.json)
-//  focus  - where the part goes in the 3D scene, so the camera can move there
-//  photos - what's on the part's front: one photo, or three (big one first)
 
 export interface Step {
   title: string;
   description: string;
   link: string; //text for `href`, says where the link goes
   href: string;
-  piece: string;
-  focus: [number, number];
-  photos: string[];
+  piece: string; //id of the part to bring forward
+  focus: [number, number]; //where the part goes in the 3D scene, so the camera can move there
+  photos: string[]; 
 }
 
 export const STEPS: Step[] = [

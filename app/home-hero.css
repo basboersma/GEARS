@@ -1,0 +1,192 @@
+.home-hero {
+  --logo-width: min(76vw, 1090px);
+  --band-height: 56%;
+
+  position: relative;
+  margin: -2rem -1.5rem 0; /*from one edge to the other*/
+  height: max(640px, calc(100svh - 72px)); /*hacky stuff to fill the screen under the header*/
+  overflow: hidden;
+  color: var(--gears-cream);
+}
+
+/*zoomed in a bit and anchored at the bottom so the rover sits above the logo*/
+.home-hero-photo {
+  object-fit: cover;
+  object-position: 40% 75%;
+  transform: scale(1.2);
+  transform-origin: 40% 75%;
+}
+
+/*light dim over the whole photo so the cream logo still reads*/
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(28, 26, 27, 0.25);
+}
+
+/*starts almost clear under the logo and gets darker towards the text*/
+.home-hero-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  height: var(--band-height);
+  background: linear-gradient(
+    180deg,
+    rgba(54, 52, 53, 0) 0%,
+    rgba(54, 52, 53, 0.92) 100%
+  );
+}
+
+.home-hero-title {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%); /*half above the band, half on it*/
+  text-align: center;
+}
+
+.home-hero-label {
+  margin: 0;
+  font-family: "Courier New", monospace;
+  font-size: 16px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gears-cream);
+}
+
+.home-hero-title h1 {
+  margin: 0;
+  line-height: 0;
+}
+
+.home-hero-title img {
+  display: block;
+  width: var(--logo-width);
+  height: auto;
+}
+
+.home-hero-body {
+  box-sizing: border-box;
+  height: 100%;
+  /*the top padding clears the half of the logo that hangs into the band*/
+  padding: calc(var(--logo-width) * 0.105 + 32px) 6% 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.home-hero-lead {
+  margin: 0 0 6px;
+  max-width: 640px;
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.home-hero-join {
+  padding: 16px 36px;
+  border-radius: 999px;
+  background: var(--gears-coral);
+  color: var(--gears-on-coral);
+  font-size: 18px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.home-hero-join:hover {
+  background: var(--gears);
+}
+
+.home-hero-seed {
+  border: 0;
+  background: none;
+  color: var(--gears-link-dark);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.home-hero-seed:hover {
+  color: var(--gears-cream);
+}
+
+.home-hero-coords,
+.home-hero-scroll {
+  position: absolute;
+  left: 6%;
+  bottom: 28px;
+  z-index: 2;
+  margin: 0;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--gears-muted-dark);
+}
+
+.home-hero-scroll {
+    left: auto;
+    right: 6%;
+  }
+
+/*fancy moving cursor with 2 lines drawn as backgrounds, plus the x/y read outs*/
+.home-hero-crosshair {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(rgba(244, 242, 240, 0.2)) 0 var(--y) / 100% 1px no-repeat,
+    linear-gradient(rgba(244, 242, 240, 0.2)) var(--x) 0 / 1px 100% no-repeat;
+}
+
+.home-hero-crosshair::after {
+  content: attr(data-pos);
+  position: absolute;
+  left: min(calc(var(--x) + 14px), calc(100% - 120px));
+  top: calc(var(--y) + 14px);
+  font: 11px "Courier New", monospace;
+  white-space: pre;
+}
+
+/*moving cursor only meant for mouse users not touch screen users*/
+@media (hover: hover) {
+  .home-hero:hover .home-hero-crosshair {
+    opacity: 1;
+  }
+}
+
+/*phones: taller band, smaller text, coordinates out of the way*/
+@media (max-width: 768px) {
+  .home-hero {
+    --logo-width: 86vw;
+    --band-height: 62%;
+
+    /*.site adds 1.1rem of side padding here*/
+    margin-inline: calc(-1.5rem - 1.1rem);
+  }
+
+  .home-hero-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+
+  .home-hero-body {
+    padding-inline: 1.5rem;
+  }
+
+  .home-hero-lead {
+    font-size: 16px;
+  }
+
+  .home-hero-coords,
+  .home-hero-scroll {
+    display: none;
+  }
+}

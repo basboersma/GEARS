@@ -1,7 +1,3 @@
-//paints the photos for one part into a single canvas: one photo, or one big
-//photo plus two smaller ones with thin lines between them. the part's outline
-//cuts the canvas, so the collage ends up in the shape of the logo.
-
 type Tile = [x: number, y: number, width: number, height: number];
 
 const LONG_SIDE = 1536; //canvas pixels along the part's longer side
@@ -10,8 +6,7 @@ const WIDE_PART = 1.2; //a part wider than this (width / height) counts as wide
 const LINE_COLOR = "#f4f2f0"; //same as the homepage background
 const LINE_WIDTH = 5;
 
-//where the people are in each photo (0-1 from the left and from the top),
-//so the crop keeps them in frame. photos not listed get cropped from the centre.
+//where the people are in each photo (0-1 from the left and from the top)
 const PHOTO_FOCUS: Record<string, [number, number]> = {
   "/journey/makercie-00.jpg": [0.5, 0.48],
   "/journey/makercie-04.jpg": [0.32, 0.55],
@@ -116,7 +111,6 @@ function drawDividers(context: CanvasRenderingContext2D, tiles: Tile[]) {
   context.stroke();
 }
 
-//`aspect` is the part's width / height. fails if a photo doesn't load
 export async function createCollage(sources: string[], aspect: number) {
   const photos = await Promise.all(sources.map(loadPhoto));
   const canvas = document.createElement("canvas");

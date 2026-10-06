@@ -16,8 +16,6 @@ import "./emblem-journey.css";
 const twoDigits = (n: number) => String(n).padStart(2, "0");
 
 //homepage section where the GEARS emblem comes apart piece by piece as you scroll.
-//the stage stays pinned (position: sticky) while its tall track scrolls past,
-//and how far you are down the track picks the stage and the 3D pose.
 export function EmblemJourney() {
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -111,7 +109,7 @@ export function EmblemJourney() {
         <p className="journey-eyebrow">What we do...</p>
         <h2>It all starts with an idea...</h2>
         <a className="journey-link" href="/activities#teams">
-          Meet the teams →
+          Meet the teams
         </a>
       </div>
 
