@@ -2,7 +2,7 @@ import "./membership.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { JOIN_DOCS } from "@/lib/routes";
-import { SpinningEmblem } from "./components/SpinningEmblem";
+import { Lanyard } from "./components/Lanyard";
 import { CONTACT_EMAIL } from "./data";
 
 export default function MembershipPage() {
@@ -13,7 +13,9 @@ export default function MembershipPage() {
       <main className="mv-wrap mv-page">
         <section className="mv-hero">
           <div>
-            <h1 className="mv-title">Become a member</h1>
+            <h1 className="mv-title">
+              <span>Become</span> a member
+            </h1>
             <div className="mv-lede">
               <p>
                 Membership is open to all students interested in robotics, engineering, and
@@ -33,13 +35,15 @@ export default function MembershipPage() {
             </div>
           </div>
 
-          <SpinningEmblem />
+          <Lanyard />
         </section>
 
         <section className="mv-ready">
           <div className="mv-ready-bar" />
           <div className="mv-ready-body">
-            <h2>Ready to join GEARS?</h2>
+            <h2>
+              <span>Ready to join</span> GEARS?
+            </h2>
             <p>
               Join a growing community of student builders with access to competition teams,
               exclusive build nights, workshops and direct connections to industry.

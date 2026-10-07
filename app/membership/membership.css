@@ -45,7 +45,8 @@
 
 /* page rhythm */
 .mv-page { padding-block: 56px 72px; }
-.mv-title { font-size: clamp(2.6rem, 4vw + 1rem, 3.6rem); font-weight: 800; margin-bottom: 24px; }
+.mv-title { font-family: var(--font-bebas-neue), sans-serif; font-size: clamp(72px, 9vw, 140px); font-weight: 400; line-height: 0.88; letter-spacing: 0; margin-bottom: 28px; }
+.mv-title span, .mv-ready-body h2 span { color: var(--gears-coral); }
 .mv-lede { font-size: 1.08rem; max-width: 62ch; }
 .mv-lede p + p { margin-top: 14px; }
 .mv-u { text-decoration: underline; text-underline-offset: 2px; }
@@ -60,7 +61,7 @@
 .mv-rule { height: 1px; background: var(--border); margin-top: 12px; }
 
 /* hero */
-.mv-hero { display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; }
+.mv-hero { display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: start; }
 .mv-hero-actions { margin-top: 30px; }
 .mv-emblem-wrap { justify-self: center; }
 .mv-emblem { width: 250px; height: 250px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -73,11 +74,28 @@
   .mv-emblem { width: 170px; height: 170px; }
 }
 
+/* hanging member card, swings back when you drag it (Lanyard.tsx) */
+.mv-lanyard { position: relative; width: 300px; height: 640px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.mv-lanyard-swing { position: absolute; left: 0; top: 0; width: 300px; transform-origin: 50% 0; cursor: grab; }
+.mv-lanyard-swing:active { cursor: grabbing; }
+.mv-lanyard-strap { width: 22px; height: 180px; margin: 0 auto; background: var(--gears-coral); }
+.mv-lanyard-clip { width: 44px; height: 18px; margin: 0 auto; border: 3px solid #8b8580; border-radius: 4px; }
+.mv-card { height: 400px; margin-top: -4px; padding: 28px 28px 0; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background: var(--gears-ink); color: var(--gears-cream); border-radius: 14px; }
+.mv-root .mv-card img { width: 72px; height: auto; }
+.mv-card strong { display: block; margin-top: 6px; font-family: var(--font-bebas-neue), sans-serif; font-size: 52px; font-weight: 400; line-height: 0.9; }
+.mv-card-label, .mv-card-foot { font-family: "Courier New", monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gears-muted-dark); }
+.mv-card-foot { display: flex; justify-content: space-between; gap: 12px; }
+.mv-card-bar { height: 6px; margin: 0 -28px; background: var(--gears-coral); }
+.mv-lanyard-hint { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-size: 12px; color: var(--muted); }
+@media (max-width: 760px) {
+  .mv-lanyard { height: 600px; margin-inline: auto; }
+}
+
 /* ready-to-join block */
 .mv-ready { display: grid; grid-template-columns: 4px 1fr; gap: 34px; margin-top: 72px; }
 .mv-ready-bar { background: var(--coral); border-radius: 2px; }
 .mv-ready-body { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 8px 0 4px; }
-.mv-ready-body h2 { font-size: clamp(1.9rem, 2.4vw + 1rem, 2.6rem); font-weight: 800; }
+.mv-ready-body h2 { font-family: var(--font-bebas-neue), sans-serif; font-size: clamp(56px, 6vw, 96px); font-weight: 400; line-height: 0.9; letter-spacing: 0; }
 .mv-ready-body p { max-width: 54ch; }
 .mv-q { color: var(--muted); font-size: 0.95rem; }
 .mv-price { font-size: 1rem; color: var(--ink); }
