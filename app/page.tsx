@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { WhereNext } from "@/components/where-next/where-next";
+import { COORDINATES } from "@/lib/location";
 import { JOIN_DOCS } from "@/lib/routes";
 
 export default function HomePage() {
@@ -115,7 +116,7 @@ export default function HomePage() {
             className="home-hero-crosshair"
             ref={crosshairRef}
           />
-          <p className="home-hero-coords">53.24° N, 6.54° E / ZERNIKE</p>
+          <p className="home-hero-coords">{COORDINATES} / ZERNIKE</p>
           <p className="home-hero-scroll">Read more...</p>
         </section>
 
