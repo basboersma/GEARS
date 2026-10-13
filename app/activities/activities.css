@@ -1,0 +1,276 @@
+
+.teams {
+  padding: 0;
+  color: var(--gears-ink);
+}
+
+.teams-label {
+  margin: 0;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gears-muted);
+}
+
+
+.teams-head h1,
+.teams-spot,
+.teams-card-media[data-team="start"],
+.teams-card-body h2,
+.mars-yard h2,
+.mars-yard dd {
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-weight: 400;
+}
+
+.teams-top {
+  padding: 24px 6% 96px;
+}
+
+.teams-head {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 20px 64px;
+  align-items: end;
+  padding-bottom: 48px;
+}
+
+.teams-head .teams-label {
+  grid-column: 1 / -1;
+}
+
+.teams-head h1 {
+  margin: 0;
+  font-size: clamp(64px, 8vw, 128px);
+  line-height: 0.88;
+}
+
+.teams-head h1 span {
+  color: var(--gears-coral);
+}
+
+.teams-head > p:last-child {
+  margin: 0;
+  font-size: 17px;
+  color: var(--gears-muted);
+}
+
+.teams-yard {
+  position: relative;
+  aspect-ratio: 16 / 5;
+  min-height: 240px;
+  overflow: hidden;
+  border: 3px solid var(--gears-ink);
+  border-radius: 24px;
+}
+
+.teams-yard canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.teams-spot {
+  position: absolute;
+  bottom: 4%;
+  translate: -50% 0;
+  padding: 4px 12px 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gears-ink);
+  color: var(--gears-cream);
+  font-size: 20px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.teams-spot[aria-pressed="true"] {
+  background: var(--gears-coral);
+  color: var(--gears-on-coral);
+}
+
+.teams-spot-short {
+  display: none;
+}
+
+.teams-card {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  margin-top: 28px;
+  overflow: hidden;
+  border: 3px solid var(--gears-ink);
+  border-radius: 24px;
+  background: #fff;
+}
+
+.teams-card-media {
+  position: relative;
+  min-height: 340px;
+  background: var(--gears-ink);
+}
+
+.teams-card-media[data-team="start"] {
+  display: grid;
+  place-items: center;
+  background: var(--gears-coral);
+  font-size: clamp(90px, 9vw, 150px);
+  color: var(--gears-on-coral);
+}
+
+.teams-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 34px 36px;
+}
+
+.teams-card-body h2 {
+  margin: 0;
+  font-size: clamp(52px, 5vw, 80px);
+  line-height: 0.9;
+}
+
+.teams-card-body p,
+.teams-card-body ul {
+  margin: 0;
+}
+
+.teams-card-body ul {
+  padding: 0;
+  list-style: none;
+}
+
+.teams-card-body li {
+  padding: 10px 0;
+  border-top: 1px solid var(--gears-line);
+}
+
+.teams-card-link {
+  margin-top: auto;
+  color: var(--gears-link);
+  text-decoration: none;
+}
+
+/*pixels until sharp*/
+.pixel-photo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--gears-ink);
+}
+
+.pixel-photo img {
+  object-fit: cover;
+}
+
+.pixel-photo canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  transition: opacity 0.45s;
+}
+
+.pixel-photo[data-sharp] canvas {
+  opacity: 0;
+}
+
+.mars-yard {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  background: var(--gears-ink);
+  color: var(--gears-cream);
+}
+
+.mars-yard-photo {
+  position: relative;
+  aspect-ratio: 3 / 2;
+}
+
+.mars-yard-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 40px 36px;
+}
+
+.mars-yard .teams-label {
+  color: var(--gears-muted-dark);
+}
+
+.mars-yard h2 {
+  margin: 12px 0 0;
+  font-size: clamp(56px, 6vw, 92px);
+  line-height: 0.9;
+}
+
+.mars-yard dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.mars-yard dd {
+  margin: 0;
+  font-size: 40px;
+  line-height: 0.95;
+  color: var(--gears-link-dark);
+}
+
+.mars-yard-text > p {
+  margin: 0;
+  color: var(--gears-muted-dark);
+}
+
+@media (max-width: 768px) {
+  .teams-top {
+    padding: 32px 0 64px;
+  }
+
+  .teams-head,
+  .teams-card,
+  .mars-yard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .teams-yard {
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  .teams-spot {
+    font-size: 15px;
+    padding: 3px 8px 2px;
+  }
+
+  .teams-spot-long {
+    display: none;
+  }
+
+  .teams-spot-short {
+    display: inline;
+  }
+
+  .teams-card-media {
+    min-height: 240px;
+  }
+
+  .mars-yard {
+    margin-inline: -1.1rem; /*edge to edge*/
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teams-spot,
+  .pixel-photo canvas {
+    transition: none;
+  }
+}

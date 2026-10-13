@@ -1,0 +1,191 @@
+/*contact page: a keyboard of the board. press a key and the screen above it
+  shows who you reach. sits on the normal cream page, coral only on board and copy*/
+
+.contact {
+  padding-block: 56px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  color: var(--gears-ink);
+}
+
+/*small uppercase labels in the same mono as the homepage*/
+.contact-label {
+  display: block;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.contact-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.contact-head .contact-label {
+  margin-bottom: 8px;
+  color: var(--gears-muted);
+}
+
+.contact-head h1 {
+  margin: 0;
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: clamp(64px, 9vw, 150px);
+  font-weight: 400;
+  line-height: 0.86;
+}
+
+.contact-head p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 18px;
+  color: var(--gears-muted);
+}
+
+/*the device: a screen on top, keys underneath*/
+.contact-device {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--gears-ink);
+  border-radius: 22px;
+}
+
+.contact-screen {
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #1b1a1a; /*a step darker than the device*/
+  border-radius: 10px;
+  color: var(--gears-muted-dark);
+}
+
+.contact-screen-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+.contact-screen-mail {
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: clamp(36px, 5.6vw, 84px);
+  line-height: 0.95;
+  color: var(--gears-cream);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.contact-screen-mail:hover {
+  color: var(--gears-link-dark);
+}
+
+.contact-copy {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gears-coral);
+  color: var(--gears-on-coral);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.contact-keys {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/*keycaps: the thick bottom border is the side of the key, it shrinks when pressed*/
+.contact-key {
+  min-height: 88px;
+  padding: 14px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  border-bottom: 6px solid rgba(0, 0, 0, 0.28);
+  border-radius: 12px;
+  background: var(--gears-cream);
+  color: var(--gears-ink);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.08s, border-bottom-width 0.08s;
+}
+
+.contact-key:active,
+.contact-key[aria-pressed="true"] {
+  transform: translateY(4px);
+  border-bottom-width: 2px;
+}
+
+/*board is the default and the widest key*/
+.contact-key-board {
+  grid-column: span 2;
+  background: var(--gears-coral);
+  color: var(--gears-on-coral);
+}
+
+/*socials open in a new tab, light blue like the planet graphics*/
+a.contact-key {
+  background: #a6d6ed;
+  color: var(--gears-on-coral);
+}
+
+.contact-visit {
+  padding-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  border-top: 1px solid var(--gears-line);
+}
+
+.contact-visit p {
+  margin: 0;
+}
+
+.contact-visit .contact-label {
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--gears-muted);
+}
+
+/*phones: two keys per row, details stacked*/
+@media (max-width: 768px) {
+  .contact-device {
+    padding: 14px;
+  }
+
+  .contact-keys {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contact-visit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-key {
+    transition: none;
+  }
+}
