@@ -2,7 +2,6 @@
 
 .legal-inner {
   max-width: 720px;
-  margin-inline: auto;
   counter-reset: sec;
 }
 

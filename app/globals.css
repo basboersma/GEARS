@@ -401,9 +401,17 @@ main {
 }
 
 .section {
-  max-width: 1120px;
-  margin: 0 auto;
   padding: 3rem 0 0;
+}
+
+main.gutter {
+  padding-inline: 6%;
+}
+
+@media (max-width: 1000px) {
+  main.gutter {
+    padding-inline: 16px;
+  }
 }
 
 .section-alt {
@@ -665,6 +673,10 @@ main {
 @media (max-width: 768px) {
   .site {
     padding-inline: 1.1rem;
+  }
+
+  .site > main.gutter {
+    margin-inline: -1.1rem; /*the gutter replaces .site's side padding*/
   }
 
   .grid-3 {

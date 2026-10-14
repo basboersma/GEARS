@@ -24,7 +24,7 @@
 .mv-root h1, .mv-root h2 { margin: 0; letter-spacing: -0.02em; }
 .mv-root p { margin: 0; }
 
-.mv-wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: 28px; }
+.mv-wrap { width: 100%; }
 
 /* buttons */
 .mv-btn {
