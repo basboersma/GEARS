@@ -37,7 +37,8 @@
 }
 
 .teams-head .teams-label {
-  grid-column: 1 / -1;
+  align-self: end;
+  text-align: right;
 }
 
 .teams-head h1 {
@@ -273,19 +274,6 @@
   .pixel-photo canvas {
     transition: none;
   }
-}
-
-.teams-top > .teams-label {
-  margin-bottom: 0.75em;
-  text-align: right;
-}
-
-.teams-yard .teams-label {
-  position: absolute;
-  inset: 0;
-  padding: 1em;
-  text-align: right;
-  pointer-events: none;
 }
 
 .teams + .page-footer {

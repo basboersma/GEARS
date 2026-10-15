@@ -15,6 +15,7 @@ export default function ActivitiesPage() {
             <h1>
               Visit the teams <span>on the Mars Yard</span>
             </h1>
+            <p className="teams-label">Roll to pick a team</p>
           </div>
 
           <TeamsYard />

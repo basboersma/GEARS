@@ -108,7 +108,6 @@ export function TeamsYard() {
   //html stuff in react :')
   return (
     <>
-      <p className="teams-label">Roll to pick a team</p>
       <div className="teams-yard">
         <canvas
           aria-label=""
