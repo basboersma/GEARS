@@ -274,3 +274,24 @@
     transition: none;
   }
 }
+
+.teams-top > .teams-label {
+  margin-bottom: 0.75em;
+  text-align: right;
+}
+
+.teams-yard .teams-label {
+  position: absolute;
+  inset: 0;
+  padding: 1em;
+  text-align: right;
+  pointer-events: none;
+}
+
+.teams + .page-footer {
+  margin-top: 0;
+}
+
+.teams + .page-footer::before {
+  background-color: var(--gears-ink);
+}

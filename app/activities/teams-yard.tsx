@@ -7,6 +7,7 @@ import { GEAR, paintBackdrop, paintFrame, ROWS } from "./yard-scene";
 
 const FRAME = 1000 / 14; //ms per frame, smol 
 const SPEED = 0.012; //how far the gear moves each frame, in canvas units
+const KEYS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
 //picking a team moves the gear to that team's spot, and shows their info in a card
 export function TeamsYard() {
@@ -89,12 +90,25 @@ export function TeamsYard() {
     setActive(index);
   };
 
+  //arrow keys
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const next = active + (KEYS[event.key ?? 0]); // active + (-1 || 1)
+      if(next !==active && next >= 0 && next < TEAMS.length) {
+        driveTo(next);
+      }
+    };
+      addEventListener("keydown", onKey);
+      return () => removeEventListener("keydown", onKey);
+  });
+
   //current selected team
   const team = TEAMS[active];
 
-  //html stuff: the canvas, the buttons for each team, and the card with the team's info
+  //html stuff in react :')
   return (
     <>
+      <p className="teams-label">Roll to pick a team</p>
       <div className="teams-yard">
         <canvas
           aria-label=""
