@@ -13,7 +13,7 @@
 .topbar-inner {
   position: relative;
   height: 72px;
-  padding: 0 6%;
+  padding: 0 var(--gutter);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -21,7 +21,6 @@
 }
 
 .topbar-brand img {
-  display: block;
   width: auto;
   height: 30px;
 }
@@ -39,8 +38,6 @@
   display: flex;
   align-items: center;
   border-bottom: 2px solid transparent;
-  color: var(--gears-ink);
-  text-decoration: none;
 }
 
 .topbar-nav a:hover {
@@ -63,26 +60,8 @@
   gap: 22px;
 }
 
-.topbar-login {
-  color: var(--gears-ink);
-  text-decoration: none;
-}
-
 .topbar-login:hover {
   color: var(--gears-link);
-}
-
-.topbar-join {
-  padding: 10px 20px;
-  border-radius: 999px;
-  background: var(--gears-coral);
-  color: var(--gears-on-coral);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.topbar-join:hover {
-  background: var(--gears);
 }
 
 .topbar-menu {
@@ -91,8 +70,6 @@
   height: 44px;
   border: 1px solid var(--gears-ink);
   border-radius: 50%;
-  background: transparent;
-  color: inherit;
   font-family: "Courier New", monospace;
   font-size: 18px;
   cursor: pointer;
@@ -101,7 +78,6 @@
 @media (max-width: 1000px) {
   .topbar-inner {
     height: 60px;
-    padding: 0 16px;
   }
 
   .topbar-brand img {
@@ -160,12 +136,5 @@
   .topbar-nav a[aria-current="page"] {
     border-bottom-color: #4a4746;
     color: var(--gears-coral);
-  }
-}
-
-/*this allows that phones also get padding and the header still goes edge to edge*/
-@media (max-width: 768px) {
-  .site > .topbar {
-    margin-inline: -1.1rem;
   }
 }

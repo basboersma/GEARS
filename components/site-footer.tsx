@@ -17,14 +17,14 @@ export function SiteFooter() {
         </div>
 
         <div className="page-footer-col">
-          <p className="page-footer-label">Visit</p>
+          <p className="label">Visit</p>
           <span>Nijenborgh 4</span>
           <span>9747 AG Groningen</span>
           <span>KVK 42017832</span>
         </div>
 
         <div className="page-footer-col">
-          <p className="page-footer-label">Contact</p>
+          <p className="label">Contact</p>
           <a href="mailto:board@gearsnl.org">board@gearsnl.org</a>
           <a
             href="https://www.linkedin.com/company/gearsnl/"
@@ -43,7 +43,7 @@ export function SiteFooter() {
         </div>
 
         <nav aria-label="Footer" className="page-footer-col">
-          <p className="page-footer-label">Pages</p>
+          <p className="label">Pages</p>
           <Link href="/activities">Teams</Link>
           <Link href="/membership">Membership</Link>
           <Link href="/about">About</Link>

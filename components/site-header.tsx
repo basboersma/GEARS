@@ -65,7 +65,7 @@ export function SiteHeader() {
             Log in
           </Link>
           <a
-            className="topbar-join"
+            className="topbar-join pill"
             href={JOIN_DOCS}
             rel="noopener noreferrer"
             target="_blank"

@@ -12,10 +12,10 @@ export default function ActivitiesPage() {
       <main className="teams">
         <section className="teams-top" id="teams">
           <div className="teams-head">
-            <h1>
+            <h1 className="display">
               Visit the teams <span>on the Mars Yard</span>
             </h1>
-            <p className="teams-label">Roll to pick a team</p>
+            <p className="label">Roll to pick a team</p>
           </div>
 
           <TeamsYard />
@@ -30,20 +30,20 @@ export default function ActivitiesPage() {
           />
           <div className="mars-yard-text">
             <div>
-              <p className="teams-label">Dedicated testing area for teams</p>
-              <h2>The Mars Yard</h2>
+              <p className="label">Dedicated testing area for teams</p>
+              <h2 className="display">The Mars Yard</h2>
             </div>
             <dl>
               <div>
-                <dt className="teams-label">Area</dt>
+                <dt className="label">Area</dt>
                 <dd>About 71 m²</dd>
               </div>
               <div>
-                <dt className="teams-label">Opened</dt>
+                <dt className="label">Opened</dt>
                 <dd>1 December 2023</dd>
               </div>
               <div>
-                <dt className="teams-label">Where</dt>
+                <dt className="label">Where</dt>
                 <dd>Winter Garden, Energy Academy</dd>
               </div>
             </dl>

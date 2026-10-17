@@ -15,7 +15,7 @@
 }
 
 .page-footer-grid {
-  padding: 64px 6% 28px;
+  padding: 64px var(--gutter) 28px;
   display: grid;
   grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
   gap: 40px;
@@ -28,13 +28,10 @@
 }
 
 .page-footer-about img {
-  display: block;
   width: 56px;
-  height: auto;
 }
 
 .page-footer-about p {
-  margin: 0;
   max-width: 300px;
 }
 
@@ -45,18 +42,12 @@
   gap: 6px;
 }
 
-.page-footer-label {
-  margin: 0;
+.page-footer .label {
   color: var(--gears-cream);
-  font-family: "Courier New", monospace;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .page-footer a {
   color: var(--gears-link-dark);
-  text-decoration: none;
 }
 
 .page-footer a:hover {
@@ -64,7 +55,7 @@
 }
 
 .page-footer-meta {
-  padding: 20px 6% 32px;
+  padding: 20px var(--gutter) 32px;
   display: flex;
   justify-content: space-between;
   gap: 24px;
@@ -89,16 +80,6 @@
 }
 
 @media (max-width: 768px) {
-  /*goes edge to edge, past the side padding of .site*/
-  .site > .page-footer {
-    margin-inline: -1.1rem;
-  }
-
-  .page-footer-grid,
-  .page-footer-meta {
-    padding-inline: 16px;
-  }
-
   .page-footer-meta {
     flex-direction: column;
     gap: 8px;

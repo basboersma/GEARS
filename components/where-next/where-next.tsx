@@ -57,11 +57,9 @@ const CARDS = [
 export function WhereNext() {
   return (
     <section aria-labelledby="where-next-title" className="where-next">
-      <div className="where-next-head">
-        <h2 id="where-next-title">
-          <span>Where to</span> next
-        </h2>
-      </div>
+      <h2 className="display" id="where-next-title">
+        <span>Where to</span> next
+      </h2>
 
       <div className="where-next-grid">
         {CARDS.map((card) => (
@@ -79,7 +77,7 @@ export function WhereNext() {
               width={400}
             />
             <span className="where-next-body">
-              <span className="where-next-label">{card.label}</span>
+              <span className="label">{card.label}</span>
               <span className="where-next-title">{card.title}</span>
               <span aria-hidden="true" className="where-next-arrow">
                 →

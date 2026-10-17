@@ -144,8 +144,8 @@ export function TeamsYard() {
           )}
         </div>
         <div className="teams-card-body">
-          <p className="teams-label">{team.kind}</p>
-          <h2>{team.name}</h2>
+          <p className="label">{team.kind}</p>
+          <h2 className="display">{team.name}</h2>
           <p>{team.text}</p>
                     {team.bullets.length > 0 && (
             <ul>

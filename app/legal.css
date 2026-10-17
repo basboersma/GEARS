@@ -1,4 +1,4 @@
-.legal { padding-block: 8px 8px; }
+.legal { padding-block: 8px; }
 
 .legal-inner {
   max-width: 720px;
@@ -9,14 +9,14 @@
   font-size: 1.9rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  margin: 0 0 4px;
+  margin-bottom: 4px;
   color: #1f2937;
 }
 
 .legal-updated {
   color: #8a837a;
   font-size: 0.85rem;
-  margin: 0 0 28px;
+  margin-bottom: 28px;
 }
 
 .legal-inner h2 {
@@ -28,7 +28,7 @@
 }
 .legal-inner h2::before {
   content: counter(sec) ". ";
-  color: #bb4429;
+  color: var(--gears-link);
 }
 
 .legal-inner p,
@@ -37,10 +37,10 @@
   color: #4a453f;
   line-height: 1.7;
 }
-.legal-inner p { margin: 0 0 12px; }
+.legal-inner p { margin-bottom: 12px; }
 
 .legal-inner ul {
-  margin: 0 0 12px;
+  margin-bottom: 12px;
   padding-left: 1.2rem;
   display: flex;
   flex-direction: column;
@@ -49,7 +49,7 @@
 .legal-inner li { list-style: disc; }
 
 .legal-inner a {
-  color: #bb4429;
+  color: var(--gears-link);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

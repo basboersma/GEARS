@@ -88,10 +88,10 @@ export function Lanyard() {
         <div className="mv-card">
           <Image alt="" height={714} src="/gears-logo-grey.png" width={764} />
           <div>
-            <p className="mv-card-label">Member...</p>
+            <p className="label">Member...</p>
             <strong>{"This could be you!"}</strong>
           </div>
-          <p className="mv-card-foot">
+          <p className="mv-card-foot label">
             <span>{MEMBERSHIP.year}</span>
             <span>
               {MEMBERSHIP.price} / {MEMBERSHIP.period}

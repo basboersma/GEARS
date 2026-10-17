@@ -9,11 +9,11 @@ export default function ContactPage() {
     <div className="site">
       <SiteHeader />
 
-      <main className="contact">
+      <main className="contact gutter">
         <div className="contact-head">
           <div>
-            <p className="contact-label">Contact &amp; partners</p>
-            <h1>
+            <p className="label">Contact &amp; partners</p>
+            <h1 className="display">
               Talk to
               <br />
               the board
@@ -29,19 +29,19 @@ export default function ContactPage() {
 
         <div className="contact-visit">
           <p>
-            <span className="contact-label">Visit</span>
+            <span className="label">Visit</span>
             Nijenborgh 4
             <br />
             9747 AG Groningen
           </p>
           <p>
-            <span className="contact-label">Where</span>
+            <span className="label">Where</span>
             {COORDINATES}
             <br />
             Zernike campus
           </p>
           <p>
-            <span className="contact-label">Registered</span>
+            <span className="label">Registered</span>
             KVK 42017832
           </p>
         </div>

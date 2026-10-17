@@ -7,13 +7,13 @@ import { CONTACT_EMAIL } from "./data";
 
 export default function MembershipPage() {
   return (
-    <div className="mv-root">
+    <div className="site mv-root">
       <SiteHeader />
 
-      <main className="mv-wrap mv-page">
+      <main className="mv-page gutter">
         <section className="mv-hero">
           <div>
-            <h1 className="mv-title">
+            <h1 className="mv-title display">
               <span>Become</span> a member
             </h1>
             <div className="mv-lede">
@@ -41,7 +41,7 @@ export default function MembershipPage() {
         <section className="mv-ready">
           <div className="mv-ready-bar" />
           <div className="mv-ready-body">
-            <h2>
+            <h2 className="display">
               <span>Ready to join</span> GEARS?
             </h2>
             <p>

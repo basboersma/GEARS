@@ -6,7 +6,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="site">
       <SiteHeader />
-      <main className="legal">
+      <main className="legal gutter">
         <div className="legal-inner">
           <h1>Privacy Policy</h1>
           <p className="legal-updated">Last updated: 29 September 2026</p>

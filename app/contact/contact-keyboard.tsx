@@ -34,12 +34,12 @@ export function ContactKeyboard() {
   return (
     <div className="contact-device">
       <div aria-live="polite" className="contact-screen">
-        <span className="contact-label">{picked.role}</span>
+        <span className="label">{picked.role}</span>
         <div className="contact-screen-row">
           <a className="contact-screen-mail" href={`mailto:${picked.email}`}>
             {picked.email}
           </a>
-          <button className="contact-copy" onClick={copyAddress} type="button">
+          <button className="contact-copy pill" onClick={copyAddress} type="button">
             {copied ? "Copied" : "Copy address"}
           </button>
         </div>
@@ -60,7 +60,7 @@ export function ContactKeyboard() {
             onClick={() => setPicked(contact)}
             type="button"
           >
-            <span className="contact-label">{contact.role}</span>
+            <span className="label">{contact.role}</span>
             {contact.hint && <span>{contact.hint}</span>}
           </button>
         ))}
@@ -73,7 +73,7 @@ export function ContactKeyboard() {
             rel="noopener noreferrer"
             target="_blank"
           >
-            <span className="contact-label">{social.label}</span>
+            <span className="label">{social.label}</span>
             <span aria-hidden="true">↗</span>
           </a>
         ))}

@@ -6,8 +6,8 @@ export default function AboutPage() {
     <div className="site">
       <SiteHeader />
 
-      <main>
-        <section className="section section-alt" id="about">
+      <main className="gutter">
+        <section className="section" id="about">
           <div className="section-header">
             <h2>About GEARS</h2>
             <p>

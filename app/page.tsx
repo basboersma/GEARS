@@ -65,7 +65,7 @@ export default function HomePage() {
 
           <div className="home-hero-band">
             <div className="home-hero-title">
-              <p className="home-hero-label">
+              <p className="home-hero-label label">
                 Groningen Engineering and Robotics Study Association
               </p>
               <h1>
@@ -89,7 +89,7 @@ export default function HomePage() {
                 technical and societal challenges.
               </p>
               <a
-                className="home-hero-join"
+                className="home-hero-join pill"
                 href={JOIN_DOCS}
                 rel="noopener noreferrer"
                 target="_blank"
