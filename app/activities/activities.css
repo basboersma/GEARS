@@ -235,7 +235,3 @@
 .teams + .page-footer {
   margin-top: 0;
 }
-
-.teams + .page-footer::before {
-  background-color: var(--gears-ink);
-}

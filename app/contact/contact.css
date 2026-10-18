@@ -221,7 +221,6 @@
 .contact + .page-footer {
   position: relative;
   margin-top: calc(-128px - 2rem); /*2rem is the .site gap*/
-  background: linear-gradient(transparent 128px, var(--gears-ink) 0);
 }
 
 /*phones and tablets: small gear on top*/

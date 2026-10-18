@@ -1,7 +1,7 @@
 
 .page-footer {
   margin-top: 2.5rem;
-  background: var(--gears-ink);
+  background: linear-gradient(transparent 128px, var(--gears-ink) 0); /*the page shows through the ridge*/
   color: var(--gears-muted-dark);
   font-size: 14px;
   line-height: 1.7;
