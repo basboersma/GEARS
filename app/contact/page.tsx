@@ -42,7 +42,6 @@ export default function ContactPage() {
               width={item.size}
             />
           ))}
-          <p className="label">Contact</p>
           <h1>
             Talk to <span>the board</span>
           </h1>
@@ -58,7 +57,7 @@ export default function ContactPage() {
 
         <div className="contact-dusk">
           <p>Interested in collaborating, sponsoring or just curious?</p>
-          <p>Spin the gear to pick the right person.</p>
+          <p>Spin the gear to pick your contact!</p>
         </div>
 
         <ContactGear />
