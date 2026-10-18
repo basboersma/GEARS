@@ -1,157 +1,258 @@
-/*contact page: a keyboard of the board. press a key and the screen above it
-  shows who you reach. sits on the normal cream page, coral only on board and copy*/
+/*contact page: space, a pixel sunset, then the gears*/
 
 .contact {
-  padding-block: 56px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
+  --dither: 0 0 / 16px 16px repeat-x; /*one row of checker pixels*/
+  flex: none; /*the footer sits right on the gear*/
+  margin-top: -2rem; /*no gap under the header*/
+  overflow: hidden;
+  color: var(--gears-cream);
+  text-align: center;
 }
 
-.contact-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 24px;
-}
-
-.contact-head .label {
-  margin-bottom: 8px;
-  color: var(--gears-muted);
-}
-
-.contact-head h1 {
-  font-size: clamp(64px, 9vw, 150px);
-}
-
-.contact-head p {
-  max-width: 420px;
-  font-size: 18px;
-  color: var(--gears-muted);
-}
-
-/*the device: a screen on top, keys underneath*/
-.contact-device {
-  width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/*charcoal under the footer*/
+.site:has(.contact) {
   background: var(--gears-ink);
-  border-radius: 22px;
 }
 
-.contact-screen {
-  padding: 24px 26px;
+/*desktop: dark header, light logo*/
+@media (min-width: 1001px) {
+  .site:has(.contact) .topbar {
+    border: 0;
+    background: #1c1a1b;
+    color: var(--gears-cream);
+  }
+
+  .site:has(.contact) .topbar-brand img {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
+
+/*space: stars and tiny gears are placed in page.tsx*/
+.contact-space {
+  position: relative;
+  padding: 120px var(--gutter) 200px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: #1b1a1a; /*a step darker than the device*/
-  border-radius: 10px;
+  align-items: center;
+  gap: 22px;
+  background: #1c1a1b;
+}
+
+.contact-sky {
+  position: absolute;
+}
+
+.contact-space .label {
   color: var(--gears-muted-dark);
 }
 
-.contact-screen-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px 24px;
-}
-
-.contact-screen-mail {
+.contact h1 {
+  margin: 0;
   font-family: var(--font-bebas-neue), sans-serif;
-  font-size: clamp(36px, 5.6vw, 84px);
-  line-height: 0.95;
-  color: var(--gears-cream);
-  overflow-wrap: anywhere;
+  font-size: clamp(72px, 13vw, 210px);
+  font-weight: 400;
+  line-height: 0.85;
 }
 
-.contact-screen-mail:hover {
-  color: var(--gears-link-dark);
+.contact h1 span {
+  color: var(--gears-coral);
 }
 
-.contact-copy {
-  font-size: 14px;
+.contact-chute {
+  position: absolute;
+  right: 14%;
+  bottom: 24px;
+  width: clamp(60px, 6vw, 120px);
+  height: auto;
 }
 
-.contact-keys {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-/*keycaps: the thick bottom border is the side of the key, it shrinks when pressed*/
-.contact-key {
-  min-height: 88px;
-  padding: 14px 18px 12px;
+/*sunset bands with dither strips*/
+.contact-dusk {
+  padding: 92px var(--gutter) 64px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
-  border-bottom: 6px solid rgba(0, 0, 0, 0.28);
-  border-radius: 12px;
+  gap: 40px;
+  background:
+    repeating-conic-gradient(#1c1a1b 0 25%, #363435 0 50%) var(--dither),
+    repeating-conic-gradient(#363435 0 25%, #7a3a2c 0 50%) 0 64px / 16px 16px repeat-x,
+    repeating-conic-gradient(#7a3a2c 0 25%, #bb4429 0 50%) 0 152px / 16px 16px repeat-x,
+    repeating-conic-gradient(#bb4429 0 25%, #f0694e 0 50%) 0 240px / 16px 16px repeat-x,
+    linear-gradient(#363435 0 72px, #7a3a2c 0 160px, #bb4429 0 248px, #f0694e 0);
+}
+
+.contact-dusk p {
+  margin: 0;
+  font-size: clamp(18px, 2vw, 26px);
+}
+
+.contact-dusk p + p {
+  color: var(--gears-on-coral);
+}
+
+/*gears*/
+.contact-gears {
+  --gear: 78vw; /*big gear size, the rest follows it*/
+  --small: max(240px, calc(var(--gear) * 0.26));
+  position: relative;
+  height: calc(var(--gear) * 0.72);
+  background: repeating-conic-gradient(#f0694e 0 25%, #f6cbbb 0 50%)
+    var(--dither), linear-gradient(#f6cbbb 0 160px, #f9e3d9 0);
+}
+
+.contact-gears img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.contact-gear-big {
+  position: absolute;
+  top: calc(var(--gear) * 0.16);
+  left: 50%;
+  width: var(--gear);
+  aspect-ratio: 1;
+  margin-left: calc(var(--gear) / -2);
+}
+
+.contact-gear-big,
+.contact-gear-small img {
+  transition: rotate 0.9s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+/*roles on the rim, rotate comes from the component*/
+.contact-tooth {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  transform: translateY(calc(var(--gear) * -0.41));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gears-cream);
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: clamp(26px, calc(var(--gear) * 0.04), 64px);
+  cursor: pointer;
+}
+
+.contact-tooth:hover,
+.contact-tooth[aria-pressed="true"] {
+  color: var(--gears-coral);
+}
+
+/*small gear on the rim, 40deg right of the top*/
+.contact-gear-small {
+  --reach: calc(var(--gear) / 2 + var(--small) * 0.5);
+  position: absolute;
+  top: calc(var(--gear) * 0.66 - var(--reach) * 0.766 - var(--small) / 2);
+  left: calc(50% + var(--reach) * 0.643 - var(--small) / 2);
+  width: var(--small);
+  aspect-ratio: 1;
+}
+
+.contact-card {
+  position: absolute;
+  inset: 11%;
+  padding: 0 6%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border-radius: 50%;
   background: var(--gears-cream);
   color: var(--gears-ink);
-  font-size: 15px;
-  text-align: left;
-  cursor: pointer;
-  transition: transform 0.08s, border-bottom-width 0.08s;
 }
 
-.contact-key:active,
-.contact-key[aria-pressed="true"] {
-  transform: translateY(4px);
-  border-bottom-width: 2px;
-}
-
-/*board is the default and the widest key*/
-.contact-key-board {
-  grid-column: span 2;
-  background: var(--gears-coral);
-  color: var(--gears-on-coral);
-}
-
-/*socials open in a new tab, light blue like the planet graphics*/
-a.contact-key {
-  background: #a6d6ed;
-  color: var(--gears-on-coral);
-}
-
-.contact-visit {
-  padding-top: 20px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  border-top: 1px solid var(--gears-line);
-}
-
-.contact-visit .label {
-  margin-bottom: 4px;
+.contact-card .label {
   font-size: 11px;
   color: var(--gears-muted);
 }
 
-/*phones: two keys per row, details stacked*/
-@media (max-width: 768px) {
-  .contact-device {
-    padding: 14px;
+.contact-card h2 {
+  margin: 0;
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: clamp(30px, 3vw, 42px);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.contact-card a {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gears-link);
+  overflow-wrap: anywhere;
+}
+
+.contact-copy {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gears-coral);
+  color: var(--gears-on-coral);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.contact-turn {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contact-arrow {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: var(--gears-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.contact-arrow:hover {
+  color: var(--gears-coral);
+}
+
+/*see-through ridge over the gear*/
+.contact + .page-footer {
+  position: relative;
+  margin-top: calc(-128px - 2rem); /*2rem is the .site gap*/
+  background: linear-gradient(transparent 128px, var(--gears-ink) 0);
+}
+
+/*phones and tablets: small gear on top*/
+@media (max-width: 1000px) {
+  .contact-gears {
+    --gear: min(150vw, 1100px);
+    height: auto;
+    padding: 40px 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
-  .contact-keys {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .contact-gear-small {
+    order: -1;
+    position: relative;
+    top: auto;
+    left: auto;
   }
 
-  .contact-visit {
-    grid-template-columns: minmax(0, 1fr);
+  .contact-gear-big {
+    position: relative;
+    left: auto;
+    top: auto;
+    margin: 24px 0 calc(var(--gear) * -0.4);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .contact-key {
+  .contact-gear-big,
+  .contact-gear-small img {
     transition: none;
   }
 }
