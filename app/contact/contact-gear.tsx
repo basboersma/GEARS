@@ -26,7 +26,7 @@ const CONTACTS = [
     line: "Finances, invoices",
   },
   {
-    role: "External",
+    role: "Extern",
     email: "extern@gearsnl.org",
     line: "Partners, sponsors",
   },
