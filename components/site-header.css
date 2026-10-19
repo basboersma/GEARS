@@ -4,9 +4,8 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  border-bottom: 1px solid var(--gears-line);
-  background: #fff;
-  color: var(--gears-ink);
+  background: var(--gears-ink); 
+  color: var(--gears-cream);
   font-size: 15px;
 }
 
@@ -23,6 +22,7 @@
 .topbar-brand img {
   width: auto;
   height: 30px;
+  filter: invert(1) hue-rotate(180deg); /*this stuff inverts the logo to cream on dark background, BUT hue 180 degrees keeps hues as og*/
 }
 
 .topbar-nav {
@@ -41,12 +41,12 @@
 }
 
 .topbar-nav a:hover {
-  color: var(--gears-link);
+  color: var(--gears-coral);
 }
 
 .topbar-nav a[aria-current="page"] {
   border-bottom-color: var(--gears-coral);
-  color: var(--gears-link);
+  color: var(--gears-coral);
 }
 
 /*log in sits in the actions on desktop and in the menu on phones*/
@@ -61,15 +61,17 @@
 }
 
 .topbar-login:hover {
-  color: var(--gears-link);
+  color: var(--gears-coral);
 }
 
 .topbar-menu {
   display: none;
   width: 44px;
   height: 44px;
-  border: 1px solid var(--gears-ink);
+  border: 1px solid;
   border-radius: 50%;
+  background: none;
+  color: inherit;
   font-family: "Courier New", monospace;
   font-size: 18px;
   cursor: pointer;
