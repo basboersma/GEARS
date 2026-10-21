@@ -23,7 +23,7 @@
 
 /* page rhythm, .site already adds 2rem above and below */
 .mv-page { padding-block: 24px 40px; }
-.mv-title { font-size: clamp(72px, 9vw, 140px); letter-spacing: -0.02em; }
+.mv-title { font-size: clamp(72px, 9vw, 140px); }
 .mv-lede { margin-top: 28px; font-size: 1.08rem; max-width: 62ch; } /*gap under the title*/
 .mv-lede p + p { margin-top: 14px; }
 .mv-note { color: var(--muted); font-size: 0.98rem; margin-top: 14px; }

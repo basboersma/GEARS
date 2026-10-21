@@ -42,7 +42,7 @@ export default function ContactPage() {
               width={item.size}
             />
           ))}
-          <h1>
+          <h1 className="display">
             Talk to <span>the board</span>
           </h1>
           {/*a letter on its way down*/}

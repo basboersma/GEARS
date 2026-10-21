@@ -1,15 +1,16 @@
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { Tonight } from "./tonight";
 
 export default function AboutPage() {
   return (
     <div className="site">
       <SiteHeader />
+      <Tonight />
 
       <main className="gutter">
         <section className="section" id="about">
           <div className="section-header">
-            <h2>About GEARS</h2>
             <p>
               GEARS is a student-led STEM association that provides
               opportunities for challenge-based learning through

@@ -14,19 +14,6 @@
   background: var(--gears-ink);
 }
 
-/*desktop: dark header, light logo*/
-@media (min-width: 1001px) {
-  .site:has(.contact) .topbar {
-    border: 0;
-    background: #1c1a1b;
-    color: var(--gears-cream);
-  }
-
-  .site:has(.contact) .topbar-brand img {
-    filter: invert(1) hue-rotate(180deg);
-  }
-}
-
 /*space: stars and tiny gears are placed in page.tsx*/
 .contact-space {
   position: relative;
@@ -48,14 +35,7 @@
 
 .contact h1 {
   margin: 0;
-  font-family: var(--font-bebas-neue), sans-serif;
   font-size: clamp(72px, 13vw, 210px);
-  font-weight: 400;
-  line-height: 0.85;
-}
-
-.contact h1 span {
-  color: var(--gears-coral);
 }
 
 .contact-chute {

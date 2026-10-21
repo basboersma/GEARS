@@ -191,6 +191,7 @@ main :is(p, li) {
 .display {
   font-family: var(--font-bebas-neue), sans-serif;
   font-weight: 400;
+  letter-spacing: -0.02em; /*the same on every title*/
   line-height: 0.9;
 }
 

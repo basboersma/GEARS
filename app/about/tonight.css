@@ -1,0 +1,228 @@
+/*about page: a tv guide, the masthead, the tv and tonight's schedule*/
+
+.tonight {
+  --line: 2px solid var(--gears-on-coral);
+  margin-top: -2rem; /*no gap under the header*/
+  background: #f3ede1;
+  color: var(--gears-on-coral);
+}
+
+:where(.tonight button) {
+  all: unset; /*zero specificity, so the classes below win*/
+  cursor: pointer;
+}
+
+.tonight button:active {
+  scale: 0.97;
+}
+
+.tonight button:focus-visible {
+  outline: 3px solid var(--gears-coral);
+}
+
+.tonight-head,
+.tonight-guide button {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.tonight-head {
+  flex-wrap: wrap;
+  padding: 34px var(--gutter) 26px;
+}
+
+.tonight h1 {
+  margin: 14px 0 0;
+  font-size: clamp(72px, 13vw, 196px);
+}
+
+.tonight em,
+.tonight-guide {
+  font-family: var(--font-serif), serif;
+}
+
+.tonight-host {
+  display: grid;
+  justify-items: center;
+  font-size: 22px;
+}
+
+.tonight-host img {
+  width: clamp(90px, 12vw, 180px);
+  height: auto;
+}
+
+/*the tv on a coral wall, the guide next to it*/
+.tonight-main {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  border-block: var(--line);
+}
+
+.tonight-wall {
+  padding: 50px var(--gutter);
+  background: var(--gears-coral);
+}
+
+/*tv.png has a hole for the screen, so everything sits in % of the png*/
+.tv {
+  position: relative;
+  max-width: 720px;
+  aspect-ratio: 720 / 500;
+}
+
+.tv-screen {
+  position: absolute;
+  inset: 6.4% 23.1% 9.6% 4.7%;
+  overflow: hidden;
+  border-radius: 7.7% / 7.1%;
+}
+
+.tv-screen > img {
+  object-fit: cover;
+  object-position: 50% 60%;
+}
+
+/*scanlines over whatever is on screen*/
+.tv-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(transparent 0 2px, #0004 2px 4px);
+}
+
+.tv-board {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  background: var(--gears-coral);
+}
+
+.tv-board img {
+  width: 25%;
+  height: 80%;
+  object-fit: contain;
+}
+
+.tv-lower {
+  position: absolute;
+  inset: auto 5% 5%;
+  margin: 0;
+  padding: 10px 14px;
+  background: #fffdf9ee;
+  font-family: var(--font-serif), serif;
+  font-size: clamp(20px, 2.4vw, 30px);
+}
+
+.tv-lower .label {
+  font-size: 11px;
+}
+
+@keyframes noise {
+  50% {
+    background-position: 30px -20px;
+  }
+}
+
+.tv-noise {
+  position: absolute;
+  inset: 0;
+  background: repeating-radial-gradient(#fff 0 1px, #000 1px 3px);
+  animation: noise 0.12s steps(2) infinite;
+}
+
+.tv-knob {
+  position: absolute;
+  top: 9.6%;
+  left: 83.3%;
+  width: 11.1%;
+  border-radius: 50%;
+  transition: rotate 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tv-knob img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/*a soft coral pulse until someone turns it*/
+@keyframes hint {
+  to {
+    box-shadow: 0 0 0 16px #f0694e00;
+  }
+}
+
+.tv-knob.hint {
+  box-shadow: 0 0 0 0 #f0694ecc;
+  animation: hint 1.6s ease-out infinite;
+}
+
+.tv-keys {
+  position: absolute;
+  top: 31%;
+  left: 82.5%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 12.8%;
+}
+
+.tv-keys button {
+  aspect-ratio: 34 / 30;
+  border-radius: 5px;
+  background: #2b2420;
+  color: #e9e2d8;
+  font-family: var(--font-mono), monospace;
+  font-size: clamp(9px, 1vw, 13px);
+  text-align: center;
+}
+
+.tv-keys [aria-pressed="true"] {
+  background: var(--gears-coral);
+  color: var(--gears-on-coral);
+}
+
+/*tonight's schedule*/
+.tonight-guide {
+  padding: 40px var(--gutter);
+  font-size: clamp(24px, 2.2vw, 30px);
+}
+
+.tonight-guide h2 {
+  margin: 0 0 22px;
+  font-size: clamp(44px, 4.4vw, 64px);
+  font-weight: 400;
+}
+
+.tonight-guide em {
+  color: var(--gears-coral);
+}
+
+.tonight-guide button {
+  align-items: baseline;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 14px 0;
+  border-top: var(--line);
+}
+
+.tonight-guide button:hover {
+  color: var(--gears-link);
+}
+
+.tonight mark {
+  margin-left: auto;
+  padding: 3px 8px;
+  background: var(--gears-coral);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tonight * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
