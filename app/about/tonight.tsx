@@ -16,12 +16,12 @@ const ART = "/assets/about";
 
 //one programme per channel, each with its own photo, channel 5 is us
 const SHOWS = [
-  { title: "GEARS One", src: `${ART}/board.jpg` },
-  { title: "Workshop", src: "/journey/makercie-00.jpg" },
-  { title: "Paperwork", src: "/journey/makercie-04.jpg" },
-  { title: "Members", src: "/journey/makercie-11.jpg" },
-  { title: "The Board", src: "" },
-  { title: "Goals", src: "/journey/kiwi-mexico.jpg" },
+  { title: "About GEARS", src: `${ART}/board.jpg` },
+  { title: "What We Do", src: "/journey/makercie-00.jpg" },
+  { title: "Handling paperwork", src: "/journey/makercie-04.jpg" },
+  { title: "What members get", src: "/journey/makercie-11.jpg" },
+  { title: "Starring the board", src: "" },
+  { title: "Our objectives", src: "/journey/kiwi-mexico.jpg" },
 ];
 
 const BOARD = ["chair", "secretary", "treasurer", "extern"];
