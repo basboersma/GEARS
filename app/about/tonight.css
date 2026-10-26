@@ -3,7 +3,7 @@
 .tonight {
   --line: 2px solid var(--gears-on-coral);
   margin-top: -2rem; /*no gap under the header*/
-  background: #f3ede1;
+  background: var(--gears-cream);
   color: var(--gears-on-coral);
 }
 
@@ -74,6 +74,7 @@
 }
 
 .tv-screen {
+  container-type: size; /*the shows size themselves in cqw*/
   position: absolute;
   inset: 6.4% 23.1% 9.6% 4.7%;
   overflow: hidden;
@@ -109,16 +110,19 @@
 
 .tv-lower {
   position: absolute;
+  z-index: 1; /*above the scanlines, so it reads on any show*/
   inset: auto 5% 5%;
   margin: 0;
   padding: 10px 14px;
-  background: #fffdf9ee;
+  background: #fffdf9;
+  box-shadow: 0 6px 16px #1c1a1b40;
   font-family: var(--font-serif), serif;
   font-size: clamp(20px, 2.4vw, 30px);
 }
 
 .tv-lower .label {
   font-size: 11px;
+  color: var(--gears-link);
 }
 
 @keyframes noise {
@@ -130,6 +134,8 @@
 .tv-noise {
   position: absolute;
   inset: 0;
+  display: grid;
+  place-items: center;
   background: repeating-radial-gradient(#fff 0 1px, #000 1px 3px);
   animation: noise 0.12s steps(2) infinite;
 }
@@ -218,6 +224,295 @@
   margin-left: auto;
   padding: 3px 8px;
   background: var(--gears-coral);
+}
+
+.tv-noise img {
+  width: 34%;
+  height: auto;
+}
+
+/*the shows, one per channel, sized to the screen*/
+.show {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  font-size: 4cqw;
+}
+
+.show-game b,
+.show-credits b {
+  display: block;
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: 10cqw;
+  font-weight: 400;
+  line-height: 0.9;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/*a game show, the bulbs blink*/
+.show-game {
+  padding: 6cqh 6cqw;
+  background: #2a1440;
+  color: #ffe58a;
+  text-align: center;
+}
+
+.show-game::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, #ffe58a 0 0.6cqw, transparent 0.7cqw) 0 0
+    / 5cqw 5cqw;
+  animation: blink 0.8s steps(1) infinite;
+}
+
+.show-game > * {
+  position: relative;
+}
+
+.show-game p {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3cqw;
+  margin: 5cqh 0 0;
+}
+
+.show-game span {
+  padding: 8cqh 0;
+  border: 1cqw solid #f6c42c;
+  border-radius: 2cqw;
+  background: var(--gears-coral);
+  color: #fffdf9;
+  font-family: var(--font-bebas-neue), sans-serif;
+  font-size: 18cqw;
+  line-height: 1;
+}
+
+/*a talk show stage, three still spotlights*/
+
+.notes h2 span,
+.page-dark .display span {
+  color: var(--gears-coral);
+}
+
+@keyframes roll {
+  from {
+    transform: translateY(100cqh);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+/*the end credits roll*/
+.show-credits {
+  background: #000;
+  color: #f3ede1;
+  text-align: center;
+}
+
+.show-credits p {
+  margin: 0;
+  line-height: 2;
+  animation: roll 14s linear infinite;
+}
+
+/*tonight's notes, the script: a booklet that turns to the channel on air*/
+.notes {
+  padding: 80px var(--gutter) 100px;
+  background: var(--gears-cream); /*same as every other page*/
+}
+
+.notes-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.notes h2 {
+  margin: 0 auto 0 0;
+  font-size: clamp(56px, 7vw, 96px);
+}
+
+.notes-head button {
+  padding: 12px 20px;
+  border: var(--line);
+  border-radius: 999px;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+/*every spread is the same size*/
+.spread {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  background: #fff;
+  box-shadow: 0 40px 60px -24px #1c1a1b88;
+}
+
+@media (min-width: 900px) {
+  .spread {
+    height: 640px;
+  }
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 48px;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--font-serif), serif; /*every page reads in the same serif*/
+  font-size: 21px;
+  line-height: 1.3;
+}
+
+.page + .page {
+  border-left: 2px solid #1c1a1b22;
+}
+
+.page h3 {
+  margin: 0;
+  font-size: clamp(56px, 7vw, 110px);
+  color: var(--gears-coral);
+  text-shadow: 3px 2px 0 #1c1a1b40; /*a hair off register, like riso*/
+}
+
+.page h4 {
+  margin: 0;
+  font-size: 40px;
+}
+
+.page p,
+.page ul,
+.page ol {
+  margin: 0;
+}
+
+.page ul,
+.page ol {
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.page ol {
+  list-style: decimal;
+}
+
+.lead {
+  font-family: var(--font-serif), serif;
+  font-size: 30px;
+  line-height: 1.25;
+}
+
+.page-coral {
+  background: var(--gears-coral);
+}
+
+.page-coral h3 {
+  color: var(--gears-on-coral);
+}
+
+/*the paperwork drawing lies on top of the photo*/
+.page > img {
+  position: relative;
+  width: 80%;
+  height: auto;
+  margin: -22% 0 0 auto;
+}
+
+/*on the coral cover the photo prints plain grey*/
+.page-coral .riso {
+  background: #fff;
+}
+
+.page-dark {
+  justify-content: center;
+  background: var(--gears-on-coral);
+  color: #f4f2f0;
+}
+
+.page-dark .display {
+  font-size: clamp(56px, 7vw, 110px);
+}
+
+/*the contact window and page: a night sky like the contact page*/
+a.page-dark {
+  background-image: radial-gradient(circle, #fff 0 1px, transparent 1.5px),
+    radial-gradient(circle, #f0694e 0 1px, transparent 1.5px);
+  background-size: 100px 76px, 140px 106px;
+  background-position: 0 0, 50px 40px;
+}
+
+a.page-dark {
+  position: relative;
+}
+
+.chute {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  width: 70px;
+}
+
+.riso {
+  position: relative;
+  aspect-ratio: 4 / 3; /*landscape, so photos are not cropped too far*/
+  overflow: hidden;
+  background: var(--gears-coral);
+}
+
+/*the halftone dots over every riso photo*/
+.riso::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, #1c1a1b 0 1.1px, transparent 1.7px) 0 0 /
+    6px 6px;
+  mix-blend-mode: multiply;
+  opacity: 0.15;
+}
+
+.riso img {
+  object-fit: cover;
+  scale: 1.08; /*crops dark edges some photos have at the bottom*/
+  transform-origin: 50% 0;
+  filter: grayscale(1) brightness(1.25); /*soft enough to still see the photo*/
+  mix-blend-mode: multiply;
+}
+
+/*all four in one row, so the whole board fits the page*/
+.cast {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.cast .riso {
+  aspect-ratio: 3 / 4;
+}
+
+.cast .riso img {
+  object-fit: contain;
+  object-position: 50% 100%;
+  scale: 1;
+}
+
+.cast a {
+  color: var(--gears-link);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
 }
 
 @media (prefers-reduced-motion: reduce) {
