@@ -33,7 +33,8 @@
   right: 0;
   bottom: 0;
   z-index: 2;
-  height: var(--band-height);
+  display: grid; /*lets the band grow up when the text needs more room*/
+  min-height: var(--band-height);
   background: linear-gradient(
     180deg,
     rgba(54, 52, 53, 0) 0%,
@@ -63,7 +64,6 @@
 }
 
 .home-hero-body {
-  height: 100%;
   /*the top padding clears the half of the logo that hangs into the band*/
   padding: calc(var(--logo-width) * 0.105 + 32px) var(--gutter) 40px;
   display: flex;
